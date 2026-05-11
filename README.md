@@ -39,19 +39,57 @@ npx git+ssh://...ai-toolkit.git install --skills code-review-checklist --tool an
 ```
 ai-toolkit install   --tool <name> [--preset <name>] [--skills a,b] [--agents c]
                      [--commands d] [--hooks e] [--rules f]
-                     [--scope global|workspace] [--target <path>] [--dry-run]
+                     [--scope global|workspace] [--target <path>]
+                     [--force]   # overwrite existing or locally-edited dests
+                     [--link]    # symlink where possible (DRY self-hosting)
+                     [--dry-run]
 
 ai-toolkit update    [--target <path>] [--force] [--dry-run]
 
 ai-toolkit remove    [--target <path>] [--skills a,b] [--agents c]
                      [--commands d] [--hooks e] [--all] [--dry-run]
 
-ai-toolkit list      [--type skills|agents|commands|hooks|presets|tools]
+ai-toolkit list      [--type skills|agents|commands|hooks|rules|presets|tools]
 
 ai-toolkit installed [--target <path>]
 ```
 
-A lockfile (`.ai-toolkit-lock.json`) is written into the target directory. It records the tool, scope, preset, and a SHA per installed asset. `update` uses this to detect upstream changes and local edits.
+A lockfile (`.ai-toolkit-lock.json`) is written into the target directory. It records the tool, scope, preset, and both source/destination SHAs per installed asset. `update` uses the source SHA to detect upstream changes and the destination SHA to detect local edits.
+
+### Safety
+
+`install` is **non-destructive**: if a destination already exists and (a) the lockfile doesn't track it, or (b) the on-disk content has been edited since last install, it skips with a warning. Pass `--force` to overwrite.
+
+### Frontmatter transformation
+
+For tools whose destination format expects its own frontmatter contract (Cursor `.mdc`, VS Code Copilot `.instructions.md` / `.prompt.md` / `.chatmode.md`), each tool block in [`config/tools.json`](config/tools.json) declares a `frontmatter` template. The installer parses the source asset's frontmatter, strips it, builds the tool-specific frontmatter from the template (with `{description}` etc. substituted from source), and writes that to the destination above the body.
+
+Per-asset overrides via the source frontmatter:
+
+```yaml
+---
+name: ts-only-rule
+description: A rule scoped to TypeScript files.
+presets:
+  - quality-gates
+overrides:
+  cursor:
+    globs: "**/*.ts"
+    alwaysApply: true
+  vscode-copilot:
+    applyTo: "src/**/*.ts"
+---
+```
+
+### Sidecars
+
+For tools that need a sibling metadata file (e.g. Kiro hooks need a `.kiro.hook` JSON descriptor), the tool config declares a `sidecar` block. Install generates it; remove tears it down.
+
+### --link mode (DRY self-hosting)
+
+`--link` symlinks the destination back to the source asset rather than copying. Edits to a source file then propagate to consumers immediately. Used by `make bootstrap` so the toolkit self-hosts: contributors can edit `skills/foo/SKILL.md` and Claude Code picks up the change without re-running install.
+
+Symlinks are used where the destination format matches the source byte-for-byte (no frontmatter transform). For tools whose destination requires a transform (Cursor `.mdc`, Copilot `.instructions.md`), `--link` falls back to a copy with a warning.
 
 ## Adding a new tool
 
@@ -143,6 +181,8 @@ Everything routes through the Makefile:
 ```bash
 make help              # list all available targets
 make dev               # install deps
+make bootstrap         # self-host: install toolkit's own assets into .claude/.cursor/.github/
+make unbootstrap       # remove the bootstrapped dirs
 make test-watch        # TDD inner loop
 make test              # all tests (unit + integration)
 make test-unit         # unit tests only
@@ -156,6 +196,20 @@ make smoke             # end-to-end smoke test in a temp directory
 make release-check     # lint + test + scan + verify-tools + verify-manifest
 make tag VERSION=x.y.z # tag a new release
 ```
+
+### Contributing workflow
+
+After cloning the repo:
+
+```bash
+make dev               # npm install
+make bootstrap         # set up the toolkit's own .claude/, .cursor/, .github/
+make test              # confirm everything's green before changes
+```
+
+The bootstrap step symlinks the source assets (`skills/`, `agents/`, `commands/`, `rules/`) into per-tool directories at the repo root. Your IDE picks them up immediately. Edit a source asset, and (for symlinked destinations) the consumer sees the change without re-running anything. Where format-transform is required (Cursor `.mdc`, Copilot `.instructions.md`), re-run `make bootstrap` to refresh.
+
+Generated bootstrap dirs (`.claude/`, `.cursor/`, `.github/`, `.kiro/`) are gitignored.
 
 This project is built strictly TDD — every behavior has a failing test before any production code. Test runner is Node's built-in `node --test`; no external test framework, no dev dependencies.
 

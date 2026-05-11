@@ -1,5 +1,5 @@
 .DEFAULT_GOAL := help
-.PHONY: help install test test-unit test-integration test-watch coverage lint scan clean smoke verify-tools verify-manifest register tag release-check ci dev
+.PHONY: help install test test-unit test-integration test-watch coverage lint scan clean smoke verify-tools verify-manifest register bootstrap unbootstrap tag release-check ci dev
 
 # ---------- Help ----------
 
@@ -56,6 +56,12 @@ register:  ## Regenerate manifest.json from asset frontmatter
 
 verify-manifest:  ## Fail if manifest.json is out of date relative to asset frontmatter
 	node scripts/register.js --check
+
+bootstrap:  ## Symlink toolkit's own assets into .claude/.cursor/.github/ for self-hosting
+	./scripts/bootstrap.sh
+
+unbootstrap:  ## Remove the bootstrapped .claude/.cursor/.github/ trees
+	rm -rf .claude .cursor .github
 
 # ---------- End-to-end ----------
 

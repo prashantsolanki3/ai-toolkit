@@ -54,13 +54,13 @@ find <target> -type f
 
 - **Target:** `.cursor/` (workspace only — Cursor has no documented global rules path)
 - **Expected layout after install:**
-  - `.cursor/rules/code-review-checklist.mdc`
+  - `.cursor/rules/code-review-checklist.mdc` — with frontmatter `{ description, globs, alwaysApply }` generated from the source.
 - **How to verify ingestion:**
   1. Open the project in Cursor.app.
   2. Open Cursor Settings → Rules. The `code-review-checklist` rule should be listed.
-  3. Open Composer / Chat; the rule body should appear in the context preview (Cursor surfaces active rules in its prompt builder).
+  3. Open Composer / Chat; the rule body should appear in the context preview.
   4. Trigger a generation that should match the rule's `globs` (if set) and confirm the rule fires.
-- **Caveats:** Our source `SKILL.md` files do not include Cursor-specific frontmatter (`description`, `globs`, `alwaysApply`). Cursor will still load the file but treats it as a fallback rule. To get full Cursor semantics, add that frontmatter to your skill source or run a post-install hook to inject it.
+- **No longer a caveat — automated:** Cursor frontmatter (description/globs/alwaysApply) is injected automatically by the installer based on the tool config in [`config/tools.json`](../config/tools.json). Per-asset overrides via `overrides.cursor.{globs, alwaysApply}` in the source frontmatter.
 - **Last verified:** _pending_
 
 ## antigravity
@@ -85,16 +85,16 @@ find <target> -type f
 
 - **Target:** `.github/` (workspace only — Copilot reads `.github/` from the repo)
 - **Expected layout after install:**
-  - `.github/instructions/code-review-checklist.instructions.md`
-  - `.github/prompts/summarize-diff.prompt.md` (if `--commands` passed)
-  - `.github/chatmodes/senior-architect.chatmode.md` (if `--agents` passed)
+  - `.github/instructions/code-review-checklist.instructions.md` — frontmatter `{ description, applyTo: "**" }`
+  - `.github/prompts/summarize-diff.prompt.md` — frontmatter `{ description, mode: "agent" }`
+  - `.github/chatmodes/senior-architect.chatmode.md` — frontmatter `{ description }`
 - **How to verify ingestion:**
   1. Open the workspace in VS Code with the GitHub Copilot extension installed.
-  2. Enable workspace setting `chat.promptFiles: true` (and `chat.instructionsFilesLocations` / `chat.modeFilesLocations` if you keep files elsewhere). Without this, Copilot ignores the files.
+  2. **Required:** enable workspace setting `chat.promptFiles: true` (and `chat.instructionsFilesLocations` / `chat.modeFilesLocations` if you keep files elsewhere). Without this, Copilot ignores the files.
   3. Run the **"Chat: Configure Chat Instructions"** command (palette) — the installed instruction file should appear in the list.
-  4. Open Copilot Chat. The `applyTo`-matched instruction should be surfaced or attached automatically; if it isn't, attach it manually and confirm it shows in the message context.
-  5. Custom chat modes: open the mode selector in Copilot Chat. The installed `*.chatmode.md` should appear; select it and confirm the persona is applied.
-- **Caveats:** Our source `SKILL.md` files don't include the `applyTo` frontmatter that Copilot uses to scope instructions. After install, edit each `.instructions.md` to add `applyTo: '**'` (or a more specific glob). A future improvement: a `--postprocess` install hook that injects target-specific frontmatter.
+  4. Open Copilot Chat. The `applyTo`-matched instruction should be surfaced or attached automatically.
+  5. Custom chat modes: open the mode selector. The installed `*.chatmode.md` should appear; select it and confirm the persona is applied.
+- **No longer a caveat — automated:** `applyTo` for instructions, `mode` for prompts, and `description` for chat modes are now injected by the installer (`config/tools.json`). Per-asset overrides via `overrides.vscode-copilot.{applyTo, mode, tools, model}`.
 - **Last verified:** _pending_
 
 ## copilot-cli
@@ -117,12 +117,13 @@ find <target> -type f
 - **Expected layout after install:**
   - `.kiro/steering/code-review-checklist.md`
   - `.kiro/hooks/pre-commit-lint.sh` (if `--hooks` passed)
+  - `.kiro/hooks/pre-commit-lint.kiro.hook` — JSON sidecar generated automatically: `{ name, description, command, enabled }`
 - **How to verify ingestion:**
   1. Open the workspace in AWS Kiro.
   2. Open the Kiro side panel → Steering. The installed steering file should appear in the list (Kiro reads `.kiro/steering/*.md` automatically).
   3. Start a Kiro agent task. Confirm the agent references the steering content (the steering should appear in the context or affect generation).
-  4. Hooks: a `.sh` in `.kiro/hooks/` is not sufficient on its own — Kiro registers hooks via `.kiro.hook` JSON files alongside the script. Either create the JSON by hand or use Kiro's "Agent Hooks" UI to register your script.
-- **Caveats:** The Kiro asset model evolves; cross-check against the live docs before relying on this for production.
+  4. Hooks: open the Agent Hooks panel. The hook should be registered automatically because the installer generates the `.kiro.hook` JSON sidecar alongside the `.sh`. Verify the script path in the hook descriptor points at `./<name>.sh` relative to `.kiro/hooks/`.
+- **No longer a caveat — automated:** The `.kiro.hook` JSON descriptor is generated alongside the script (`config/tools.json` declares the sidecar template). Adjust the template there if Kiro's hook schema changes.
 - **Last verified:** _pending_
 
 ## kiro-cli
