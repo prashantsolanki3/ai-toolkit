@@ -85,6 +85,34 @@ overrides:
 
 For tools that need a sibling metadata file (e.g. Kiro hooks need a `.kiro.hook` JSON descriptor), the tool config declares a `sidecar` block. Install generates it; remove tears it down.
 
+### Evals
+
+A skill (or agent) can ship a sibling `eval.json` declaring deterministic test cases:
+
+```jsonc
+{
+  "version": "1.0",
+  "target_pass_rate": 0.85,
+  "tests": [
+    {
+      "id": "rejects-bare-lgtm",
+      "input": "Review this PR: 'LGTM, nothing to add.'",
+      "assertions": [
+        { "type": "contains_any_of", "value": ["concrete", "specific", "line"] },
+        { "type": "not_exact_match", "value": "LGTM" }
+      ]
+    }
+  ]
+}
+```
+
+`eval.json` is **data, not code** — the toolkit doesn't ship a runtime. Evals run inside your IDE's agent loop via two commands shipped through ai-toolkit (preset `skill-development`):
+
+- `/eval-skill <name>` — runs the suite, reports per-test pass/fail and aggregate rate. Read-only.
+- `/improve-skill <name>` — runs the suite, and if the rate is below the target, the agent proposes edits to the skill body, asks for approval, and iterates.
+
+Because the runner is the IDE's existing agent, **no separate API key is needed** — you pay only for whatever your IDE already covers. See [`docs/eval-format.md`](docs/eval-format.md) for the full schema and the assertion catalog.
+
 ### --link mode (DRY self-hosting)
 
 `--link` symlinks the destination back to the source asset rather than copying. Edits to a source file then propagate to consumers immediately. Used by `make bootstrap` so the toolkit self-hosts: contributors can edit `skills/foo/SKILL.md` and Claude Code picks up the change without re-running install.

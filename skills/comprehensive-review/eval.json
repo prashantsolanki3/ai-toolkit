@@ -1,0 +1,56 @@
+{
+  "version": "1.0",
+  "skill": "comprehensive-review",
+  "description": "Pins the comprehensive-review skill against the failure modes called out in evaluations/bad-review.md and the shape laid out in evaluations/good-review.md.",
+  "target_pass_rate": 0.85,
+  "model_hint": "Any modern instruction-following LLM. Tested informally against Claude Sonnet 4.6 and GPT-4o.",
+  "tests": [
+    {
+      "id": "rejects-bare-lgtm",
+      "description": "A 'looks good, nothing to add' style response is the canonical failure mode; the skill must surface concrete observations instead.",
+      "input": "Please review this PR description: 'Adds rate limiting to /api/users. LGTM, nothing to add.'",
+      "assertions": [
+        { "type": "contains_any_of", "value": ["concrete", "specific", "observation", "line", "design", "test", "fail"] },
+        { "type": "not_exact_match", "value": "LGTM" },
+        { "type": "min_length", "value": 80 }
+      ]
+    },
+    {
+      "id": "avoids-design-rant",
+      "description": "Sprawling 'rewrite the whole thing as hexagonal architecture' suggestions are out-of-scope and the skill must keep the review actionable for the current diff.",
+      "input": "Review this PR: it adds a 30-line function that validates a date string. The reviewer is tempted to suggest rewriting the entire validation layer.",
+      "assertions": [
+        { "type": "contains_any_of", "value": ["scope", "actionable", "small", "current change", "this diff"] },
+        { "type": "not_contains", "value": "hexagonal architecture" },
+        { "type": "max_length", "value": 4000 }
+      ]
+    },
+    {
+      "id": "anchors-claims-to-specific-frames",
+      "description": "Speculation without a specific reference is a soft-failure pattern; assertions about memory, perf, or correctness must point at a file/line/function.",
+      "input": "Review this PR: it adds a Map<string, number> that grows for the lifetime of the process. Decide whether to flag a memory concern.",
+      "assertions": [
+        { "type": "contains_any_of", "value": ["line", "function", "file", "Map", "lifetime", "process"] },
+        { "type": "not_regex", "value": "\\b[Mm]ight (be|leak|cause)\\b[^.]*?\\bnot sure\\b" }
+      ]
+    },
+    {
+      "id": "tests-section-present-when-tests-changed",
+      "description": "If the diff touches tests, the review must comment on the tests; tests-as-implementation are a common review blind spot.",
+      "input": "Review this PR: it adds a new function plus two unit tests that exercise only the happy path.",
+      "assertions": [
+        { "type": "contains_any_of", "value": ["test", "edge case", "unhappy path", "negative case"] },
+        { "type": "min_length", "value": 100 }
+      ]
+    },
+    {
+      "id": "rejects-whitespace-only-review",
+      "description": "Reviews that catch only formatting (extra newline, indentation) when the diff has real design content should be flagged.",
+      "input": "Review this PR: 'Looks good. Nit: extra blank line at the end of handler.ts. Approve.' The diff itself adds a 200-line authentication module.",
+      "assertions": [
+        { "type": "contains_any_of", "value": ["design", "auth", "security", "substantive", "shallow"] },
+        { "type": "not_contains", "value": "Approve." }
+      ]
+    }
+  ]
+}

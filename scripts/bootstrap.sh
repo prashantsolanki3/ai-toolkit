@@ -24,9 +24,9 @@ bootstrap_tool() {
 
 # Claude Code — primary maintainer-facing tool.
 bootstrap_tool claude-code .claude \
-  --skills code-review-checklist,api-endpoint-design,error-handling-patterns,comprehensive-review \
+  --skills code-review-checklist,api-endpoint-design,error-handling-patterns,comprehensive-review,skill-evaluator \
   --agents senior-architect,refactoring-specialist,test-writer \
-  --commands summarize-diff,explain-error,bump-version \
+  --commands summarize-diff,explain-error,bump-version,eval-skill,improve-skill \
   --hooks pre-commit-lint \
   --rules no-bare-todos,prefer-typed-errors
 
@@ -40,8 +40,8 @@ bootstrap_tool cursor .cursor \
 # .github/chatmodes. Workspace must enable chat.promptFiles for Copilot
 # to actually load these (see docs/verification-matrix.md).
 bootstrap_tool vscode-copilot .github \
-  --skills code-review-checklist,error-handling-patterns \
-  --commands summarize-diff,explain-error \
+  --skills code-review-checklist,error-handling-patterns,skill-evaluator \
+  --commands summarize-diff,explain-error,eval-skill,improve-skill \
   --agents senior-architect
 
 echo ""

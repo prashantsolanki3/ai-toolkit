@@ -45,6 +45,13 @@
         "quality-gates"
       ],
       "author": "ai-toolkit"
+    },
+    "skill-evaluator": {
+      "description": "Teaches your IDE's agent to run an eval suite against any toolkit skill, using your IDE's own model — no separate API key.",
+      "presets": [
+        "skill-development"
+      ],
+      "author": "ai-toolkit"
     }
   },
   "agents": {
@@ -78,10 +85,24 @@
       ],
       "author": "ai-toolkit"
     },
+    "eval-skill": {
+      "description": "Run the eval.json suite for a toolkit skill via your IDE's own agent — no API key.",
+      "presets": [
+        "skill-development"
+      ],
+      "author": "ai-toolkit"
+    },
     "explain-error": {
       "description": "Analyze a stack trace or error message and explain the root cause.",
       "presets": [
         "maintenance-mode"
+      ],
+      "author": "ai-toolkit"
+    },
+    "improve-skill": {
+      "description": "Run a toolkit skill's eval.json and, on failure, propose iterative edits to the skill body until the target pass rate is hit.",
+      "presets": [
+        "skill-development"
       ],
       "author": "ai-toolkit"
     },
@@ -182,6 +203,19 @@
         "no-bare-todos",
         "prefer-typed-errors"
       ]
+    },
+    "skill-development": {
+      "description": "Tools for authoring and iterating on toolkit skills themselves — the eval runner and the improvement loop.",
+      "skills": [
+        "skill-evaluator"
+      ],
+      "agents": [],
+      "commands": [
+        "eval-skill",
+        "improve-skill"
+      ],
+      "hooks": [],
+      "rules": []
     }
   }
 }

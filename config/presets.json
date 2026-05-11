@@ -9,6 +9,9 @@
     },
     "quality-gates": {
       "description": "Linting, review, and testing helpers wired together as a starter quality baseline."
+    },
+    "skill-development": {
+      "description": "Tools for authoring and iterating on toolkit skills themselves — the eval runner and the improvement loop."
     }
   }
 }
