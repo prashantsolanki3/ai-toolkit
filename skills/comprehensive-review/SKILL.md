@@ -12,7 +12,7 @@ A larger, structured skill that ships supporting material in adjacent folders:
 
 - `scripts/` — runnable helpers the skill may invoke (e.g. lint, complexity report).
 - `references/` — long-form references the skill can cite without inflating the main body.
-- `evaluations/` — example inputs/outputs for evaluating whether the skill is doing its job.
+- `eval.json` — automated test cases for `/eval-skill` and `/improve-skill` (see [`docs/eval-format.md`](../../docs/eval-format.md)).
 - `assets/` — any binary or non-text resources the skill needs at runtime.
 
 ## When to use this skill
@@ -28,7 +28,8 @@ For typo fixes, dependency bumps, or any change small enough that loading this m
 1. Read `references/style-guide.md` for the house style this review enforces.
 2. Run `scripts/precheck.sh` against the diff to surface mechanical issues first.
 3. Walk the design points in this skill against the diff.
-4. Compare your output shape against `evaluations/good-review.md` and `evaluations/bad-review.md` — they describe what acceptable and unacceptable reviews look like.
+
+To check this skill against the failure modes it's supposed to avoid, run `/eval-skill comprehensive-review` — the test cases live in `eval.json` and pin the skill against bare-LGTM responses, design rants, ungrounded speculation, and whitespace-only review patterns.
 
 The point of the folder structure is that the skill's *body* stays short and readable while the supporting material is one open-and-read away.
 

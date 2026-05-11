@@ -8,7 +8,7 @@ Every asset that wants automated evaluation ships a sibling `eval.json` file nex
 skills/<name>/
 ├── SKILL.md         # the skill itself
 ├── eval.json        # this file
-└── ...              # any scripts/, references/, evaluations/ that the skill ships
+└── ...              # any scripts/, references/, assets/ that the skill ships
 ```
 
 For agents: `agents/<name>/eval.json` works the same way.

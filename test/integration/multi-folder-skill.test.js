@@ -18,10 +18,9 @@ function silentLogger() {
 const MULTI_FOLDER_SKILL = 'comprehensive-review';
 const EXPECTED_FILES = [
   'SKILL.md',
+  'eval.json',
   'scripts/precheck.sh',
   'references/style-guide.md',
-  'evaluations/good-review.md',
-  'evaluations/bad-review.md',
 ];
 
 test('claude-code (dir destination): multi-folder skill copies the entire tree', async () => {
@@ -74,8 +73,8 @@ test('cursor (file destination): multi-folder skill flattens to a single .mdc', 
       logger: silentLogger(),
     });
     // Only the SKILL.md should be extracted into the .mdc; the sub-folders
-    // (scripts/, references/, evaluations/) have no equivalent in Cursor's
-    // rule model, so they're intentionally not carried over.
+    // (scripts/, references/) and the eval.json have no equivalent in
+    // Cursor's rule model, so they're intentionally not carried over.
     assert.ok(
       fs.existsSync(path.join(target, 'rules', `${MULTI_FOLDER_SKILL}.mdc`)),
       `missing flattened .mdc`,
