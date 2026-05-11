@@ -1,5 +1,5 @@
 .DEFAULT_GOAL := help
-.PHONY: help install test test-unit test-integration test-watch coverage lint scan clean smoke verify-tools verify-manifest register bootstrap unbootstrap tag release-check ci dev
+.PHONY: help install test test-unit test-integration test-watch coverage lint scan clean smoke e2e verify-tools verify-manifest register bootstrap unbootstrap tag release-check ci dev
 
 # ---------- Help ----------
 
@@ -68,9 +68,12 @@ unbootstrap:  ## Remove the bootstrapped .claude/.cursor/.github/ trees
 smoke:  ## Run smoke test in a temp directory
 	./scripts/smoke-test.sh
 
+e2e:  ## End-to-end shake-out: dry-run / install / installed / update / conflict / --force / cursor / remove
+	./scripts/e2e.sh
+
 # ---------- Release flow ----------
 
-release-check: lint test scan verify-tools verify-manifest  ## All gates that must pass before tagging
+release-check: lint test scan verify-tools verify-manifest e2e  ## All gates that must pass before tagging
 	@echo "✓ All release checks passed"
 
 tag:  ## Tag a new version (usage: make tag VERSION=0.1.0)

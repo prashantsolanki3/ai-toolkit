@@ -1,10 +1,19 @@
 import chalk from 'chalk';
 
+function defaultWrite(msg) {
+  try {
+    process.stdout.write(msg + '\n');
+  } catch (err) {
+    if (err && err.code === 'EPIPE') return;
+    throw err;
+  }
+}
+
 export function createLogger(opts = {}) {
   const verbose = Boolean(opts.verbose);
   const useColor =
     opts.color !== undefined ? Boolean(opts.color) : process.env.NO_COLOR == null;
-  const write = opts.write || ((msg) => process.stdout.write(msg + '\n'));
+  const write = opts.write || defaultWrite;
 
   const paint = (style, text) => (useColor ? style(text) : text);
 

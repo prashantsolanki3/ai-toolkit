@@ -20,6 +20,19 @@ const VALID_ASSERTION_TYPES = new Set([
   'max_length',
 ]);
 
+// Support the (?im) / (?i) / etc. inline-flag prefix so eval.json patterns
+// can be authored in a portable, Python-style way. The agent runtime
+// interprets these as the model sees fit; the validator just needs to
+// confirm the pattern body is a valid JS regex once the flags are
+// extracted.
+function compileEvalRegex(pattern) {
+  const m = pattern.match(/^\(\?([imsxu]+)\)/);
+  if (m) {
+    return new RegExp(pattern.slice(m[0].length), m[1]);
+  }
+  return new RegExp(pattern);
+}
+
 function findEvalFiles(root) {
   const out = [];
   for (const bucket of ['skills', 'agents']) {
@@ -69,7 +82,7 @@ function validateEval(data, asset) {
       } else if (a.type === 'min_length' || a.type === 'max_length') {
         assert.ok(typeof a.value === 'number' && a.value > 0, `${aref}: length must be a positive number`);
       } else if (a.type === 'regex' || a.type === 'not_regex') {
-        assert.doesNotThrow(() => new RegExp(a.value), `${aref}: invalid regex`);
+        assert.doesNotThrow(() => compileEvalRegex(a.value), `${aref}: invalid regex`);
       } else {
         assert.equal(typeof a.value, 'string', `${aref}: ${a.type} expects a string`);
       }

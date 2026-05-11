@@ -1,7 +1,7 @@
 {
   "version": "1.0",
   "skill": "comprehensive-review",
-  "description": "Pins the comprehensive-review skill against the failure modes called out in evaluations/bad-review.md and the shape laid out in evaluations/good-review.md.",
+  "description": "Pins the comprehensive-review skill against the failure modes listed in its 'Failure modes to avoid' section. Assertions favour intent over input-echo: keyword lists exclude words trivially present in the prompt, so a response cannot pass by quoting the input back.",
   "target_pass_rate": 0.85,
   "model_hint": "Any modern instruction-following LLM. Tested informally against Claude Sonnet 4.6 and GPT-4o.",
   "tests": [
@@ -10,46 +10,65 @@
       "description": "A 'looks good, nothing to add' style response is the canonical failure mode; the skill must surface concrete observations instead.",
       "input": "Please review this PR description: 'Adds rate limiting to /api/users. LGTM, nothing to add.'",
       "assertions": [
-        { "type": "contains_any_of", "value": ["concrete", "specific", "observation", "line", "design", "test", "fail"] },
+        { "type": "contains_any_of", "value": ["concrete", "specific", "observation", "design", "test", "fail"] },
         { "type": "not_exact_match", "value": "LGTM" },
-        { "type": "min_length", "value": 80 }
+        { "type": "min_length", "value": 100 }
       ]
     },
     {
       "id": "avoids-design-rant",
-      "description": "Sprawling 'rewrite the whole thing as hexagonal architecture' suggestions are out-of-scope and the skill must keep the review actionable for the current diff.",
+      "description": "Sprawling 'rewrite the whole thing as hexagonal architecture' suggestions are out-of-scope and the skill must keep the review actionable for the current diff. Synonyms ('focused', 'proportional') are accepted to avoid false-fails on natural model phrasing.",
       "input": "Review this PR: it adds a 30-line function that validates a date string. The reviewer is tempted to suggest rewriting the entire validation layer.",
       "assertions": [
-        { "type": "contains_any_of", "value": ["scope", "actionable", "small", "current change", "this diff"] },
+        { "type": "contains_any_of", "value": ["scope", "actionable", "small", "current change", "this diff", "focused", "proportional"] },
         { "type": "not_contains", "value": "hexagonal architecture" },
         { "type": "max_length", "value": 4000 }
       ]
     },
     {
       "id": "anchors-claims-to-specific-frames",
-      "description": "Speculation without a specific reference is a soft-failure pattern; assertions about memory, perf, or correctness must point at a file/line/function.",
+      "description": "Speculation without a specific reference is a soft-failure pattern; the response must point at a file/line/function or use an explicit anchoring construct. Input-echo words ('Map', 'lifetime', 'process') are deliberately excluded — they don't verify anchoring, they just verify the model repeated the prompt.",
       "input": "Review this PR: it adds a Map<string, number> that grows for the lifetime of the process. Decide whether to flag a memory concern.",
       "assertions": [
-        { "type": "contains_any_of", "value": ["line", "function", "file", "Map", "lifetime", "process"] },
+        { "type": "contains_any_of", "value": ["line", "function", "file", "method", "declared", "declaration", "where it", "the function that", "eviction", "TTL", "bounded"] },
         { "type": "not_regex", "value": "\\b[Mm]ight (be|leak|cause)\\b[^.]*?\\bnot sure\\b" }
       ]
     },
     {
       "id": "tests-section-present-when-tests-changed",
-      "description": "If the diff touches tests, the review must comment on the tests; tests-as-implementation are a common review blind spot.",
+      "description": "If the diff touches tests, the review must do more than acknowledge their existence — it must call out the gap explicitly. Bare 'test' is excluded from the keyword list; the response has to name the kind of coverage missing.",
       "input": "Review this PR: it adds a new function plus two unit tests that exercise only the happy path.",
       "assertions": [
-        { "type": "contains_any_of", "value": ["test", "edge case", "unhappy path", "negative case"] },
+        { "type": "contains_any_of", "value": ["edge case", "unhappy path", "negative case", "error path", "boundary", "invalid input"] },
         { "type": "min_length", "value": 100 }
       ]
     },
     {
       "id": "rejects-whitespace-only-review",
-      "description": "Reviews that catch only formatting (extra newline, indentation) when the diff has real design content should be flagged.",
+      "description": "Reviews that catch only formatting (extra newline, indentation) when the diff has real design content should be flagged as shallow. The not_regex assertion catches the model concluding with approval, but tolerates quoting the input's 'Approve.' token.",
       "input": "Review this PR: 'Looks good. Nit: extra blank line at the end of handler.ts. Approve.' The diff itself adds a 200-line authentication module.",
       "assertions": [
-        { "type": "contains_any_of", "value": ["design", "auth", "security", "substantive", "shallow"] },
-        { "type": "not_contains", "value": "Approve." }
+        { "type": "contains_any_of", "value": ["design", "security", "substantive", "shallow"] },
+        { "type": "not_regex", "value": "(?im)\\bI (would |should )?approve\\b" }
+      ]
+    },
+    {
+      "id": "rejects-vague-praise",
+      "description": "Praise without a reference to the diff is filler, not a review. The skill must flag this and demand specifics tied to actual frames in the change.",
+      "input": "Please review this PR review: 'Looks clean, nicely done, ship it!' The diff itself is a 150-line refactor of the payments retry loop.",
+      "assertions": [
+        { "type": "contains_any_of", "value": ["vague", "filler", "shallow", "unsubstantive", "specific", "substantive", "not a review"] },
+        { "type": "not_regex", "value": "(?im)^\\s*(ship it|lgtm|approve(d)?)\\.?\\s*$" },
+        { "type": "min_length", "value": 100 }
+      ]
+    },
+    {
+      "id": "demands-evidence-for-perf-speculation",
+      "description": "Performance claims without measurement are soft-fail speculation; the skill must demand evidence (benchmark, profile, measurement) before flagging perf concerns on a hot path.",
+      "input": "Review this PR: it touches a hot loop in the request handler. The reviewer is tempted to write 'this could be slow under load.' Decide what to surface.",
+      "assertions": [
+        { "type": "contains_any_of", "value": ["benchmark", "profile", "measure", "evidence", "numbers", "data", "p99", "latency"] },
+        { "type": "min_length", "value": 100 }
       ]
     }
   ]

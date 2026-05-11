@@ -60,7 +60,7 @@ All fields are optional except `version` and `tests`. Every assertion is binary 
 | `min_length`      | number            | output length (chars) is ≥ value                   |
 | `max_length`      | number            | output length (chars) is ≤ value                   |
 
-Case sensitivity is the responsibility of the assertion (use `(?i)` in `regex` for case-insensitive). Strings are matched against the assistant's final response text.
+Case sensitivity is the responsibility of the assertion. The validator accepts a Python-style inline flag prefix at the start of the pattern: `(?i)…`, `(?im)…`, `(?ims)…` etc. The flags are extracted before compilation; the body of the pattern is plain regex. Strings are matched against the assistant's final response text.
 
 ## How a test gets run
 

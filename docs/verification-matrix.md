@@ -42,12 +42,37 @@ find <target> -type f
   - `.claude/agents/senior-architect.md`
   - `.claude/commands/summarize-diff.md`
   - `.claude/hooks/pre-commit-lint.sh`
-- **How to verify ingestion:**
-  1. Open Claude Code inside the target project.
-  2. Skills: ask a question that the skill applies to (e.g. "review my API endpoints"). Confirm Claude Code lists the skill in its progress or applies the checklist content.
-  3. Agents: type `/agents` — `senior-architect` should appear in the list. Invoke it; confirm the system prompt reflects the agent file.
-  4. Commands: type `/summarize-diff` — Claude Code should auto-complete and run the command body.
-  5. Hooks: hook scripts placed in `.claude/hooks/` only run if also referenced in `.claude/settings.json` (hooks are wired by config, not by file presence). Add a `Stop` or `PreToolUse` entry pointing at the script.
+  - `.claude/rules/no-bare-todos.md`
+
+### Verifying each asset type
+
+**Skills, agents, commands:** these three Claude Code reads automatically. Ask a question the skill applies to and confirm Claude Code surfaces or uses it; type `/agents` and see `senior-architect`; type `/summarize-diff` and see the command auto-complete.
+
+**Hooks** — Claude Code does NOT auto-discover scripts in `.claude/hooks/`. The script file is there, but until you reference it from `.claude/settings.json` it never runs. Add an entry like:
+
+```json
+{
+  "hooks": {
+    "Stop": [
+      { "matcher": "*", "hooks": [{ "type": "command", "command": "./.claude/hooks/pre-commit-lint.sh" }] }
+    ]
+  }
+}
+```
+
+Then trigger the matching event (in this example, finish a turn) and check the script ran.
+
+**Rules** — Claude Code does NOT auto-load `.claude/rules/<name>.md`. There is no first-class "rules" concept; this toolkit ships the directory as a parking spot. To use a rule in Claude Code, reference it from `CLAUDE.md` (project memory) or from a skill body. For example, add to `CLAUDE.md`:
+
+```markdown
+## Project rules
+
+@.claude/rules/no-bare-todos.md
+@.claude/rules/prefer-typed-errors.md
+```
+
+Then Claude Code pulls the rule body into context whenever it loads project memory. If you want a rule to apply globally, add the import to your user-level `CLAUDE.md` instead.
+
 - **Last verified:** _pending_
 
 ## cursor

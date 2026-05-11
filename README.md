@@ -16,6 +16,31 @@ npx git+ssh://git@github.com:<you>/ai-toolkit.git install \
   --tool claude-code
 ```
 
+### Trying it from a local checkout (before pushing to GitHub)
+
+While the repo isn't on GitHub yet, point `npx` at the local path. From any other directory:
+
+```bash
+# 1. create a scratch project
+mkdir -p ~/tmp/aitk-try && cd ~/tmp/aitk-try
+
+# 2. install via npx from the local path
+npx --yes /Users/prashantsolanki/Playground/ai-toolkit install \
+  --tool claude-code \
+  --preset backend-essentials \
+  --target .claude
+
+# 3. confirm what landed
+ls -la .claude/
+
+# 4. run the rest of the lifecycle
+npx --yes /Users/prashantsolanki/Playground/ai-toolkit installed --target .claude
+npx --yes /Users/prashantsolanki/Playground/ai-toolkit update    --target .claude --dry-run
+npx --yes /Users/prashantsolanki/Playground/ai-toolkit remove    --target .claude --all
+```
+
+`npx` caches resolved packages by name + version. The package is `private` and has no version-changing hooks, so the cache should re-resolve when the path's mtime changes, but you can force a fresh run with `npm cache clean --force` if the cache gets stuck. Direct `node /path/to/bin/cli.js …` always bypasses the cache.
+
 This drops the preset's skills, agents, and commands into `.claude/` in the current directory. To target your global config:
 
 ```bash
@@ -64,7 +89,7 @@ A lockfile (`.ai-toolkit-lock.json`) is written into the target directory. It re
 
 For tools whose destination format expects its own frontmatter contract (Cursor `.mdc`, VS Code Copilot `.instructions.md` / `.prompt.md` / `.chatmode.md`), each tool block in [`config/tools.json`](config/tools.json) declares a `frontmatter` template. The installer parses the source asset's frontmatter, strips it, builds the tool-specific frontmatter from the template (with `{description}` etc. substituted from source), and writes that to the destination above the body.
 
-Per-asset overrides via the source frontmatter:
+Per-asset overrides via the source frontmatter. The `overrides.<tool>` block wins over the template's defaults at install time:
 
 ```yaml
 ---
@@ -80,6 +105,10 @@ overrides:
     applyTo: "src/**/*.ts"
 ---
 ```
+
+Concrete example shipped in the repo: [`rules/prefer-typed-errors.mdc`](rules/prefer-typed-errors.mdc) sets `overrides.cursor.alwaysApply: true` and a glob so Cursor enforces the rule on every code file. The two defaults from the tool config (`alwaysApply: false`, `globs: ""`) are overridden in the installed `.mdc`.
+
+To **toggle off** `alwaysApply` for a specific rule, set `overrides.cursor.alwaysApply: false` in source frontmatter, then re-run `make register && make bootstrap` (or your own install command).
 
 ### Sidecars
 
@@ -224,6 +253,27 @@ make smoke             # end-to-end smoke test in a temp directory
 make release-check     # lint + test + scan + verify-tools + verify-manifest
 make tag VERSION=x.y.z # tag a new release
 ```
+
+### Pre-share checklist
+
+Before pushing the repo or sending the path to a teammate, run:
+
+```bash
+make release-check
+```
+
+That single target runs every gate in dependency order:
+
+| Step | What it covers |
+| --- | --- |
+| `lint` | No stray `console.log`, JSON config files parse |
+| `test` | All 218 unit + integration tests |
+| `scan` | gitleaks secret scan over every commit in history |
+| `verify-tools` | `config/tools.json` matches its JSON schema |
+| `verify-manifest` | `manifest.json` is in sync with asset frontmatter (catches a forgotten `make register`) |
+| `e2e` | Full lifecycle via the CLI on a fresh temp project: dry-run → install → installed → update → conflict-skip → `--force` → cursor frontmatter → remove |
+
+If all six pass, the repo is mechanically healthy. **Then** walk [`docs/verification-matrix.md`](docs/verification-matrix.md) to confirm each tool actually ingests the installed assets in its UI — that part is irreducibly manual.
 
 ### Contributing workflow
 

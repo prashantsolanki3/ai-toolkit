@@ -7,6 +7,10 @@ presets:
 tools:
   - cursor
   - claude-code
+overrides:
+  cursor:
+    alwaysApply: true
+    globs: "**/*.{ts,tsx,js,jsx,py,go,rs,java,kt,rb}"
 ---
 
 # Rule: prefer typed errors

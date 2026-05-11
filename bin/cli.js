@@ -2,6 +2,14 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Command, Option } from 'commander';
+
+// Exit cleanly when our stdout is closed by a downstream pipe (e.g.
+// `ai-toolkit list | head -3`). Without this Node throws EPIPE.
+for (const stream of [process.stdout, process.stderr]) {
+  stream.on('error', (err) => {
+    if (err && err.code === 'EPIPE') process.exit(0);
+  });
+}
 import { install } from '../src/commands/install.js';
 import { update } from '../src/commands/update.js';
 import { remove } from '../src/commands/remove.js';
