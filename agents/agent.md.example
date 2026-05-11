@@ -1,0 +1,101 @@
+---
+# ───────────────────────────────────────────────────────────────────────
+# agent.md.example
+# This is the template for an agent. Agents are named personas —
+# system prompts for a specific role (reviewer, refactorer, etc.).
+#
+# Copy this folder to agents/<your-agent-name>/agent.md, edit, then run
+# `make register` to update manifest.json.
+#
+# Agents live in DIRECTORIES because they may ship adjacent material
+# (eval.json, prompts, references) the same way skills do.
+# ───────────────────────────────────────────────────────────────────────
+
+name: example-agent
+description: One-line description of when to invoke this agent.
+author: your-name
+
+presets:
+  - skill-development
+
+# Optional allowlist of tools that should install this agent.
+tools:
+  - claude-code
+  - cursor
+  - vscode-copilot
+
+# Optional per-tool frontmatter overrides. Common keys per tool:
+overrides:
+  cursor:
+    # Cursor subagents: see https://cursor.com/docs/subagents
+    model: inherit          # or a specific model id
+    readonly: false         # set true to deny write tools
+    is_background: false    # set true for parallel background work
+  vscode-copilot:
+    # VS Code Copilot custom agents: see
+    # https://docs.github.com/en/copilot/concepts/agents/cloud-agent/about-custom-agents
+    tools:                  # restrict the tools this agent can call
+      - codebase
+      - githubRepo
+    model: claude-sonnet-4-6
+    # mcp-servers:          # optional MCP server scoping
+    #   - name: my-mcp
+---
+
+# Example Agent
+
+The body of this file is the agent's system prompt. Write it as
+direct instructions to the model.
+
+## When to use this agent
+
+A clear trigger. "Invoke this agent when you have a design document,
+RFC, or substantive code change that affects the shape of a system."
+
+## When not to use it
+
+When the work doesn't match the trigger, the agent should bow out.
+"For implementation-level review of a well-scoped change, use a code
+reviewer instead, not this one."
+
+## How to brief the agent
+
+Tell the agent what it should ask the user for, and what it should
+read up front. This is the section that turns a vague invocation into
+a focused conversation.
+
+1. What context to expect.
+2. What constraints to honour.
+3. What's out of scope.
+
+## What good output looks like
+
+Be explicit about the response shape. Bulleted findings? A diff
+proposal? A short verdict line? Skills and agents that don't describe
+their own output drift quickly.
+
+## Hard rules
+
+- Never silently rewrite the user's files. Show diffs first.
+- Never editorialise without grounding — cite frames / lines / functions.
+- Stop when uncertain rather than guessing.
+
+## Gotchas
+
+- **Body IS the system prompt.** All agent-supporting tools (Claude
+  Code, Cursor subagents, Copilot custom agents) read the file body
+  as the agent's instructions. Frontmatter is metadata; the body is
+  what the model sees.
+- **Cursor reads `.cursor/agents/`, `.claude/agents/`, and `.codex/
+  agents/` all together.** Installing the same agent for both Claude
+  Code and Cursor lands it in two paths; Cursor sees both. Harmless.
+- **VS Code Copilot custom agents vs chatmodes.** The toolkit
+  generates `.github/agents/<name>.md` (custom agents). Chat modes
+  (`.chatmode.md`) are a different mechanism we intentionally don't
+  generate; hand-craft them if you need them.
+- **`overrides.<tool>` keys are tool-specific.** Cursor cares about
+  `model`/`readonly`/`is_background`; Copilot cares about
+  `tools`/`model`/`mcp-servers`. Setting a Copilot-only key under
+  `overrides.cursor` is a no-op (Cursor ignores it) but won't error.
+
+<!-- MIT, see LICENSE -->

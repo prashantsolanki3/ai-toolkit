@@ -29,7 +29,7 @@ name: my-asset              # optional — defaults to the file/dir name
 description: One-line desc. # surfaced in `ai-toolkit list`
 author: your-name           # optional
 presets:                    # which presets bundle this asset
-  - quality-gates
+  - skill-development
 tools:                      # optional allowlist — drop this if all-tools
   - claude-code
   - cursor
@@ -55,7 +55,7 @@ name: my-new-skill
 description: What this skill is for.
 author: me
 presets:
-  - quality-gates
+  - skill-development
 ---
 
 # My New Skill
@@ -103,7 +103,7 @@ name: my-command
 description: What /my-command does.
 author: me
 presets:
-  - backend-essentials
+  - skill-development
 ---
 
 # /my-command
@@ -127,7 +127,7 @@ cat > hooks/my-hook.sh <<'EOF'
 # description: What this hook does.
 # author: me
 # presets:
-#   - quality-gates
+#   - skill-development
 # === end metadata ===
 
 set -euo pipefail
@@ -148,7 +148,7 @@ name: my-rule
 description: What this rule enforces.
 author: me
 presets:
-  - quality-gates
+  - skill-development
 tools:
   - cursor
   - claude-code
@@ -174,8 +174,8 @@ Presets are declared in [`config/presets.json`](../../config/presets.json) (name
 
 ```yaml
 presets:
-  - backend-essentials
-  - quality-gates
+  - skill-development
+  - skill-development
 ```
 
 If you reference an undeclared preset, `make register` fails with a clear error. Add the preset to `presets.json` first.
@@ -188,10 +188,10 @@ If you reference an undeclared preset, `make register` fails with a clear error.
 
 ## Multi-folder skills
 
-A skill can ship adjacent folders. The [`skills/comprehensive-review/`](../../skills/comprehensive-review/) example carries:
+A skill can ship adjacent folders. The [`skills/my-skill/`](../../skills/my-skill/) example carries:
 
 ```
-skills/comprehensive-review/
+skills/my-skill/
 ├── SKILL.md           # the skill body
 ├── eval.json          # test cases for /eval-skill and /improve-skill
 ├── references/

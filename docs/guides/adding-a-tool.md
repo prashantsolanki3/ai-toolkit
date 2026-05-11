@@ -106,7 +106,7 @@ Add a test in [`test/integration/per-tool-paths.test.js`](../../test/integration
 test('my-tool: skills land as <subdir>/<filename>', async () => {
   const target = createTmpProject();
   try {
-    await install({ tool: 'my-tool', skills: ['code-review-checklist'], target, sourceRoot: REPO_ROOT, logger: silentLogger() });
+    await install({ tool: 'my-tool', skills: ['skill-evaluator'], target, sourceRoot: REPO_ROOT, logger: silentLogger() });
     assert.ok(fs.existsSync(path.join(toolDir(target, 'my-tool'), 'skills', '<expected file>')));
   } finally {
     cleanupTmpProject(target);

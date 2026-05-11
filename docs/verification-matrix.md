@@ -20,7 +20,7 @@ tool wants.
 mkdir -p ~/tmp/aitk-verify-<tool> && cd ~/tmp/aitk-verify-<tool>
 node /path/to/ai-toolkit/bin/cli.js install \
   --tool <tool-name> \
-  --skills code-review-checklist \
+  --skills skill-evaluator \
   --target <target-from-the-matrix-below>
 
 # 2. Inspect what landed
@@ -38,15 +38,15 @@ find <target> -type f
 
 - **Target:** `.claude/` (workspace) or `~/.claude/` (global)
 - **Expected layout after install:**
-  - `.claude/skills/code-review-checklist/SKILL.md`
-  - `.claude/agents/senior-architect.md`
-  - `.claude/commands/summarize-diff.md`
-  - `.claude/hooks/pre-commit-lint.sh`
-  - `.claude/rules/no-bare-todos.md`
+  - `.claude/skills/skill-evaluator/SKILL.md`
+  - `.claude/agents/docs-maintainer.md`
+  - `.claude/commands/eval-skill.md`
+  - `.claude/hooks/my-hook.sh`
+  - `.claude/rules/my-rule.md`
 
 ### Verifying each asset type
 
-**Skills, agents, commands:** these three Claude Code reads automatically. Ask a question the skill applies to and confirm Claude Code surfaces or uses it; type `/agents` and see `senior-architect`; type `/summarize-diff` and see the command auto-complete.
+**Skills, agents, commands:** these three Claude Code reads automatically. Ask a question the skill applies to and confirm Claude Code surfaces or uses it; type `/agents` and see `docs-maintainer`; type `/eval-skill` and see the command auto-complete.
 
 **Hooks** — Claude Code does NOT auto-discover scripts in `.claude/hooks/`. The script file is there, but until you reference it from `.claude/settings.json` it never runs. Add an entry like:
 
@@ -54,7 +54,7 @@ find <target> -type f
 {
   "hooks": {
     "Stop": [
-      { "matcher": "*", "hooks": [{ "type": "command", "command": "./.claude/hooks/pre-commit-lint.sh" }] }
+      { "matcher": "*", "hooks": [{ "type": "command", "command": "./.claude/hooks/my-hook.sh" }] }
     ]
   }
 }
@@ -67,8 +67,8 @@ Then trigger the matching event (in this example, finish a turn) and check the s
 ```markdown
 ## Project rules
 
-@.claude/rules/no-bare-todos.md
-@.claude/rules/prefer-typed-errors.md
+@.claude/rules/my-rule.md
+@.claude/rules/my-other-rule.md
 ```
 
 Then Claude Code pulls the rule body into context whenever it loads project memory. If you want a rule to apply globally, add the import to your user-level `CLAUDE.md` instead.
@@ -79,14 +79,14 @@ Then Claude Code pulls the rule body into context whenever it loads project memo
 
 - **Target:** `.cursor/` (workspace only — Cursor has no documented global rules path)
 - **Expected layout after install:**
-  - `.cursor/rules/code-review-checklist.mdc` — with frontmatter `{ description, globs, alwaysApply }` generated from the source.
-  - `.cursor/agents/senior-architect.md` — Cursor subagent ([docs](https://cursor.com/docs/subagents)).
+  - `.cursor/rules/skill-evaluator.mdc` — with frontmatter `{ description, globs, alwaysApply }` generated from the source.
+  - `.cursor/agents/docs-maintainer.md` — Cursor subagent ([docs](https://cursor.com/docs/subagents)).
 - **How to verify ingestion:**
   1. Open the project in Cursor.app.
-  2. Open Cursor Settings → Rules. The `code-review-checklist` rule should be listed.
+  2. Open Cursor Settings → Rules. The `skill-evaluator` rule should be listed.
   3. Open Composer / Chat; the rule body should appear in the context preview.
   4. Trigger a generation that should match the rule's `globs` (if set) and confirm the rule fires.
-  5. Subagents: invoke an agent via `/senior-architect` (or the agent's name). Cursor reads from `.cursor/agents/`, and also from `.claude/agents/` and `.codex/agents/` — installing for claude-code AND cursor populates both, which is harmless.
+  5. Subagents: invoke an agent via `/docs-maintainer` (or the agent's name). Cursor reads from `.cursor/agents/`, and also from `.claude/agents/` and `.codex/agents/` — installing for claude-code AND cursor populates both, which is harmless.
 - **No longer a caveat — automated:** Cursor frontmatter (description/globs/alwaysApply for rules; description for agents) is injected automatically by the installer based on the tool config in [`config/tools.json`](../config/tools.json). Per-asset overrides via `overrides.cursor.{globs, alwaysApply, model, readonly, is_background}` in the source frontmatter.
 - **Last verified:** _pending_
 
@@ -94,7 +94,7 @@ Then Claude Code pulls the rule body into context whenever it loads project memo
 
 - **Target:** `.agent/skills/` (workspace) or `~/.gemini/antigravity/skills/` (global)
 - **Expected layout after install:**
-  - `.agent/skills/code-review-checklist/SKILL.md`
+  - `.agent/skills/skill-evaluator/SKILL.md`
 - **How to verify ingestion:** Open the project in Google Antigravity. Open the agent panel; the skill should appear in the available skills list. Trigger an agent task that the skill covers and confirm the agent references the skill.
 - **Caveats:** Antigravity is moving fast and exact path conventions may change between releases. Re-run this check after any Antigravity update.
 - **Last verified:** _pending_
@@ -103,7 +103,7 @@ Then Claude Code pulls the rule body into context whenever it loads project memo
 
 - **Target:** `.gemini/` (workspace) or `~/.gemini/` (global)
 - **Expected layout after install:**
-  - `.gemini/skills/code-review-checklist/SKILL.md`
+  - `.gemini/skills/skill-evaluator/SKILL.md`
 - **How to verify ingestion:** Run `gemini` (the CLI) inside the target directory. Start a session and confirm via debug output that the skill is loaded into context. Earlier Gemini CLI versions only honor a single `GEMINI.md` context file at the workspace root — those builds will _not_ pick up the `skills/` directory layout. Update Gemini CLI if your version is older than the one that introduced skills support.
 - **Caveats:** This is the config I'm least confident about. Verify against your installed Gemini CLI's documentation and adjust `assetPaths`/`assetFormats` in `config/tools.json` if the layout differs.
 - **Last verified:** _pending_
@@ -112,9 +112,9 @@ Then Claude Code pulls the rule body into context whenever it loads project memo
 
 - **Target:** `.github/` (workspace only — Copilot reads `.github/` from the repo)
 - **Expected layout after install:**
-  - `.github/instructions/code-review-checklist.instructions.md` — frontmatter `{ description, applyTo: "**" }`
-  - `.github/prompts/summarize-diff.prompt.md` — frontmatter `{ description, mode: "agent" }`
-  - `.github/agents/senior-architect.md` — Copilot custom agent ([docs](https://docs.github.com/en/copilot/concepts/agents/cloud-agent/about-custom-agents))
+  - `.github/instructions/skill-evaluator.instructions.md` — frontmatter `{ description, applyTo: "**" }`
+  - `.github/prompts/eval-skill.prompt.md` — frontmatter `{ description, mode: "agent" }`
+  - `.github/agents/docs-maintainer.md` — Copilot custom agent ([docs](https://docs.github.com/en/copilot/concepts/agents/cloud-agent/about-custom-agents))
 - **How to verify ingestion:**
   1. Open the workspace in VS Code with the GitHub Copilot extension installed.
   2. **Required:** enable workspace setting `chat.promptFiles: true` (and `chat.instructionsFilesLocations` / `chat.modeFilesLocations` if you keep files elsewhere). Without this, Copilot ignores the files.
@@ -128,8 +128,8 @@ Then Claude Code pulls the rule body into context whenever it loads project memo
 
 - **Target:** `.github/` (workspace) or `~/.copilot/` (global) — this is the **new agentic `copilot` CLI**, not the older `gh copilot` extension.
 - **Expected layout after install:**
-  - `.github/instructions/code-review-checklist.instructions.md`
-  - `.github/prompts/summarize-diff.prompt.md`
+  - `.github/instructions/skill-evaluator.instructions.md`
+  - `.github/prompts/eval-skill.prompt.md`
 - **How to verify ingestion:**
   1. Install the agentic Copilot CLI per GitHub's docs.
   2. Run `copilot` inside the target directory.
@@ -142,9 +142,9 @@ Then Claude Code pulls the rule body into context whenever it loads project memo
 
 - **Target:** `.kiro/` (workspace only)
 - **Expected layout after install:**
-  - `.kiro/steering/code-review-checklist.md`
-  - `.kiro/hooks/pre-commit-lint.sh` (if `--hooks` passed)
-  - `.kiro/hooks/pre-commit-lint.kiro.hook` — JSON sidecar generated automatically: `{ name, description, command, enabled }`
+  - `.kiro/steering/skill-evaluator.md`
+  - `.kiro/hooks/my-hook.sh` (if `--hooks` passed)
+  - `.kiro/hooks/my-hook.kiro.hook` — JSON sidecar generated automatically: `{ name, description, command, enabled }`
 - **How to verify ingestion:**
   1. Open the workspace in AWS Kiro.
   2. Open the Kiro side panel → Steering. The installed steering file should appear in the list (Kiro reads `.kiro/steering/*.md` automatically).
@@ -157,7 +157,7 @@ Then Claude Code pulls the rule body into context whenever it loads project memo
 
 - **Target:** `.kiro/` (workspace) or `~/.kiro/` (global)
 - **Expected layout after install:**
-  - `.kiro/steering/code-review-checklist.md`
+  - `.kiro/steering/skill-evaluator.md`
 - **How to verify ingestion:** I do not have confirmed documentation for a separate "Kiro CLI" product. If your Kiro CLI is just headless Kiro reading `.kiro/`, the same verification as Kiro IDE applies. If it has its own config root, override `defaultTarget` in `config/tools.json` and re-verify.
 - **Caveats:** Treat this config as a placeholder. Run `ai-toolkit list --type tools` and adjust the kiro-cli block once you confirm the actual paths the CLI reads.
 - **Last verified:** _pending_

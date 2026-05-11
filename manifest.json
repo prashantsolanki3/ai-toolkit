@@ -1,51 +1,6 @@
 {
   "version": "1.0",
   "skills": {
-    "api-endpoint-design": {
-      "description": "Checklist for designing new HTTP/REST endpoints — naming, status codes, pagination, versioning.",
-      "presets": [
-        "backend-essentials"
-      ],
-      "author": "ai-toolkit"
-    },
-    "code-review-checklist": {
-      "description": "A short, generic checklist to apply when reviewing a code change.",
-      "presets": [
-        "backend-essentials",
-        "maintenance-mode",
-        "quality-gates"
-      ],
-      "author": "ai-toolkit"
-    },
-    "comprehensive-review": {
-      "description": "Deep code review skill with referenced scripts, style references, and evaluation prompts.",
-      "presets": [
-        "quality-gates"
-      ],
-      "author": "ai-toolkit"
-    },
-    "database-migration-safety": {
-      "description": "Patterns for zero-downtime schema migrations on relational databases.",
-      "presets": [
-        "backend-essentials"
-      ],
-      "author": "ai-toolkit"
-    },
-    "dependency-upgrade": {
-      "description": "A systematic approach to upgrading a dependency safely.",
-      "presets": [
-        "maintenance-mode"
-      ],
-      "author": "ai-toolkit"
-    },
-    "error-handling-patterns": {
-      "description": "Patterns for consistent, debuggable error handling across a codebase.",
-      "presets": [
-        "backend-essentials",
-        "quality-gates"
-      ],
-      "author": "ai-toolkit"
-    },
     "skill-evaluator": {
       "description": "Teaches your IDE's agent to run an eval suite against any toolkit skill, using your IDE's own model — no separate API key.",
       "presets": [
@@ -61,48 +16,13 @@
         "skill-development"
       ],
       "author": "ai-toolkit"
-    },
-    "refactoring-specialist": {
-      "description": "Identifies and applies refactoring patterns without changing behavior.",
-      "presets": [
-        "maintenance-mode"
-      ],
-      "author": "ai-toolkit"
-    },
-    "senior-architect": {
-      "description": "System design reviewer focused on scale, failure modes, and tradeoffs.",
-      "presets": [
-        "backend-essentials"
-      ],
-      "author": "ai-toolkit"
-    },
-    "test-writer": {
-      "description": "Generates test cases from acceptance criteria or function signatures.",
-      "presets": [
-        "quality-gates"
-      ],
-      "author": "ai-toolkit"
     }
   },
   "commands": {
-    "bump-version": {
-      "description": "Update version across package metadata, changelog, and tags consistently.",
-      "presets": [
-        "maintenance-mode"
-      ],
-      "author": "ai-toolkit"
-    },
     "eval-skill": {
       "description": "Run the eval.json suite for a toolkit skill via your IDE's own agent — no API key.",
       "presets": [
         "skill-development"
-      ],
-      "author": "ai-toolkit"
-    },
-    "explain-error": {
-      "description": "Analyze a stack trace or error message and explain the root cause.",
-      "presets": [
-        "maintenance-mode"
       ],
       "author": "ai-toolkit"
     },
@@ -112,113 +32,13 @@
         "skill-development"
       ],
       "author": "ai-toolkit"
-    },
-    "summarize-diff": {
-      "description": "Generate a clean PR description from a git diff.",
-      "presets": [
-        "backend-essentials"
-      ],
-      "author": "ai-toolkit"
     }
   },
-  "hooks": {
-    "post-merge-install": {
-      "description": "Runs npm/pnpm/yarn install when the lockfile changed after merge.",
-      "author": "ai-toolkit"
-    },
-    "pre-commit-lint": {
-      "description": "Sample lint-staged pre-commit hook.",
-      "presets": [
-        "quality-gates"
-      ],
-      "author": "ai-toolkit"
-    }
-  },
-  "rules": {
-    "no-bare-todos": {
-      "description": "Disallow bare TODO/FIXME comments without an issue or ticket reference.",
-      "presets": [
-        "quality-gates"
-      ],
-      "author": "ai-toolkit",
-      "tools": [
-        "cursor",
-        "claude-code"
-      ]
-    },
-    "prefer-typed-errors": {
-      "description": "Prefer specific error types over a generic Error / Exception / RuntimeException.",
-      "presets": [
-        "quality-gates"
-      ],
-      "author": "ai-toolkit",
-      "tools": [
-        "cursor",
-        "claude-code"
-      ],
-      "overrides": {
-        "cursor": {
-          "alwaysApply": true,
-          "globs": "**/*.{ts,tsx,js,jsx,py,go,rs,java,kt,rb}"
-        }
-      }
-    }
-  },
+  "hooks": {},
+  "rules": {},
   "presets": {
-    "backend-essentials": {
-      "description": "Skills, agents, and commands for everyday backend engineering work — API design, migrations, error handling, and code review.",
-      "skills": [
-        "api-endpoint-design",
-        "code-review-checklist",
-        "database-migration-safety",
-        "error-handling-patterns"
-      ],
-      "agents": [
-        "senior-architect"
-      ],
-      "commands": [
-        "summarize-diff"
-      ],
-      "hooks": [],
-      "rules": []
-    },
-    "maintenance-mode": {
-      "description": "Helpers for upgrading dependencies, refactoring, and walking through stack traces in an existing codebase.",
-      "skills": [
-        "code-review-checklist",
-        "dependency-upgrade"
-      ],
-      "agents": [
-        "refactoring-specialist"
-      ],
-      "commands": [
-        "bump-version",
-        "explain-error"
-      ],
-      "hooks": [],
-      "rules": []
-    },
-    "quality-gates": {
-      "description": "Linting, review, and testing helpers wired together as a starter quality baseline.",
-      "skills": [
-        "code-review-checklist",
-        "comprehensive-review",
-        "error-handling-patterns"
-      ],
-      "agents": [
-        "test-writer"
-      ],
-      "commands": [],
-      "hooks": [
-        "pre-commit-lint"
-      ],
-      "rules": [
-        "no-bare-todos",
-        "prefer-typed-errors"
-      ]
-    },
     "skill-development": {
-      "description": "Tools for authoring and iterating on toolkit skills themselves — the eval runner and the improvement loop.",
+      "description": "Authoring tools for the toolkit itself — the documentation agent, the skill evaluator, and the eval/improve commands.",
       "skills": [
         "skill-evaluator"
       ],

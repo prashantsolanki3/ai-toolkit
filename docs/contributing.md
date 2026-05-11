@@ -82,7 +82,7 @@ The commit log should read like a sequence of small, reviewable steps. Squash WI
    name: my-skill
    description: One-line description.
    author: your-name
-   presets: [quality-gates]
+   presets: [skill-development]
    tools: [claude-code, cursor]   # optional allowlist
    ---
    ```

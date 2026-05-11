@@ -6,6 +6,10 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { toolDir } from '../helpers/tool-paths.js';
 
+// bootstrap.sh runs the REAL CLI binary, which reads from its own
+// __dirname/.. SOURCE_ROOT — we can't redirect to a fake fixture here.
+// Assertions check against the assets actually shipped (skill-development
+// preset: skill-evaluator, docs-maintainer, eval-skill, improve-skill).
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 
@@ -15,9 +19,9 @@ const REPO_ROOT = path.resolve(__dirname, '..', '..');
 // and invoke it there with the real toolkit pointed at via the cli.
 
 test('bootstrap script produces a working .claude/ tree with symlinked skills', () => {
-  // Use the toolkit's CLI directly on a tmp target instead of running
-  // bootstrap.sh (which writes at REPO_ROOT). This tests the same flow
-  // bootstrap.sh exercises, without touching the repo state.
+  // Run the real CLI against a tmp target. Asserts against the actually
+  // shipped assets (skill-evaluator skill, docs-maintainer agent,
+  // eval-skill command).
   const target = fs.mkdtempSync(path.join(REPO_ROOT, 'test/fixtures/tmp-bootstrap-'));
   try {
     const result = spawnSync(
@@ -29,9 +33,9 @@ test('bootstrap script produces a working .claude/ tree with symlinked skills', 
         '--target', target,
         '--link',
         '--force',
-        '--skills', 'code-review-checklist,api-endpoint-design',
-        '--agents', 'senior-architect',
-        '--commands', 'summarize-diff',
+        '--skills', 'skill-evaluator',
+        '--agents', 'docs-maintainer',
+        '--commands', 'eval-skill',
       ],
       { encoding: 'utf8', env: { ...process.env, NO_COLOR: '1' } },
     );
@@ -39,15 +43,15 @@ test('bootstrap script produces a working .claude/ tree with symlinked skills', 
 
     const dir = toolDir(target, 'claude-code');
     // Skills are symlinked (dir→dir, no transform)
-    const skill = path.join(dir, 'skills', 'code-review-checklist');
+    const skill = path.join(dir, 'skills', 'skill-evaluator');
     assert.ok(fs.lstatSync(skill).isSymbolicLink(), 'skill should be a symlink');
 
     // Agent file is symlinked (dir→file via sourceFile, no transform)
-    const agent = path.join(dir, 'agents', 'senior-architect.md');
+    const agent = path.join(dir, 'agents', 'docs-maintainer.md');
     assert.ok(fs.lstatSync(agent).isSymbolicLink(), 'agent should be a symlink');
 
     // Command file is symlinked (file→file, no transform)
-    const cmd = path.join(dir, 'commands', 'summarize-diff.md');
+    const cmd = path.join(dir, 'commands', 'eval-skill.md');
     assert.ok(fs.lstatSync(cmd).isSymbolicLink(), 'command should be a symlink');
   } finally {
     fs.rmSync(target, { recursive: true, force: true });
@@ -66,7 +70,7 @@ test('bootstrapping vscode-copilot falls back to copy for instructions (frontmat
         '--target', target,
         '--link',
         '--force',
-        '--skills', 'code-review-checklist',
+        '--skills', 'skill-evaluator',
       ],
       { encoding: 'utf8', env: { ...process.env, NO_COLOR: '1' } },
     );
@@ -75,7 +79,7 @@ test('bootstrapping vscode-copilot falls back to copy for instructions (frontmat
     const inst = path.join(
       toolDir(target, 'vscode-copilot'),
       'instructions',
-      'code-review-checklist.instructions.md',
+      'skill-evaluator.instructions.md',
     );
     assert.ok(fs.existsSync(inst));
     assert.ok(

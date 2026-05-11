@@ -1,0 +1,92 @@
+---
+# ───────────────────────────────────────────────────────────────────────
+# command.md.example
+# This is the template for a slash command. Commands are short, focused
+# slash-command bodies invoked via /<name> in tools that support them
+# (Claude Code, VS Code Copilot's prompt files).
+#
+# Copy to commands/<your-command-name>.md (NOT inside a folder — commands
+# are flat files), edit, then run `make register`.
+# ───────────────────────────────────────────────────────────────────────
+
+name: example-command
+description: One-line description of what this command does.
+author: your-name
+
+presets:
+  - quality-gates
+
+# Optional allowlist. Many tools don't support slash commands at all
+# (Cursor, Antigravity, Gemini CLI). For tools that DO support them
+# but only honour a subset of features, scope here.
+tools:
+  - claude-code
+  - vscode-copilot
+  - copilot-cli
+
+# Optional per-tool overrides for prompt-file frontmatter.
+overrides:
+  vscode-copilot:
+    # Copilot prompt-file frontmatter:
+    #   mode: ask | edit | agent   (which Copilot chat mode the prompt runs in)
+    #   tools: ['codebase', 'githubRepo']  (tool allowlist while running)
+    #   model: claude-sonnet-4-6
+    mode: agent
+  copilot-cli:
+    mode: agent
+---
+
+# /example-command
+
+Open with a one-line summary of what running this command does.
+
+## Usage
+
+```
+/example-command [optional-args]
+```
+
+For tools that support argument passing (Claude Code's `$ARGUMENTS`),
+spell out what each argument means. For chat-only tools, write the
+command body to handle natural-language input.
+
+## What it does
+
+A numbered procedure. Slash commands are most useful when they encode
+a deterministic walk-through:
+
+1. Read the staged or current diff.
+2. Group changes by area.
+3. Produce a description with title, summary, change list, test plan.
+
+## Output shape
+
+Show the kind of output the user should see. Commands that don't
+pin their output shape drift; commands that do are pleasant to invoke
+repeatedly because they're predictable.
+
+## Style guidance
+
+What house style to follow in the response. Pithy headings, no emoji,
+no "I think", etc.
+
+## Gotchas
+
+- **Commands are FLAT files.** Unlike skills and agents, commands
+  live at `commands/<name>.md`, not in a subfolder. The manifest
+  generator picks files by name; subfolders are ignored.
+- **Tools without slash commands silently skip.** Cursor doesn't have
+  slash commands — installing this for Cursor warns and skips. For
+  parity with those tools, consider exposing the same logic as a
+  skill body instead.
+- **Argument passing varies by tool.** Claude Code substitutes
+  `$ARGUMENTS`; VS Code Copilot prompt files don't have a stable
+  argument syntax (yet). Write the command to handle the trailing
+  text in either form.
+- **`mode: agent` vs `mode: edit`/`ask`.** For Copilot prompts the
+  `mode` frontmatter governs which chat surface the prompt lands in.
+  Default `agent` matches the toolkit's broader assumption that the
+  consuming tool has an agent loop. Set `edit` for prompts that
+  produce only a code diff with no chat back-and-forth.
+
+<!-- MIT, see LICENSE -->

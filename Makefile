@@ -20,19 +20,19 @@ clean:  ## Remove node_modules, coverage, and tmp test artifacts
 # ---------- Testing (TDD) ----------
 
 test:  ## Run all tests
-	node --test 'test/**/*.test.js'
+	find test -name '*.test.js' -print0 | xargs -0 node --test
 
 test-unit:  ## Run unit tests only
-	node --test 'test/unit/**/*.test.js'
+	find test/unit -name '*.test.js' -print0 | xargs -0 node --test
 
 test-integration:  ## Run integration tests only
-	node --test 'test/integration/**/*.test.js'
+	find test/integration -name '*.test.js' -print0 | xargs -0 node --test
 
 test-watch:  ## Run tests in watch mode (TDD inner loop)
-	node --test --watch 'test/**/*.test.js'
+	find test -name '*.test.js' -print0 | xargs -0 node --test --watch
 
 coverage:  ## Run tests with coverage report
-	node --test --experimental-test-coverage 'test/**/*.test.js'
+	find test -name '*.test.js' -print0 | xargs -0 node --test --experimental-test-coverage
 
 # ---------- Quality gates ----------
 

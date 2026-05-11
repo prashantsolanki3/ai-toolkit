@@ -7,6 +7,11 @@ import { fileURLToPath } from 'node:url';
 import { createTmpProject, cleanupTmpProject } from '../helpers/tmp-project.js';
 import { toolDir } from '../helpers/tool-paths.js';
 
+// Spawn-based tests run the REAL CLI binary, which loads asset content from
+// its own __dirname/.. (the real repo). They can't be redirected to a fake
+// fixture — the binary's SOURCE_ROOT is baked in. So these assertions check
+// against what's currently shipped (the minimal docs-maintainer + skill-
+// development preset).
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const CLI = path.join(REPO_ROOT, 'bin', 'cli.js');
@@ -28,31 +33,34 @@ test('cli: --help shows usage', () => {
 test('cli: list runs and prints skills section', () => {
   const r = run(['list']);
   assert.equal(r.status, 0);
-  assert.match(r.stdout, /api-endpoint-design/);
+  // skill-evaluator is the only skill the real repo currently ships.
+  assert.match(r.stdout, /skill-evaluator/);
 });
 
 test('cli: list --type presets', () => {
   const r = run(['list', '--type', 'presets']);
   assert.equal(r.status, 0);
-  assert.match(r.stdout, /backend-essentials/);
+  assert.match(r.stdout, /skill-development/);
 });
 
 test('cli: install / installed / remove flow via CLI', () => {
   const target = createTmpProject();
   try {
-    const install = run(['install', '--tool', 'claude-code', '--preset', 'backend-essentials', '--target', target]);
+    const install = run([
+      'install', '--tool', 'claude-code', '--preset', 'skill-development', '--target', target,
+    ]);
     assert.equal(install.status, 0, `install failed: ${install.stderr}`);
     const dir = toolDir(target, 'claude-code');
-    assert.ok(fs.existsSync(path.join(dir, 'skills', 'api-endpoint-design', 'SKILL.md')));
+    assert.ok(fs.existsSync(path.join(dir, 'skills', 'skill-evaluator', 'SKILL.md')));
 
     const inst = run(['installed', '--target', target]);
     assert.equal(inst.status, 0);
     assert.match(inst.stdout, /claude-code/);
-    assert.match(inst.stdout, /api-endpoint-design/);
+    assert.match(inst.stdout, /skill-evaluator/);
 
-    const rem = run(['remove', '--target', target, '--skills', 'api-endpoint-design']);
+    const rem = run(['remove', '--target', target, '--skills', 'skill-evaluator']);
     assert.equal(rem.status, 0);
-    assert.equal(fs.existsSync(path.join(dir, 'skills', 'api-endpoint-design')), false);
+    assert.equal(fs.existsSync(path.join(dir, 'skills', 'skill-evaluator')), false);
   } finally {
     cleanupTmpProject(target);
   }
@@ -66,7 +74,9 @@ test('cli: unknown command exits non-zero', () => {
 test('cli: install --dry-run does not write files', () => {
   const target = createTmpProject();
   try {
-    const r = run(['install', '--tool', 'claude-code', '--preset', 'backend-essentials', '--target', target, '--dry-run']);
+    const r = run([
+      'install', '--tool', 'claude-code', '--preset', 'skill-development', '--target', target, '--dry-run',
+    ]);
     assert.equal(r.status, 0);
     assert.equal(fs.existsSync(path.join(toolDir(target, 'claude-code'), 'skills')), false);
     assert.match(r.stdout, /dry|would/i);

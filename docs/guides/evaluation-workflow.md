@@ -23,7 +23,7 @@ The eval suite lives at `skills/<name>/eval.json` and never moves. Edits happen 
 ```jsonc
 {
   "version": "1.0",
-  "skill": "comprehensive-review",
+  "skill": "my-skill",
   "description": "What this eval suite covers.",
   "target_pass_rate": 0.85,
   "model_hint": "Any modern instruction-following LLM.",
@@ -61,10 +61,10 @@ That gives your IDE the `skill-evaluator` skill plus `/eval-skill` and `/improve
 In Claude Code, Cursor, VS Code Copilot, Kiro — any IDE with an agent loop:
 
 ```
-/eval-skill comprehensive-review
+/eval-skill my-skill
 ```
 
-For IDEs without slash commands, say it in natural language: "evaluate the comprehensive-review skill using its eval.json".
+For IDEs without slash commands, say it in natural language: "evaluate the my-skill skill using its eval.json".
 
 The agent:
 
@@ -76,7 +76,7 @@ The agent:
 A successful report looks like:
 
 ```
-skill: comprehensive-review   pass rate: 6/7 (86%)   target: 85%
+skill: my-skill   pass rate: 6/7 (86%)   target: 85%
 
 Test results:
   ✓ rejects-bare-lgtm
@@ -99,7 +99,7 @@ For failing tests, the simulated response is included in a collapsed block so yo
 When the rate is below target:
 
 ```
-/improve-skill comprehensive-review
+/improve-skill my-skill
 ```
 
 The agent runs the eval, identifies the smallest plausible edit to the skill body that would fix the failing tests, shows you the diff, and waits for approval. On approval it applies the edit and re-runs. Capped at 3 iterations by default; pass `--max-iterations` to change.
@@ -139,15 +139,15 @@ A typical contributor flow for an existing skill:
 make bootstrap
 
 # 2. Edit a skill body
-$EDITOR skills/comprehensive-review/SKILL.md
+$EDITOR skills/my-skill/SKILL.md
 
-# 3. Run eval in your IDE: /eval-skill comprehensive-review
-# 4. If below target, run: /improve-skill comprehensive-review
+# 3. Run eval in your IDE: /eval-skill my-skill
+# 4. If below target, run: /improve-skill my-skill
 # 5. Approve diffs as they come; agent re-runs until target or cap.
 
 # 6. Commit
-git add skills/comprehensive-review/
-git commit -m "feat(comprehensive-review): raise pass rate to N/N"
+git add skills/my-skill/
+git commit -m "feat(my-skill): raise pass rate to N/N"
 ```
 
 For a brand-new skill that ships an eval suite:

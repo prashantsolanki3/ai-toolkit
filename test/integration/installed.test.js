@@ -6,8 +6,8 @@ import { install } from '../../src/commands/install.js';
 import { installed } from '../../src/commands/installed.js';
 import { createTmpProject, cleanupTmpProject } from '../helpers/tmp-project.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const REPO_ROOT = path.resolve(__dirname, '..', '..');
+import { buildLegacyFixture } from '../helpers/legacy-fixture.js';
+const REPO_ROOT = buildLegacyFixture();
 
 function captureLogger() {
   const lines = [];

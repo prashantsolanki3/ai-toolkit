@@ -1,0 +1,126 @@
+---
+# ───────────────────────────────────────────────────────────────────────
+# SKILL.md.example
+# This is the template for a skill. Skills are reusable knowledge artefacts.
+# Copy this folder to skills/<your-skill-name>/SKILL.md, edit, then run
+# `make register` to update manifest.json.
+#
+# Universal frontmatter fields — all optional unless noted. The manifest
+# generator validates this; bad YAML or undeclared presets fail register.
+# ───────────────────────────────────────────────────────────────────────
+
+# Identifier. Defaults to the parent directory name if omitted.
+# Convention: lowercase-with-hyphens.
+name: example-skill
+
+# One-line description. Surfaced in `ai-toolkit list` and flows into
+# tool-side frontmatter via {description} substitution (Cursor's
+# description field, Copilot's instruction description, etc.).
+description: One-line description of what this skill is for.
+
+# Optional. Maintainer or author. Informational only.
+author: your-name
+
+# Optional. Presets this skill is bundled into. Every name listed here
+# MUST be declared in config/presets.json or `make register` will fail
+# with "references unknown preset".
+presets:
+  - quality-gates
+  - skill-development
+
+# Optional. Allowlist of tools this skill applies to. When set, the
+# install resolver SKIPS this skill for any tool not in this list and
+# logs a per-tool warning. Omit (most common case) and the skill installs
+# for every tool whose `supportedAssets` includes `skills`.
+tools:
+  - claude-code
+  - cursor
+  - vscode-copilot
+
+# Optional. Per-tool frontmatter overrides. The values here win over the
+# tool config's frontmatter template in config/tools.json. Each key
+# corresponds to a tool name; the inner object is merged into the
+# rendered destination frontmatter.
+#
+# Common use cases:
+#   - Scope a Cursor rule with globs and alwaysApply.
+#   - Scope a VS Code Copilot instruction with applyTo.
+#   - Pick a model for a Cursor subagent or Copilot custom agent.
+#
+# Only the keys you want to override are needed; everything else falls
+# back to the tool config's defaults.
+overrides:
+  cursor:
+    alwaysApply: false
+    globs: "**/*.{ts,tsx,js,jsx}"
+  vscode-copilot:
+    applyTo: "src/**"
+  # any-other-tool:
+  #   any-tool-specific-key: value
+---
+
+# Example Skill
+
+The body of the file is the skill's content — what the AI will read.
+Treat this section like a short, self-contained reference doc.
+
+## When to use this skill
+
+Open with a one-line trigger. Be specific. "Invoke this when X" reads
+better than "this is about X".
+
+## When not to use it
+
+Equally important. Skills that don't honestly call out their non-use
+cases get over-triggered and start polluting unrelated conversations.
+
+## Procedure / Content / Checklist
+
+Whatever shape the skill needs. Markdown is fine. Keep the body short
+and readable; if you need long-form references, scripts, or examples,
+put them in adjacent folders (see "Multi-folder skills" below).
+
+## Gotchas
+
+- **Names with whitespace or punctuation in frontmatter strings.** YAML
+  doesn't require quoting in most cases, but `description: foo: bar`
+  WILL break the parser. Quote with single quotes if the value contains
+  a colon: `description: 'foo: bar'`.
+- **`presets` references must be declared first.** The generator runs in
+  one pass; if you list a preset that doesn't exist in
+  `config/presets.json`, registration fails. Add to `presets.json` first.
+- **`tools` filter doesn't make the asset stop existing.** It's an
+  install-time allowlist. The skill still appears in `ai-toolkit list`;
+  it just gets skipped for tools not in the list. Use `ai-toolkit list
+  --tool <name>` to see the install-time filtered view.
+- **`overrides.<tool>` merges, doesn't replace.** Setting
+  `overrides.cursor.globs` overrides only that one key; the rest of
+  Cursor's frontmatter template (description, alwaysApply) still
+  applies. Set every key you want to differ from the default.
+- **Body content is what the tool actually loads.** Frontmatter is for
+  metadata; long-form prose belongs in the body. For Cursor `.mdc` files
+  and Copilot `.instructions.md` files the body is wrapped in a fresh
+  tool-shape frontmatter at install time — the ai-toolkit metadata
+  (name, presets, author, tools, overrides) never leaks through.
+
+## Multi-folder skills (optional)
+
+A skill folder can carry adjacent material the body references:
+
+  skills/<name>/
+  ├── SKILL.md          ← this file
+  ├── eval.json         ← optional: deterministic test cases
+  ├── scripts/          ← runnable helpers the skill cites
+  ├── references/       ← long-form references
+  └── assets/           ← binary or non-text resources
+
+For tools whose destination is a directory (Claude Code, Antigravity,
+Gemini CLI), the entire tree is copied. For tools whose destination is
+a single flat file (Cursor `.mdc`, Copilot `.instructions.md`), only
+the `SKILL.md` is extracted and the adjuncts are intentionally not
+carried over — those formats have no equivalent.
+
+See docs/guides/adding-an-asset.md and docs/eval-format.md for the
+multi-folder + eval workflow.
+
+<!-- MIT, see LICENSE -->

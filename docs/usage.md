@@ -45,8 +45,8 @@ ai-toolkit list      [--type skills|agents|commands|hooks|rules|presets|tools]
 ## Scopes: workspace vs global
 
 ```bash
-ai-toolkit install --tool claude-code --preset backend-essentials             # scope = workspace (default)
-ai-toolkit install --tool claude-code --preset backend-essentials --scope global
+ai-toolkit install --tool claude-code --preset skill-development             # scope = workspace (default)
+ai-toolkit install --tool claude-code --preset skill-development --scope global
 ```
 
 Workspace scope lands under `--target` (the project root). Global scope lands under the absolute path the tool declared, e.g. `~/.claude/`. `--target` is ignored for global scope — the path is user-wide, not project-specific.
@@ -63,16 +63,16 @@ Tool does not support scope "global" (defaultTarget.global is null).
 
 ```bash
 # Install for every tool in one shot (workspace = CWD)
-ai-toolkit install --preset backend-essentials
+ai-toolkit install --preset skill-development
 
 # Surgical: one tool, one skill
-ai-toolkit install --tool cursor --skills code-review-checklist
+ai-toolkit install --tool cursor --skills skill-evaluator
 
 # Multiple asset types
 ai-toolkit install --tool claude-code \
-  --skills code-review-checklist \
-  --agents senior-architect \
-  --commands summarize-diff
+  --skills skill-evaluator \
+  --agents docs-maintainer \
+  --commands eval-skill
 ```
 
 ### Safety: non-destructive by default
@@ -85,7 +85,7 @@ ai-toolkit install --tool claude-code \
 If neither holds, the asset is skipped with a clear warning:
 
 ```
-⚠ warn: commands/summarize-diff: destination already exists and was not
+⚠ warn: commands/eval-skill: destination already exists and was not
   installed by ai-toolkit (untracked file at destination). Skipping;
   pass --force to overwrite.
 ```
@@ -95,7 +95,7 @@ This protects hand-edited content. A re-install over your own previous install i
 ### Dry runs
 
 ```bash
-ai-toolkit install --tool claude-code --preset backend-essentials --dry-run
+ai-toolkit install --tool claude-code --preset skill-development --dry-run
 ```
 
 Logs the plan (with conflict warnings) and writes nothing. No lockfile created.
@@ -103,7 +103,7 @@ Logs the plan (with conflict warnings) and writes nothing. No lockfile created.
 ### --link for DRY self-hosting
 
 ```bash
-ai-toolkit install --tool claude-code --skills code-review-checklist --link
+ai-toolkit install --tool claude-code --skills skill-evaluator --link
 ```
 
 When destination format matches source byte-for-byte, this creates a symlink instead of a copy. Edits to the source then propagate to consumers immediately. For destinations that require a frontmatter transform (Cursor `.mdc`, Copilot `.instructions.md`), `--link` falls back to a copy with a warning.
@@ -134,13 +134,13 @@ When you only want to refresh a subset of what's tracked, pass `--preset` and/or
 
 ```bash
 # Just the skills section
-ai-toolkit update --skills code-review-checklist,api-endpoint-design
+ai-toolkit update --skills skill-evaluator
 
 # Everything in a preset
-ai-toolkit update --preset backend-essentials
+ai-toolkit update --preset skill-development
 
-# Preset PLUS one off-preset extra
-ai-toolkit update --preset backend-essentials --agents test-writer
+# Preset PLUS one off-preset extra (works as soon as you add custom assets)
+ai-toolkit update --preset skill-development --agents docs-maintainer
 ```
 
 Naming an asset that isn't tracked surfaces a `not tracked in the lockfile` warning and moves on.
@@ -150,13 +150,13 @@ If the source asset was removed upstream, `update` flags it but never auto-delet
 ## Remove
 
 ```bash
-ai-toolkit remove --tool claude-code --skills api-endpoint-design
-ai-toolkit remove --tool claude-code --preset backend-essentials   # tear down a whole preset
+ai-toolkit remove --tool claude-code --skills skill-evaluator
+ai-toolkit remove --tool claude-code --preset skill-development   # tear down a whole preset
 ai-toolkit remove --tool claude-code --all
 ai-toolkit remove --all                                            # autodiscover, then remove everything
 ```
 
-Selectors union together. `--preset backend-essentials --skills dependency-upgrade` tears down the preset's assets plus that one extra skill. `--all` overrides everything.
+Selectors union together. `--preset skill-development --skills my-custom-skill` would tear down the preset's assets plus that one extra skill. `--all` overrides everything.
 
 Removes the destination files and clears the matching entries from the lockfile. Tools that declared a sidecar (Kiro hooks) get the sidecar torn down too.
 
@@ -168,8 +168,8 @@ Removes the destination files and clears the matching entries from the lockfile.
 ai-toolkit installed                              # everything, every tool
 ai-toolkit installed --tool claude-code           # just claude-code
 ai-toolkit installed --type skills                # skills section only
-ai-toolkit installed --preset backend-essentials  # only assets in this preset
-ai-toolkit installed --type skills --preset backend-essentials   # intersection
+ai-toolkit installed --preset skill-development  # only assets in this preset
+ai-toolkit installed --type skills --preset skill-development   # intersection
 ```
 
 ```bash
@@ -178,16 +178,16 @@ $ cd ~/my-project && ai-toolkit installed
 Path:    /Users/me/my-project/.claude
 Tool:    claude-code
 Scope:   workspace
-Preset:  backend-essentials
+Preset:  skill-development
 Updated: 2025-05-11T18:25:42.227Z
 
-skills (4):
-  api-endpoint-design        [1d648e847345]
-  ...
+skills (1):
+  skill-evaluator            [1d648e847345]
 agents (1):
-  senior-architect           [9e4d121620c4]
-commands (1):
-  summarize-diff             [fdb7cae3df55]
+  docs-maintainer            [9e4d121620c4]
+commands (2):
+  eval-skill                 [fdb7cae3df55]
+  improve-skill              [a8f4d2b1e9c6]
 
 ── cursor ──
 Path:    /Users/me/my-project/.cursor
@@ -239,7 +239,7 @@ The lockfile is the toolkit's source of truth for "what's installed where." Don'
 
 ```bash
 cd ~/my-project
-ai-toolkit install --preset backend-essentials
+ai-toolkit install --preset skill-development
 # Populates .claude/, .cursor/, .github/, .agent/skills/, .gemini/, .kiro/
 ```
 
@@ -251,7 +251,7 @@ For tools that need their own frontmatter (Cursor `.mdc`, VS Code Copilot `.inst
 ---
 name: ts-only-rule
 description: Rule scoped to TypeScript files.
-presets: [quality-gates]
+presets: [skill-development]
 overrides:
   cursor:
     alwaysApply: true
@@ -267,13 +267,13 @@ Then `make register && make bootstrap` (or just re-run install). See [guides/fro
 
 ```bash
 # 1. Edit the skill body
-vim skills/comprehensive-review/SKILL.md
+vim skills/my-skill/SKILL.md
 
 # 2. Run its eval suite via your IDE
-#    /eval-skill comprehensive-review
+#    /eval-skill my-skill
 
 # 3. If pass rate is below the target_pass_rate in eval.json:
-#    /improve-skill comprehensive-review
+#    /improve-skill my-skill
 ```
 
 See [guides/evaluation-workflow.md](guides/evaluation-workflow.md) for the full loop.

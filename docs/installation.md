@@ -9,7 +9,7 @@ Once the repo is on GitHub:
 ```bash
 npx git+ssh://git@github.com:<you>/ai-toolkit.git install \
   --tool claude-code \
-  --preset backend-essentials
+  --preset skill-development
 ```
 
 Pin to a specific commit with a `#sha` suffix if you want reproducible installs across machines:
@@ -26,7 +26,7 @@ The machine running `npx` needs SSH access to the private repo (your SSH key on 
 # From any other directory
 npx --yes /absolute/path/to/ai-toolkit install \
   --tool claude-code \
-  --preset backend-essentials
+  --preset skill-development
 ```
 
 Two things to know:
@@ -39,7 +39,7 @@ Two things to know:
 ```bash
 node /absolute/path/to/ai-toolkit/bin/cli.js install \
   --tool claude-code \
-  --preset backend-essentials
+  --preset skill-development
 ```
 
 Bypasses npx entirely. No caching to worry about. This is what the test suite uses.
@@ -52,7 +52,7 @@ If you'll use the toolkit a lot during development:
 cd /path/to/ai-toolkit
 npm link
 # now from anywhere:
-ai-toolkit install --tool claude-code --preset backend-essentials
+ai-toolkit install --tool claude-code --preset skill-development
 # when you're done:
 npm unlink -g ai-toolkit
 ```

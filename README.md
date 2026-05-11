@@ -11,11 +11,11 @@ Distributed as a **private GitHub repo**, installed via `npx git+ssh://...` dire
 ```bash
 # From any project directory — installs for every supported tool at once.
 cd ~/my-project
-npx --yes git+ssh://git@github.com:<you>/ai-toolkit.git install --preset backend-essentials
+npx --yes git+ssh://git@github.com:<you>/ai-toolkit.git install --preset skill-development
 
 # Or stay surgical with one tool:
 npx --yes git+ssh://git@github.com:<you>/ai-toolkit.git install \
-  --tool claude-code --preset backend-essentials
+  --tool claude-code --preset skill-development
 ```
 
 `--target` defaults to the current directory; the tool decides which subdirectory to populate (`.claude/`, `.cursor/`, `.github/`, `.kiro/`, …). Pass `--target ~/repos/other` to install into a different project.

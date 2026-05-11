@@ -1,0 +1,94 @@
+---
+# ───────────────────────────────────────────────────────────────────────
+# rule.mdc.example
+# Template for a rule. Rules are always-on (or pattern-matched) directives
+# that constrain output — e.g. "no bare TODOs", "prefer typed errors".
+#
+# Rules are FLAT files at rules/<name>.mdc. The .mdc extension matches
+# Cursor's convention; the toolkit transforms the frontmatter at install
+# time so each tool gets the right shape.
+#
+# Copy to rules/<your-rule-name>.mdc, edit, then run `make register`.
+# ───────────────────────────────────────────────────────────────────────
+
+name: example-rule
+description: One-line description of what this rule enforces.
+author: your-name
+
+presets:
+  - quality-gates
+
+# Allowlist. Rules only really land in tools that have a "rule"
+# concept — Cursor has rules/, Claude Code has a speculative
+# .claude/rules/ (not auto-loaded, see verification-matrix.md).
+tools:
+  - cursor
+  - claude-code
+
+# Per-tool frontmatter overrides. The tool config in
+# config/tools.json declares the default frontmatter shape for each
+# tool's rule destination; these overrides win.
+overrides:
+  cursor:
+    # Cursor rule frontmatter:
+    #   description: "{description}"   ← filled from above
+    #   globs: "**/*"                  ← which files this rule applies to
+    #   alwaysApply: true              ← attached to every prompt, no glob match needed
+    alwaysApply: true
+    globs: "**/*.{ts,tsx,js,jsx,py,go,rs,java,kt,rb}"
+  # claude-code:
+  #   (Claude Code doesn't have a structured rule frontmatter contract;
+  #   the body lands at .claude/rules/<name>.md and must be referenced
+  #   from CLAUDE.md to actually load. See docs/verification-matrix.md.)
+---
+
+# Rule: example rule
+
+Open with a one-line statement of what the rule requires.
+
+## Good
+
+```
+// example of compliant code
+```
+
+## Bad
+
+```
+// example of code the rule flags
+```
+
+## Rationale
+
+Why does this rule exist? "Bare TODOs rot." "Generic Error types
+defeat structured error handling." Tie the rule to a concrete failure
+mode it prevents.
+
+## When this rule does NOT apply
+
+Be honest. Most rules have exceptions; rules that pretend they don't
+get worked around.
+
+## Gotchas
+
+- **`alwaysApply: true` vs `globs` matters in Cursor.** With
+  `alwaysApply: true`, the rule attaches to every prompt regardless
+  of which files are open. With `alwaysApply: false` plus a `globs`
+  pattern, the rule only fires when files matching the pattern are
+  in context. Most rules want `alwaysApply: false` plus a glob — be
+  intentional if you turn `alwaysApply` on.
+- **`globs` is a comma-separated string OR a string with brace
+  expansion, depending on Cursor version.** The safe shape is a
+  single string like `"**/*.{ts,js}"`. Multi-glob arrays are not
+  universally supported.
+- **Claude Code does not auto-load `.claude/rules/`.** The toolkit
+  drops files there for parking; you wire them up by `@`-importing
+  them from `CLAUDE.md` (or another always-loaded context file).
+- **Rules vs skills.** A rule constrains output ("don't do X").
+  A skill provides knowledge ("here's how to think about X"). If
+  the asset's verb is "should", it's probably a rule; if it's
+  "consider", it's probably a skill. Same source content can serve
+  both purposes via per-tool mapping (Cursor maps skills→rules, so
+  a skill body becomes a rule on disk for Cursor).
+
+<!-- MIT, see LICENSE -->

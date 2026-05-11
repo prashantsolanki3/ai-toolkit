@@ -29,7 +29,7 @@ When a tool injects its own frontmatter on install (Cursor's `globs`/`alwaysAppl
 name: ts-only-rule
 description: Rule scoped to TypeScript files.
 presets:
-  - quality-gates
+  - skill-development
 tools:
   - cursor
   - claude-code
@@ -42,7 +42,7 @@ overrides:
 ---
 ```
 
-The toolkit ships [`rules/prefer-typed-errors.mdc`](../../rules/prefer-typed-errors.mdc) as a concrete example.
+The toolkit ships [`rules/rule.mdc.example`](../../rules/rule.mdc.example) as a concrete example.
 
 ### Common override targets
 
@@ -64,11 +64,11 @@ For tools whose destination doesn't transform frontmatter (Claude Code, Antigrav
 ```bash
 #!/usr/bin/env bash
 # === ai-toolkit metadata ===
-# name: pre-commit-lint
+# name: my-hook
 # description: Sample lint-staged pre-commit hook.
 # author: ai-toolkit
 # presets:
-#   - quality-gates
+#   - skill-development
 # === end metadata ===
 
 set -euo pipefail

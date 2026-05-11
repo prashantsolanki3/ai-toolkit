@@ -71,10 +71,10 @@ The toolkit does NOT ship a runtime. Two equivalent ways to execute an eval suit
 Install the `skill-evaluator` skill (it's in the `skill-development` preset), then in your IDE chat:
 
 ```
-/eval-skill comprehensive-review
+/eval-skill skill-evaluator
 ```
 
-(or, in IDEs without slash commands: "evaluate the comprehensive-review skill using its eval.json")
+(or, in IDEs without slash commands: "evaluate the skill-evaluator skill using its eval.json")
 
 The IDE's agent walks the procedure:
 1. Reads the target skill's body as if it were its own system prompt.
@@ -84,7 +84,7 @@ The IDE's agent walks the procedure:
    - Records pass/fail with reason.
 3. Reports per-test detail and overall pass rate.
 
-For the autonomous improvement loop, run `/improve-skill comprehensive-review` instead. It runs the eval, and if the pass rate is below `target_pass_rate`, the agent proposes edits to the skill body, asks for your approval, applies, and re-runs.
+For the autonomous improvement loop, run `/improve-skill skill-evaluator` instead. It runs the eval, and if the pass rate is below `target_pass_rate`, the agent proposes edits to the skill body, asks for your approval, applies, and re-runs.
 
 ### Outside an IDE (CI, scripted runs)
 

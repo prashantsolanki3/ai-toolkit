@@ -4,8 +4,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { list } from '../../src/commands/list.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const REPO_ROOT = path.resolve(__dirname, '..', '..');
+import { buildLegacyFixture } from '../helpers/legacy-fixture.js';
+const REPO_ROOT = buildLegacyFixture();
 
 function captureLogger() {
   const lines = [];

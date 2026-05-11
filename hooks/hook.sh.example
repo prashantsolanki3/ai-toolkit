@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+# ───────────────────────────────────────────────────────────────────────
+# hook.sh.example
+# Template for a shell hook. Hooks are scripts the receiving tool runs
+# at specific lifecycle events (Stop, PreToolUse, post-commit, etc.).
+#
+# Hooks are FLAT files at hooks/<name>.sh. Frontmatter for .sh files
+# uses a shell-comment block — see below — because `---` is not valid
+# bash. Everything between the open/close markers is parsed as YAML
+# after stripping the leading `# `.
+#
+# Copy to hooks/<your-hook-name>.sh, edit, then run `make register`.
+# ───────────────────────────────────────────────────────────────────────
+
+# === ai-toolkit metadata ===
+# name: example-hook
+# description: One-line description of what this hook does.
+# author: your-name
+# presets:
+#   - quality-gates
+# tools:
+#   - claude-code
+#   - kiro
+# === end metadata ===
+
+# Body of the hook script starts here. Everything below the close marker
+# is treated as code, not metadata.
+
+set -euo pipefail
+
+# ─── Gotchas ─────────────────────────────────────────────────────────
+#
+# • The metadata block markers ARE case-sensitive. Use exactly:
+#     # === ai-toolkit metadata ===
+#     # === end metadata ===
+#   Anything else and the parser won't recognise the block.
+#
+# • Every metadata line starts with `# `. Blank `#` lines are allowed
+#   between entries; mixed plain blank lines inside the block are not.
+#
+# • The shebang can sit on either side of the metadata block — the
+#   parser doesn't care. Conventionally shebang first, then metadata.
+#
+# • Mark the script executable in source (chmod +x) so the destination
+#   inherits the bit. The toolkit preserves file mode on copy.
+#
+# • For Claude Code: dropping a hook at .claude/hooks/<name>.sh ALONE
+#   is not enough. Claude Code wires hooks via .claude/settings.json
+#   with an event matcher (Stop, PreToolUse, PostToolUse, etc.). Add
+#   a settings.json entry that references the installed script path.
+#
+# • For Kiro: the toolkit auto-generates a .kiro.hook JSON sidecar
+#   alongside the script (filename, description, command, enabled).
+#   Don't write the JSON by hand; the tool config in
+#   config/tools.json declares the sidecar template.
+#
+# • Other tools don't support hooks at all — install warns and skips
+#   for them. That's expected, not a bug.
+
+# Example body: lint any staged JS/TS files. Replace with whatever
+# the hook should actually do.
+
+STAGED=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(js|ts|jsx|tsx)$' || true)
+
+if [ -z "$STAGED" ]; then
+  exit 0
+fi
+
+echo "Hook would lint:"
+echo "$STAGED"
+
+# ... real work here ...
+
+exit 0
