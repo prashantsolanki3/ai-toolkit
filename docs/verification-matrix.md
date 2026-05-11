@@ -80,12 +80,14 @@ Then Claude Code pulls the rule body into context whenever it loads project memo
 - **Target:** `.cursor/` (workspace only — Cursor has no documented global rules path)
 - **Expected layout after install:**
   - `.cursor/rules/code-review-checklist.mdc` — with frontmatter `{ description, globs, alwaysApply }` generated from the source.
+  - `.cursor/agents/senior-architect.md` — Cursor subagent ([docs](https://cursor.com/docs/subagents)).
 - **How to verify ingestion:**
   1. Open the project in Cursor.app.
   2. Open Cursor Settings → Rules. The `code-review-checklist` rule should be listed.
   3. Open Composer / Chat; the rule body should appear in the context preview.
   4. Trigger a generation that should match the rule's `globs` (if set) and confirm the rule fires.
-- **No longer a caveat — automated:** Cursor frontmatter (description/globs/alwaysApply) is injected automatically by the installer based on the tool config in [`config/tools.json`](../config/tools.json). Per-asset overrides via `overrides.cursor.{globs, alwaysApply}` in the source frontmatter.
+  5. Subagents: invoke an agent via `/senior-architect` (or the agent's name). Cursor reads from `.cursor/agents/`, and also from `.claude/agents/` and `.codex/agents/` — installing for claude-code AND cursor populates both, which is harmless.
+- **No longer a caveat — automated:** Cursor frontmatter (description/globs/alwaysApply for rules; description for agents) is injected automatically by the installer based on the tool config in [`config/tools.json`](../config/tools.json). Per-asset overrides via `overrides.cursor.{globs, alwaysApply, model, readonly, is_background}` in the source frontmatter.
 - **Last verified:** _pending_
 
 ## antigravity
@@ -112,14 +114,14 @@ Then Claude Code pulls the rule body into context whenever it loads project memo
 - **Expected layout after install:**
   - `.github/instructions/code-review-checklist.instructions.md` — frontmatter `{ description, applyTo: "**" }`
   - `.github/prompts/summarize-diff.prompt.md` — frontmatter `{ description, mode: "agent" }`
-  - `.github/chatmodes/senior-architect.chatmode.md` — frontmatter `{ description }`
+  - `.github/agents/senior-architect.md` — Copilot custom agent ([docs](https://docs.github.com/en/copilot/concepts/agents/cloud-agent/about-custom-agents))
 - **How to verify ingestion:**
   1. Open the workspace in VS Code with the GitHub Copilot extension installed.
   2. **Required:** enable workspace setting `chat.promptFiles: true` (and `chat.instructionsFilesLocations` / `chat.modeFilesLocations` if you keep files elsewhere). Without this, Copilot ignores the files.
   3. Run the **"Chat: Configure Chat Instructions"** command (palette) — the installed instruction file should appear in the list.
   4. Open Copilot Chat. The `applyTo`-matched instruction should be surfaced or attached automatically.
-  5. Custom chat modes: open the mode selector. The installed `*.chatmode.md` should appear; select it and confirm the persona is applied.
-- **No longer a caveat — automated:** `applyTo` for instructions, `mode` for prompts, and `description` for chat modes are now injected by the installer (`config/tools.json`). Per-asset overrides via `overrides.vscode-copilot.{applyTo, mode, tools, model}`.
+  5. Custom agents: confirm Copilot loads `.github/agents/<name>.md` for the agent personas. The agent file should be discoverable in Copilot's agent picker / `@`-mention surface.
+- **Caveats:** GitHub's docs list `prompt` as a required frontmatter field on custom agents. The toolkit currently puts the agent body in the file body (the most common convention across agent-supporting tools). If your Copilot version strictly requires `prompt:` in frontmatter, edit the asset to set `overrides.vscode-copilot.prompt` with the body content — file an issue if you hit this so we can adjust the default. The chatmodes/`.chatmode.md` path is intentionally **not** generated; if you want chat modes alongside, hand-craft them.
 - **Last verified:** _pending_
 
 ## copilot-cli

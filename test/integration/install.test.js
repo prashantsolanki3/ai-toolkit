@@ -62,13 +62,12 @@ test('install: cursor uses .cursor-style paths and skips unsupported types', asy
     });
 
     const installDir = toolDir(target, 'cursor');
-    // Cursor maps skills source -> .cursor/rules/<name>.mdc (file format with
-    // SKILL.md extracted from the source directory). It does not support
-    // agents/commands/hooks.
+    // Cursor maps skills source -> .cursor/rules/<name>.mdc and agents ->
+    // .cursor/agents/<name>.md. It does not support commands or hooks.
     assert.ok(fs.existsSync(path.join(installDir, 'rules', 'api-endpoint-design.mdc')));
-    assert.equal(fs.existsSync(path.join(installDir, 'agents')), false);
+    assert.ok(fs.existsSync(path.join(installDir, 'agents', 'senior-architect.md')));
     assert.equal(fs.existsSync(path.join(installDir, 'commands')), false);
-    assert.ok(lines.some(([level, m]) => level === 'warn' && /agents|commands/.test(m)));
+    assert.ok(lines.some(([level, m]) => level === 'warn' && /commands/.test(m)));
   } finally {
     cleanupTmpProject(target);
   }

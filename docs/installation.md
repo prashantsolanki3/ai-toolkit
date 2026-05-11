@@ -79,7 +79,7 @@ ai-toolkit installed                  # shows nothing if you haven't installed y
 | `cursor`         | `.cursor/`      | Skills mapped to rules; rules native                   |
 | `antigravity`    | `.agent/skills/`| Skills only                                            |
 | `gemini-cli`     | `.gemini/`      | Skills only                                            |
-| `vscode-copilot` | `.github/`      | Skills → instructions; commands → prompts; agents → chatmodes |
+| `vscode-copilot` | `.github/`      | Skills → instructions; commands → prompts; agents → [custom agents](https://docs.github.com/en/copilot/concepts/agents/cloud-agent/about-custom-agents) at `.github/agents/` |
 | `copilot-cli`    | `.github/`      | Shares destination with vscode-copilot                 |
 | `kiro`           | `.kiro/`        | Skills → steering; hooks generate `.kiro.hook` sidecar |
 | `kiro-cli`       | `.kiro/`        | Shares destination with kiro                           |

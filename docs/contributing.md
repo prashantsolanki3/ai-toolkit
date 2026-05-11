@@ -132,7 +132,7 @@ The `docs-maintainer` agent (`agents/docs-maintainer/agent.md`) lives in this re
 
 - In Claude Code: `@docs-maintainer audit docs/usage.md against the change in src/commands/install.js`
 - In Cursor: select `docs-maintainer` from the rules list, then ask in chat.
-- In VS Code Copilot: pick the `docs-maintainer.chatmode` from the mode dropdown.
+- In VS Code Copilot: invoke the `docs-maintainer` custom agent from the agent picker (it's installed at `.github/agents/docs-maintainer.md`).
 
 The agent flags drift and proposes diffs but never silently rewrites prose.
 

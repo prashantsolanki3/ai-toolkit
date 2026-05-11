@@ -71,7 +71,7 @@ Read your tool's docs. For each of `skills`, `agents`, `commands`, `hooks`, `rul
 - Does the tool consume this category?
 - If yes: where on disk does it look? What filename pattern? What frontmatter, if any?
 
-Some tools only support one asset type (Antigravity = skills only). Others map our types to their own primitives (Cursor "rules" cover what we'd call skills + rules; VS Code Copilot "instructions" + "prompts" + "chatmodes" cover skills + commands + agents).
+Some tools only support one asset type (Antigravity = skills only). Others map our types to their own primitives (Cursor "rules" cover what we'd call skills + rules, and Cursor subagents at `.cursor/agents/` map to agents; VS Code Copilot uses `.github/instructions/` for skills, `.github/prompts/` for commands, and `.github/agents/` for [custom agents](https://docs.github.com/en/copilot/concepts/agents/cloud-agent/about-custom-agents)).
 
 ### 2. Append the block to `config/tools.json`
 

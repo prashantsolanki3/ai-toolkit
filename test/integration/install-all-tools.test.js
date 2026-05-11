@@ -127,11 +127,11 @@ test('install (no --tool) with mixed assets: each tool installs what it supports
     assert.ok(fs.existsSync(path.join(claude, 'hooks', 'pre-commit-lint.sh')));
     assert.ok(fs.existsSync(path.join(claude, 'rules', 'no-bare-todos.md')));
 
-    // Cursor supports skills + rules only.
+    // Cursor supports skills + rules + agents (subagents).
     const cursor = toolDir(target, 'cursor');
     assert.ok(fs.existsSync(path.join(cursor, 'rules', 'code-review-checklist.mdc')));
     assert.ok(fs.existsSync(path.join(cursor, 'rules', 'no-bare-todos.mdc')));
-    assert.equal(fs.existsSync(path.join(cursor, 'agents')), false);
+    assert.ok(fs.existsSync(path.join(cursor, 'agents', 'senior-architect.md')));
     assert.equal(fs.existsSync(path.join(cursor, 'commands')), false);
     assert.equal(fs.existsSync(path.join(cursor, 'hooks')), false);
 

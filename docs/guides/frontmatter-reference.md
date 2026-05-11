@@ -48,10 +48,11 @@ The toolkit ships [`rules/prefer-typed-errors.mdc`](../../rules/prefer-typed-err
 
 | Tool | Override keys that matter |
 | --- | --- |
-| `cursor` | `globs`, `alwaysApply` |
+| `cursor` (rules) | `globs`, `alwaysApply` |
+| `cursor` (agents) | `model`, `readonly`, `is_background` |
 | `vscode-copilot` (skills→instructions) | `applyTo` |
 | `vscode-copilot` (commands→prompts) | `mode`, `tools`, `model` |
-| `vscode-copilot` (agents→chatmodes) | `tools`, `model` |
+| `vscode-copilot` (agents→.github/agents) | `tools`, `model`, `mcp-servers` |
 | `copilot-cli` | same as vscode-copilot |
 
 For tools whose destination doesn't transform frontmatter (Claude Code, Antigravity, Gemini CLI), `overrides` is silently ignored — the source frontmatter passes through untouched.

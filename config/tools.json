@@ -33,7 +33,8 @@
       },
       "assetPaths": {
         "skills": "rules",
-        "rules": "rules"
+        "rules": "rules",
+        "agents": "agents"
       },
       "assetFormats": {
         "skills": {
@@ -54,10 +55,18 @@
             "globs": "",
             "alwaysApply": false
           }
+        },
+        "agents": {
+          "filename": "{name}.md",
+          "type": "file",
+          "sourceFile": "agent.md",
+          "frontmatter": {
+            "description": "{description}"
+          }
         }
       },
-      "supportedAssets": ["skills", "rules"],
-      "notes": "Cursor's only persistent customization is project rules at .cursor/rules/<name>.mdc. Each rule's frontmatter is generated to match Cursor's contract (description, globs, alwaysApply). Override per-asset by adding overrides.cursor.{globs, alwaysApply} to the source frontmatter."
+      "supportedAssets": ["skills", "rules", "agents"],
+      "notes": "Cursor reads project rules at .cursor/rules/<name>.mdc and subagents at .cursor/agents/<name>.md (https://cursor.com/docs/subagents). Skill content becomes a rule with the Cursor frontmatter contract; agents land at .cursor/agents/<name>.md. Cursor also reads from .claude/agents/, so installing for claude-code overlaps with this — that's fine, both paths get populated. Override per-asset via overrides.cursor.{globs, alwaysApply, model, readonly, is_background}."
     },
     "antigravity": {
       "displayName": "Antigravity",
@@ -98,7 +107,7 @@
       "assetPaths": {
         "skills": "instructions",
         "commands": "prompts",
-        "agents": "chatmodes"
+        "agents": "agents"
       },
       "assetFormats": {
         "skills": {
@@ -119,7 +128,7 @@
           }
         },
         "agents": {
-          "filename": "{name}.chatmode.md",
+          "filename": "{name}.md",
           "type": "file",
           "sourceFile": "agent.md",
           "frontmatter": {
@@ -128,7 +137,7 @@
         }
       },
       "supportedAssets": ["skills", "commands", "agents"],
-      "notes": "Generates VS Code Copilot's expected frontmatter on the destination: applyTo for instructions, mode for prompts, description for chat modes. Per-asset overrides via overrides.vscode-copilot.{applyTo,mode,tools,model}. For Copilot to load the files, enable the workspace setting chat.promptFiles."
+      "notes": "Custom agents land at .github/agents/<name>.md per GitHub's docs (https://docs.github.com/en/copilot/concepts/agents/cloud-agent/about-custom-agents). Skill content becomes .github/instructions/<name>.instructions.md and commands become .github/prompts/<name>.prompt.md. Per-asset overrides via overrides.vscode-copilot.{applyTo,mode,tools,model,mcp-servers}. For Copilot to load the files, enable the workspace setting chat.promptFiles."
     },
     "copilot-cli": {
       "displayName": "GitHub Copilot CLI",
@@ -138,7 +147,8 @@
       },
       "assetPaths": {
         "skills": "instructions",
-        "commands": "prompts"
+        "commands": "prompts",
+        "agents": "agents"
       },
       "assetFormats": {
         "skills": {
@@ -157,10 +167,18 @@
             "description": "{description}",
             "mode": "agent"
           }
+        },
+        "agents": {
+          "filename": "{name}.md",
+          "type": "file",
+          "sourceFile": "agent.md",
+          "frontmatter": {
+            "description": "{description}"
+          }
         }
       },
-      "supportedAssets": ["skills", "commands"],
-      "notes": "Shares destination conventions with vscode-copilot. The newer agentic Copilot CLI (the `copilot` command) reads .github/copilot-instructions.md plus .github/instructions/ and .github/prompts/. Global ~/.copilot/ holds user-wide instructions. The legacy `gh copilot` extension does NOT consume these files."
+      "supportedAssets": ["skills", "commands", "agents"],
+      "notes": "Shares the .github/ tree with vscode-copilot — agents at .github/agents/<name>.md, instructions at .github/instructions/, prompts at .github/prompts/. Global ~/.copilot/ holds user-wide instructions. The legacy `gh copilot` extension does NOT consume these files; this config targets the newer agentic `copilot` CLI."
     },
     "kiro": {
       "displayName": "Kiro",

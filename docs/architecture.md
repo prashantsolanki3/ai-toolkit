@@ -35,7 +35,7 @@ Each tool maps these to its own destinations. Examples:
 
 - Claude Code: skills stay as dirs at `.claude/skills/<name>/`, agents flatten to `.claude/agents/<name>.md`, commands flat at `.claude/commands/<name>.md`, hooks at `.claude/hooks/<name>.sh`, rules at `.claude/rules/<name>.md`.
 - Cursor: skills *and* rules both map to `.cursor/rules/<name>.mdc` (file-format with the right `description`/`globs`/`alwaysApply` frontmatter injected). Cursor has no native concept of skills, agents, commands, or hooks.
-- VS Code Copilot: skills → `.github/instructions/<name>.instructions.md`, commands → `.github/prompts/<name>.prompt.md`, agents → `.github/chatmodes/<name>.chatmode.md`.
+- VS Code Copilot: skills → `.github/instructions/<name>.instructions.md`, commands → `.github/prompts/<name>.prompt.md`, agents → `.github/agents/<name>.md` (the [custom agents](https://docs.github.com/en/copilot/concepts/agents/cloud-agent/about-custom-agents) mechanism). Cursor: agents → `.cursor/agents/<name>.md` (Cursor's [subagents](https://cursor.com/docs/subagents)).
 
 ## Manifest as derived data
 

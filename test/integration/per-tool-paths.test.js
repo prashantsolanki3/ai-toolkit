@@ -90,6 +90,24 @@ test('cursor: explicit rules land as .cursor/rules/<name>.mdc', async () => {
   }
 });
 
+test('cursor: agents land as .cursor/agents/<name>.md per Cursor subagents docs', async () => {
+  const target = createTmpProject();
+  try {
+    await install({
+      tool: 'cursor',
+      agents: ['senior-architect'],
+      target,
+      sourceRoot: REPO_ROOT,
+      logger: silentLogger(),
+    });
+    assert.ok(
+      fs.existsSync(path.join(toolDir(target, 'cursor'), 'agents', 'senior-architect.md')),
+    );
+  } finally {
+    cleanupTmpProject(target);
+  }
+});
+
 test('claude-code: rules land as .claude/rules/<name>.md', async () => {
   const target = createTmpProject();
   try {
@@ -144,7 +162,7 @@ test('gemini-cli: skills under .gemini/skills/<name>/SKILL.md', async () => {
   }
 });
 
-test('vscode-copilot: skills→instructions, commands→prompts, agents→chatmodes (under .github/)', async () => {
+test('vscode-copilot: skills→instructions, commands→prompts, agents→.github/agents/ (under .github/)', async () => {
   const target = createTmpProject();
   try {
     await install({
@@ -159,19 +177,28 @@ test('vscode-copilot: skills→instructions, commands→prompts, agents→chatmo
     const dir = toolDir(target, 'vscode-copilot');
     assert.ok(fs.existsSync(path.join(dir, 'instructions', 'code-review-checklist.instructions.md')));
     assert.ok(fs.existsSync(path.join(dir, 'prompts', 'summarize-diff.prompt.md')));
-    assert.ok(fs.existsSync(path.join(dir, 'chatmodes', 'senior-architect.chatmode.md')));
+    assert.ok(
+      fs.existsSync(path.join(dir, 'agents', 'senior-architect.md')),
+      'agents should land at .github/agents/<name>.md per GitHub custom-agents docs',
+    );
+    assert.equal(
+      fs.existsSync(path.join(dir, 'chatmodes')),
+      false,
+      'chatmodes path is no longer used — agents land at .github/agents/',
+    );
   } finally {
     cleanupTmpProject(target);
   }
 });
 
-test('copilot-cli: skills→.github/instructions, commands→.github/prompts', async () => {
+test('copilot-cli: skills→.github/instructions, commands→.github/prompts, agents→.github/agents/', async () => {
   const target = createTmpProject();
   try {
     await install({
       tool: 'copilot-cli',
       skills: ['code-review-checklist'],
       commands: ['summarize-diff'],
+      agents: ['senior-architect'],
       target,
       sourceRoot: REPO_ROOT,
       logger: silentLogger(),
@@ -179,6 +206,7 @@ test('copilot-cli: skills→.github/instructions, commands→.github/prompts', a
     const dir = toolDir(target, 'copilot-cli');
     assert.ok(fs.existsSync(path.join(dir, 'instructions', 'code-review-checklist.instructions.md')));
     assert.ok(fs.existsSync(path.join(dir, 'prompts', 'summarize-diff.prompt.md')));
+    assert.ok(fs.existsSync(path.join(dir, 'agents', 'senior-architect.md')));
   } finally {
     cleanupTmpProject(target);
   }
