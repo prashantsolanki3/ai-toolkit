@@ -16,6 +16,12 @@ import { createLogger } from '../lib/logger.js';
 
 const ASSET_TYPES = ['skills', 'agents', 'commands', 'hooks', 'rules', 'mcp'];
 
+// Same rule as install: workspace lockfile lives at projectRoot, global at
+// the tool's own global dir.
+function lockfileLocation({ scope, projectRoot, toolTarget }) {
+  return scope === 'global' ? toolTarget : projectRoot;
+}
+
 export async function update(opts) {
   const logger = opts.logger || createLogger();
   const sourceRoot =
@@ -25,52 +31,95 @@ export async function update(opts) {
 
   // --scope is honoured here the same way it is by install: default
   // "workspace" with explicit "global" as the only other value. The lockfile
-  // also records its own scope; we fall back to that when the caller didn't
-  // pass --scope, so the common case (update what you installed) just works.
+  // also records its own scope per tool entry; we fall back to that when
+  // the caller didn't pass --scope.
   const requestedScope = opts.scope || null;
+  const aggregate = { updated: [], skipped: [], missing: [], unchanged: [] };
+
+  // Read the unified lockfile once. For workspace scope that's projectRoot;
+  // for global scope the user must pass --tool so we know which global dir
+  // to look in.
+  const scopeForLookup = requestedScope || 'workspace';
+  if (scopeForLookup === 'global' && !opts.tool) {
+    throw new Error(`--scope global requires --tool <name> (no autodiscovery for global scope).`);
+  }
+
+  // Pick the tool(s) to update.
+  let toolNames;
+  if (opts.tool) {
+    toolNames = [opts.tool];
+  } else {
+    const found = findInstalledTools(tools, projectRoot);
+    if (found.length === 0) {
+      throw new Error(
+        `No installed tools found under ${projectRoot}. Run \`ai-toolkit install --tool <name>\` first, or pass --target.`,
+      );
+    }
+    toolNames = found.map((f) => f.tool);
+  }
+
+  for (const toolName of toolNames) {
+    let result;
+    try {
+      result = await updateOne({
+        toolName,
+        opts,
+        tools,
+        sourceRoot,
+        projectRoot,
+        requestedScope,
+        logger,
+      });
+    } catch (err) {
+      // Soft-skip scope mismatches the same way installAll does. Anything else propagates.
+      if (requestedScope && /not support|scope/.test(err.message)) {
+        logger.warn(`Skipping update for ${toolName}: ${err.message}`);
+        continue;
+      }
+      throw err;
+    }
+    aggregate.updated.push(...result.updated);
+    aggregate.skipped.push(...result.skipped);
+    aggregate.missing.push(...result.missing);
+    aggregate.unchanged.push(...result.unchanged);
+  }
+  return aggregate;
+}
+
+async function updateOne({ toolName, opts, tools, sourceRoot, projectRoot, requestedScope, logger }) {
+  const tool = getTool(tools, toolName);
   const result = { updated: [], skipped: [], missing: [], unchanged: [] };
 
-  let target;
-  try {
-    target = resolveUpdateTarget({
-      tools,
-      projectRoot,
-      toolName: opts.tool,
-      scope: requestedScope || 'workspace',
-    });
-  } catch (err) {
-    // If the user explicitly asked for a scope this tool doesn't support
-    // (most commonly --scope global on a workspace-only tool like vscode-
-    // copilot or kiro), treat that as a soft skip: warn, return empty,
-    // don't throw. Matches install's multi-tool behaviour.
-    if (requestedScope && /not support|scope/.test(err.message)) {
-      logger.warn(`Skipping update for ${opts.tool || '(autodiscovered)'}: ${err.message}`);
-      return result;
-    }
-    throw err;
-  }
+  const scopeForPath = requestedScope || 'workspace';
+  // Resolving target path with the scope catches "this tool doesn't support
+  // this scope" before we try to read a lockfile that won't exist.
+  const target = resolveTargetPath(tool, scopeForPath, projectRoot);
+  const lockDir = lockfileLocation({ scope: scopeForPath, projectRoot, toolTarget: target });
 
-  const lockfile = readLockfile(target);
+  const lockfile = readLockfile(lockDir);
   if (!lockfile) {
-    throw new Error(`No lockfile at ${path.join(target, LOCKFILE_NAME)}; nothing to update (not installed).`);
+    throw new Error(`No lockfile at ${path.join(lockDir, LOCKFILE_NAME)}; nothing to update (not installed).`);
   }
-
-  const tool = getTool(tools, lockfile.tool);
+  const toolSection = lockfile.tools?.[toolName];
+  if (!toolSection) {
+    throw new Error(`Lockfile at ${lockDir} does not track tool "${toolName}". Run install first.`);
+  }
   const manifest = loadManifest(sourceRoot);
 
-  const filter = buildAssetFilter(opts, lockfile, manifest, logger);
-  const scope = requestedScope || lockfile.scope || 'workspace';
+  const filter = buildAssetFilter(opts, toolSection, manifest, logger);
+  // Trust the per-tool recorded scope when the caller didn't supply one.
+  const scope = requestedScope || toolSection.scope || 'workspace';
 
   for (const type of ASSET_TYPES) {
     if (!supportsAsset(tool, type)) continue;
-    const tracked = (lockfile.assets && lockfile.assets[type]) || {};
+    const tracked = toolSection.assets?.[type] || {};
     for (const name of Object.keys(tracked)) {
       if (!filter.includes(type, name)) continue;
 
       if (type === 'mcp') {
         const r = updateMcpEntry({
           tool,
-          toolName: lockfile.tool,
+          toolName,
           scope,
           projectRoot,
           name,
@@ -82,14 +131,14 @@ export async function update(opts) {
           logger,
         });
         if (r.status === 'updated') {
-          if (r.lockfileEntry) lockfile.assets.mcp[name] = r.lockfileEntry;
-          result.updated.push({ type, name });
+          if (r.lockfileEntry) toolSection.assets.mcp[name] = r.lockfileEntry;
+          result.updated.push({ type, name, tool: toolName });
         } else if (r.status === 'unchanged') {
-          result.unchanged.push({ type, name });
+          result.unchanged.push({ type, name, tool: toolName });
         } else if (r.status === 'skipped-edited' || r.status === 'skipped-scope') {
-          result.skipped.push({ type, name, reason: r.reason });
+          result.skipped.push({ type, name, tool: toolName, reason: r.reason });
         } else if (r.status === 'missing') {
-          result.missing.push({ type, name });
+          result.missing.push({ type, name, tool: toolName });
         }
         continue;
       }
@@ -101,7 +150,7 @@ export async function update(opts) {
         source = resolveSourcePath({ sourceRoot, assetType: type, name, destFormat });
       } catch {
         logger.warn(`${type}/${name}: removed upstream — leaving in place, untrack via 'remove'`);
-        result.missing.push({ type, name });
+        result.missing.push({ type, name, tool: toolName });
         continue;
       }
 
@@ -120,25 +169,25 @@ export async function update(opts) {
       const destEdited = currentDestSha !== null && currentDestSha !== trackedDestSha;
 
       if (!sourceChanged && !destEdited) {
-        result.unchanged.push({ type, name });
+        result.unchanged.push({ type, name, tool: toolName });
         continue;
       }
 
       if (!sourceChanged && destEdited) {
-        result.skipped.push({ type, name, reason: 'local edits and no upstream change' });
+        result.skipped.push({ type, name, tool: toolName, reason: 'local edits and no upstream change' });
         logger.warn(`${type}/${name}: locally edited; nothing new upstream — leaving as-is`);
         continue;
       }
 
       if (destEdited && !opts.force) {
         logger.warn(`${type}/${name}: local edits detected — skipping. Re-run with --force to overwrite.`);
-        result.skipped.push({ type, name, reason: 'local edits; use --force to overwrite' });
+        result.skipped.push({ type, name, tool: toolName, reason: 'local edits; use --force to overwrite' });
         continue;
       }
 
       if (opts.dryRun) {
         logger.dryRun(`update ${type}/${name}`);
-        result.updated.push({ type, name });
+        result.updated.push({ type, name, tool: toolName });
         continue;
       }
 
@@ -147,25 +196,25 @@ export async function update(opts) {
         sourceKind: source.kind,
         destPath: dest,
         destFormat,
-        toolName: lockfile.tool,
+        toolName,
       });
       const newSourceSha = currentSourceSha;
       const newDestSha = destFormat.type === 'directory' ? hashDir(dest) : hashFile(dest);
-      lockfile.assets[type][name] = {
+      toolSection.assets[type][name] = {
         ...tracked[name],
         sourceSha: newSourceSha,
         destSha: newDestSha,
         sha: newDestSha,
         installedAt: new Date().toISOString(),
       };
-      result.updated.push({ type, name });
+      result.updated.push({ type, name, tool: toolName });
       logger.success(`updated ${type}/${name}`);
     }
   }
 
   if (!opts.dryRun) {
     lockfile.lastUpdatedAt = new Date().toISOString();
-    writeLockfile(target, lockfile);
+    writeLockfile(lockDir, lockfile);
   }
 
   return result;
@@ -179,7 +228,7 @@ export async function update(opts) {
 //
 // Any explicitly-named asset that isn't actually tracked in the lockfile
 // surfaces a warning so the user knows the filter excluded everything.
-function buildAssetFilter(opts, lockfile, manifest, logger) {
+function buildAssetFilter(opts, toolSection, manifest, logger) {
   const hasPreset = Boolean(opts.preset);
   const hasExplicit = ASSET_TYPES.some(
     (t) => Array.isArray(opts[t]) && opts[t].length > 0,
@@ -205,7 +254,7 @@ function buildAssetFilter(opts, lockfile, manifest, logger) {
   // Warn about names that won't match anything tracked.
   for (const t of ASSET_TYPES) {
     if (!Array.isArray(opts[t])) continue;
-    const tracked = lockfile.assets?.[t] || {};
+    const tracked = toolSection.assets?.[t] || {};
     for (const name of opts[t]) {
       if (!(name in tracked)) {
         logger.warn(`${t}/${name}: not tracked in the lockfile — skipping.`);
@@ -216,30 +265,4 @@ function buildAssetFilter(opts, lockfile, manifest, logger) {
   return {
     includes: (type, name) => allowed[type]?.has(name),
   };
-}
-
-function resolveUpdateTarget({ tools, projectRoot, toolName, scope = 'workspace' }) {
-  if (toolName) {
-    const tool = getTool(tools, toolName);
-    return resolveTargetPath(tool, scope, projectRoot);
-  }
-  // Autodiscovery only scans workspace subdirs for lockfiles. --scope global
-  // without --tool would need a different discovery story (which global dir
-  // to look in?), so we require --tool in that case.
-  if (scope === 'global') {
-    throw new Error(`--scope global requires --tool <name> (no autodiscovery for global scope).`);
-  }
-  const found = findInstalledTools(tools, projectRoot);
-  if (found.length === 0) {
-    throw new Error(
-      `No installed tools found under ${projectRoot}. Run \`ai-toolkit install --tool <name>\` first, or pass --target.`,
-    );
-  }
-  if (found.length > 1) {
-    const names = found.map((f) => f.tool).join(', ');
-    throw new Error(
-      `Multiple installed tools found under ${projectRoot} (${names}). Pass --tool <name> to disambiguate.`,
-    );
-  }
-  return found[0].dir;
 }

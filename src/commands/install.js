@@ -4,12 +4,25 @@ import { loadManifest } from '../lib/manifest.js';
 import { resolveInstallTargets } from '../lib/resolver.js';
 import { hashDir, hashFile, pathExists } from '../lib/fs-ops.js';
 import { resolveSourcePath, copyAssetAdaptive } from '../lib/source-adapter.js';
-import { read as readLockfile, write as writeLockfile, addAsset, emptyLockfile } from '../lib/lockfile.js';
+import {
+  read as readLockfile,
+  write as writeLockfile,
+  addAsset,
+  emptyLockfile,
+  getOrInitTool,
+} from '../lib/lockfile.js';
 import { writeSidecar, frontmatterKindForFile } from '../lib/sidecar.js';
 import { installMcpEntry } from '../lib/mcp.js';
 import { createLogger } from '../lib/logger.js';
 
 const ASSET_TYPES = ['skills', 'agents', 'commands', 'hooks', 'rules', 'mcp'];
+
+// Where to put the lockfile for this scope. Workspace scope shares one
+// lockfile at the project root across every tool; global scope lives in
+// the tool's own global dir (each global dir is tool-specific anyway).
+function lockfileLocation({ scope, projectRoot, toolTarget }) {
+  return scope === 'global' ? toolTarget : projectRoot;
+}
 
 export async function install(opts) {
   if (!opts.tool) {
@@ -79,7 +92,9 @@ async function installOne(opts) {
   const manifest = loadManifest(sourceRoot);
 
   const scope = opts.scope || 'workspace';
-  const target = resolveTargetPath(tool, scope, opts.target);
+  const projectRoot = opts.target || process.cwd();
+  const target = resolveTargetPath(tool, scope, projectRoot);
+  const lockDir = lockfileLocation({ scope, projectRoot, toolTarget: target });
 
   const plan = resolveInstallTargets(
     pickAssetSelectors(opts),
@@ -96,7 +111,8 @@ async function installOne(opts) {
     return { target, installed: {}, lockfile: null };
   }
 
-  const existingLockfile = readLockfile(target);
+  const existingLockfile = readLockfile(lockDir);
+  const existingToolSection = existingLockfile?.tools?.[opts.tool];
 
   if (opts.dryRun) {
     logger.info(`Would install into ${target} (tool: ${tool.displayName}, scope: ${scope})`);
@@ -107,11 +123,11 @@ async function installOne(opts) {
             tool,
             toolName: opts.tool,
             scope,
-            projectRoot: opts.target || process.cwd(),
+            projectRoot,
             name,
             manifest,
             sourceRoot,
-            trackedEntry: existingLockfile?.assets?.mcp?.[name],
+            trackedEntry: existingToolSection?.assets?.mcp?.[name],
             force: opts.force,
             dryRun: true,
             logger,
@@ -122,7 +138,7 @@ async function installOne(opts) {
         const conflict = detectConflict({
           dest,
           destFormat: tool.assetFormats[type],
-          tracked: existingLockfile?.assets?.[type]?.[name],
+          tracked: existingToolSection?.assets?.[type]?.[name],
         });
         if (conflict && !opts.force) {
           logger.dryRun(`skip ${type}/${name} — destination exists and was not installed by ai-toolkit (use --force to overwrite)`);
@@ -136,15 +152,12 @@ async function installOne(opts) {
 
   logger.info(`Installing into ${target} (tool: ${tool.displayName}, scope: ${scope})`);
 
-  let lockfile = existingLockfile || emptyLockfile({
-    tool: opts.tool,
+  let lockfile = existingLockfile || emptyLockfile();
+  lockfile = getOrInitTool(lockfile, opts.tool, {
     scope,
     source: opts.source || null,
     preset: opts.preset || null,
   });
-  if (!lockfile.tool) lockfile.tool = opts.tool;
-  if (!lockfile.preset && opts.preset) lockfile.preset = opts.preset;
-  if (!lockfile.scope) lockfile.scope = scope;
 
   const installedSummary = {};
   const result = { installed: installedSummary, skipped: [] };
@@ -158,17 +171,17 @@ async function installOne(opts) {
           tool,
           toolName: opts.tool,
           scope,
-          projectRoot: opts.target || process.cwd(),
+          projectRoot,
           name,
           manifest,
           sourceRoot,
-          trackedEntry: lockfile.assets?.mcp?.[name],
+          trackedEntry: lockfile.tools[opts.tool].assets?.mcp?.[name],
           force: opts.force,
           dryRun: false,
           logger,
         });
         if (r.status === 'installed' && r.lockfileEntry) {
-          lockfile = addAsset(lockfile, 'mcp', name, r.lockfileEntry);
+          lockfile = addAsset(lockfile, opts.tool, 'mcp', name, r.lockfileEntry);
           installedSummary.mcp.push(name);
         } else if (r.status === 'skipped-conflict' || r.status === 'skipped-scope') {
           result.skipped.push({ type, name, reason: r.reason });
@@ -183,7 +196,7 @@ async function installOne(opts) {
       const conflict = detectConflict({
         dest,
         destFormat,
-        tracked: lockfile.assets?.[type]?.[name],
+        tracked: lockfile.tools[opts.tool].assets?.[type]?.[name],
       });
       if (conflict && !opts.force) {
         logger.warn(
@@ -213,10 +226,11 @@ async function installOne(opts) {
       }
       const sourceSha = source.kind === 'directory' ? hashDir(source.path) : hashFile(source.path);
       const destSha = destFormat.type === 'directory' ? hashDir(dest) : hashFile(dest);
-      lockfile = addAsset(lockfile, type, name, {
+      lockfile = addAsset(lockfile, opts.tool, type, name, {
         sourceSha,
         destSha,
-        // legacy alias — older lockfiles used `sha` for the dest hash
+        // legacy alias — kept so older readers (and pretty-print code) still
+        // see a `sha` field on file-copy assets.
         sha: destSha,
         sourcePath: path.posix.join(type, name + (destFormat.type === 'file' && source.kind === 'file' && !destFormat.sourceFile ? extFromFilename(destFormat.filename, name) : '')),
       });
@@ -226,7 +240,7 @@ async function installOne(opts) {
   }
 
   lockfile.lastUpdatedAt = new Date().toISOString();
-  writeLockfile(target, lockfile);
+  writeLockfile(lockDir, lockfile);
   return { target, ...result, lockfile };
 }
 

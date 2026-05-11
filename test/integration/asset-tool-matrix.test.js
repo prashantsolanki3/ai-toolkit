@@ -84,9 +84,12 @@ for (const type of ASSET_TYPES) {
             `expected ${type}/${name} at ${expected} for tool ${toolName}`,
           );
 
-          // Lockfile recorded the asset.
-          const lock = readLockfile(installDir);
-          assert.ok(lock?.assets?.[type]?.[name], `lockfile should record ${type}/${name}`);
+          // Lockfile recorded the asset under the unified project-root file.
+          const lock = readLockfile(target);
+          assert.ok(
+            lock?.tools?.[toolName]?.assets?.[type]?.[name],
+            `lockfile should record ${type}/${name} under tools.${toolName}`,
+          );
 
           // Remove tears it down.
           await remove({

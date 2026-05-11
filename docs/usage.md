@@ -230,16 +230,33 @@ An unknown tool name errors out clearly.
 
 ## Lockfile
 
-Each tool's install writes `<tool-subdir>/.ai-toolkit-lock.json` recording:
+A single lockfile lives at `<projectRoot>/.ai-toolkit-lock.json` for the whole project — no per-tool lockfiles in `.claude/`, `.cursor/`, etc. Schema v2.0 is multi-tool:
 
-- `tool` — which tool this lockfile belongs to
-- `scope` — workspace or global
-- `source` — git URL, if known
-- `preset` — preset used, if any
-- `lastUpdatedAt` — timestamp
-- `assets` — per-type map of `{ sourceSha, destSha, installedAt, sourcePath }`
+```jsonc
+{
+  "version": "2.0",
+  "installedAt": "<iso>",
+  "lastUpdatedAt": "<iso>",
+  "tools": {
+    "claude-code": {
+      "scope":  "workspace",
+      "preset": "skill-development",
+      "source": null,
+      "assets": {
+        "skills":   { ... },
+        "agents":   { ... },
+        "commands": { ... },
+        "mcp":      { ... }
+      }
+    },
+    "cursor": { ... }
+  }
+}
+```
 
-Both source and destination SHAs are tracked so `update` can tell upstream changes from local edits even when the destination is a frontmatter-transformed copy of the source.
+Both source and destination SHAs are tracked per asset so `update` can tell upstream changes from local edits even when the destination is a frontmatter-transformed copy of the source.
+
+Global-scope installs are the one exception: each tool's global dir (`~/.claude/`, `~/.cursor/`) gets its own lockfile, since global is project-independent.
 
 The lockfile is the toolkit's source of truth for "what's installed where." Don't hand-edit it.
 

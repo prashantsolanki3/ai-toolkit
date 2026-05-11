@@ -72,13 +72,12 @@ test('update: no source changes is a no-op (assets unchanged, lockfile timestamp
   const { logger } = silentLogger();
   try {
     await install({ tool: 'demo-tool', preset: 'basic', target, sourceRoot: source, logger });
-    const dir = installedDir(target);
-    const before = JSON.parse(fs.readFileSync(path.join(dir, LOCKFILE_NAME), 'utf8'));
-    const beforeSha = before.assets.skills['sample-skill'].sha;
+    const before = JSON.parse(fs.readFileSync(path.join(target, LOCKFILE_NAME), 'utf8'));
+    const beforeSha = before.tools['demo-tool'].assets.skills['sample-skill'].sha;
     await new Promise((r) => setTimeout(r, 10));
     const result = await update({ target, tool: 'demo-tool', sourceRoot: source, logger });
-    const after = JSON.parse(fs.readFileSync(path.join(dir, LOCKFILE_NAME), 'utf8'));
-    assert.equal(after.assets.skills['sample-skill'].sha, beforeSha);
+    const after = JSON.parse(fs.readFileSync(path.join(target, LOCKFILE_NAME), 'utf8'));
+    assert.equal(after.tools['demo-tool'].assets.skills['sample-skill'].sha, beforeSha);
     assert.notEqual(after.lastUpdatedAt, before.lastUpdatedAt);
     assert.deepEqual(result.updated, []);
   } finally {
@@ -94,13 +93,16 @@ test('update: source change is propagated; sha bumped', async () => {
   try {
     await install({ tool: 'demo-tool', preset: 'basic', target, sourceRoot: source, logger });
     const dir = installedDir(target);
-    const before = JSON.parse(fs.readFileSync(path.join(dir, LOCKFILE_NAME), 'utf8'));
+    const before = JSON.parse(fs.readFileSync(path.join(target, LOCKFILE_NAME), 'utf8'));
     fs.writeFileSync(path.join(source, 'skills', 'sample-skill', 'SKILL.md'), 'v2-content');
     const result = await update({ target, tool: 'demo-tool', sourceRoot: source, logger });
-    const after = JSON.parse(fs.readFileSync(path.join(dir, LOCKFILE_NAME), 'utf8'));
+    const after = JSON.parse(fs.readFileSync(path.join(target, LOCKFILE_NAME), 'utf8'));
     const installed = fs.readFileSync(path.join(dir, 'skills', 'sample-skill', 'SKILL.md'), 'utf8');
     assert.equal(installed, 'v2-content');
-    assert.notEqual(after.assets.skills['sample-skill'].sha, before.assets.skills['sample-skill'].sha);
+    assert.notEqual(
+      after.tools['demo-tool'].assets.skills['sample-skill'].sha,
+      before.tools['demo-tool'].assets.skills['sample-skill'].sha,
+    );
     assert.ok(result.updated.some((u) => u.name === 'sample-skill' && u.type === 'skills'));
   } finally {
     cleanupTmpProject(source);

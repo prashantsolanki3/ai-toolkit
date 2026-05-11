@@ -160,14 +160,20 @@ test('supportsAsset() returns false for unsupported assets', () => {
   assert.equal(supportsAsset(tool, 'hooks'), false);
 });
 
-test('findInstalledTools() returns tools whose workspace subdir has a lockfile', () => {
+test('findInstalledTools() returns the tools tracked in the project-root lockfile', () => {
   const dir = createTmpProject();
   try {
-    // pretend project has a .demo subdir with a lockfile
-    fs.mkdirSync(path.join(dir, '.demo'), { recursive: true });
+    // Unified v2.0 lockfile at the project root listing one tool.
     fs.writeFileSync(
-      path.join(dir, '.demo', '.ai-toolkit-lock.json'),
-      JSON.stringify({ version: '1.0', tool: 'demo-tool', assets: {} }),
+      path.join(dir, '.ai-toolkit-lock.json'),
+      JSON.stringify({
+        version: '2.0',
+        installedAt: '2026-01-01T00:00:00.000Z',
+        lastUpdatedAt: '2026-01-01T00:00:00.000Z',
+        tools: {
+          'demo-tool': { scope: 'workspace', assets: {} },
+        },
+      }),
     );
     const config = {
       version: '1.0',
@@ -188,11 +194,34 @@ test('findInstalledTools() returns tools whose workspace subdir has a lockfile',
   }
 });
 
-test('findInstalledTools() returns empty when no tool dirs have lockfiles', () => {
+test('findInstalledTools() returns empty when no project-root lockfile exists', () => {
   const dir = createTmpProject();
   try {
     const config = { version: '1.0', tools: { 'demo-tool': validConfig.tools['demo-tool'] } };
     assert.deepEqual(findInstalledTools(config, dir), []);
+  } finally {
+    cleanupTmpProject(dir);
+  }
+});
+
+test('findInstalledTools() skips entries whose scope is global', () => {
+  const dir = createTmpProject();
+  try {
+    fs.writeFileSync(
+      path.join(dir, '.ai-toolkit-lock.json'),
+      JSON.stringify({
+        version: '2.0',
+        installedAt: '2026-01-01T00:00:00.000Z',
+        lastUpdatedAt: '2026-01-01T00:00:00.000Z',
+        tools: {
+          'demo-tool': { scope: 'workspace', assets: {} },
+          'global-only': { scope: 'global', assets: {} },
+        },
+      }),
+    );
+    const config = { version: '1.0', tools: { 'demo-tool': validConfig.tools['demo-tool'] } };
+    const found = findInstalledTools(config, dir);
+    assert.deepEqual(found.map((f) => f.tool), ['demo-tool']);
   } finally {
     cleanupTmpProject(dir);
   }

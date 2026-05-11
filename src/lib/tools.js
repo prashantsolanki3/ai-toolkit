@@ -73,29 +73,36 @@ export function resolveTargetPath(tool, scope, projectRoot) {
   return path.resolve(root, expanded);
 }
 
-// Scan a project root for tool-specific lockfiles. Used by installed /
-// update / remove when --tool isn't passed: each tool block in the
-// config declares its workspace subdir; we check whether each subdir
-// contains an .ai-toolkit-lock.json.
+// Look up which tools are tracked in the project-root lockfile. With the
+// v2.0 schema, every tool installed against this workspace appears under
+// `tools.<name>` in a single .ai-toolkit-lock.json at the project root.
 //
-// Skips tools whose workspace path is absolute (global-only tools).
+// Returns `[{ tool, dir }]` where `dir` is the resolved workspace target
+// for that tool (e.g. .claude/, .cursor/) so callers can locate the files
+// the tool placed on disk. Returns an empty array when no lockfile exists
+// at the project root, or when no workspace-scoped tools are tracked.
 export function findInstalledTools(config, projectRoot) {
   const root = projectRoot ? expandHome(projectRoot) : process.cwd();
+  const lockPath = path.join(root, '.ai-toolkit-lock.json');
+  let lockfile;
+  try {
+    if (!fs.statSync(lockPath).isFile()) return [];
+    lockfile = JSON.parse(fs.readFileSync(lockPath, 'utf8'));
+  } catch {
+    return [];
+  }
   const found = [];
-  for (const [name, tool] of Object.entries(config.tools || {})) {
-    const sub = tool.defaultTarget?.workspace;
-    if (sub == null) continue;
-    const expanded = expandHome(sub);
-    if (path.isAbsolute(expanded)) continue;
-    const dir = path.resolve(root, expanded);
-    const lock = path.join(dir, '.ai-toolkit-lock.json');
+  for (const [name, section] of Object.entries(lockfile.tools || {})) {
+    if (section?.scope && section.scope !== 'workspace') continue;
+    const tool = config.tools?.[name];
+    if (!tool) continue;
+    let dir;
     try {
-      if (fs.statSync(lock).isFile()) {
-        found.push({ tool: name, dir, lockfile: lock });
-      }
+      dir = resolveTargetPath(tool, 'workspace', root);
     } catch {
-      // not installed for this tool — skip
+      continue;
     }
+    found.push({ tool: name, dir });
   }
   return found;
 }

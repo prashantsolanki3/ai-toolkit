@@ -62,15 +62,14 @@ test('install: mcp entry lands at .mcp.json for claude-code', async () => {
       args: ['-y', '@modelcontextprotocol/server-everything'],
     });
     // Lockfile is still stored under the tool's workspace dir.
-    const lock = JSON.parse(
-      fs.readFileSync(path.join(toolDir(target, 'claude-code'), LOCKFILE_NAME), 'utf8'),
-    );
-    assert.ok(lock.assets.mcp.everything);
-    assert.equal(lock.assets.mcp.everything.key, 'everything');
-    assert.deepEqual(lock.assets.mcp.everything.wrapperPath, ['mcpServers']);
-    assert.ok(lock.assets.mcp.everything.configFile.endsWith('.mcp.json'));
-    assert.match(lock.assets.mcp.everything.valueSha, /^[a-f0-9]{64}$/);
-    assert.match(lock.assets.mcp.everything.sourceSha, /^[a-f0-9]{64}$/);
+    const lock = JSON.parse(fs.readFileSync(path.join(target, LOCKFILE_NAME), 'utf8'));
+    const mcp = lock.tools['claude-code'].assets.mcp.everything;
+    assert.ok(mcp);
+    assert.equal(mcp.key, 'everything');
+    assert.deepEqual(mcp.wrapperPath, ['mcpServers']);
+    assert.ok(mcp.configFile.endsWith('.mcp.json'));
+    assert.match(mcp.valueSha, /^[a-f0-9]{64}$/);
+    assert.match(mcp.sourceSha, /^[a-f0-9]{64}$/);
   } finally {
     cleanupTmpProject(target);
   }

@@ -108,19 +108,38 @@ Drift detection mirrors the file-copy model: the lockfile records `sourceSha` (h
 
 ## Lockfile
 
-Each tool's install writes `<tool-subdir>/.ai-toolkit-lock.json`. Per asset:
+There is **one lockfile per project**, at `<projectRoot>/.ai-toolkit-lock.json`, regardless of how many tools are installed. The schema (v2.0) is multi-tool:
 
 ```jsonc
-"asset-name": {
-  "sourceSha": "<sha of the source file or directory>",
-  "destSha":   "<sha of the destination after transform>",
-  "sha":       "<destSha — legacy alias kept for older lockfiles>",
-  "installedAt": "<iso 8601>",
-  "sourcePath": "skills/asset-name"
+{
+  "version": "2.0",
+  "installedAt": "<iso>",
+  "lastUpdatedAt": "<iso>",
+  "tools": {
+    "claude-code": {
+      "scope": "workspace",
+      "preset": "skill-development",
+      "source": null,
+      "installedAt": "<iso>",
+      "assets": {
+        "skills":   { "<name>": { sourceSha, destSha, sha, installedAt, sourcePath } },
+        "agents":   { ... },
+        "commands": { ... },
+        "hooks":    { ... },
+        "rules":    { ... },
+        "mcp":      { "<name>": { configFile, wrapperPath, key, valueSha, sourceSha, installedAt } }
+      }
+    },
+    "cursor": { ... }
+  }
 }
 ```
 
-Tracking both shas matters because for transformed destinations they're literally different files. `update` compares `sourceSha` to detect upstream changes and `destSha` to detect local edits. Either one diverging triggers the right branch.
+Tracking both `sourceSha` and `destSha` matters because for transformed destinations they're literally different files. `update` compares `sourceSha` to detect upstream changes and `destSha` to detect local edits. Either one diverging triggers the right branch.
+
+**Global scope** is the one exception. Each tool's global dir (e.g. `~/.claude/`, `~/.cursor/`) gets its own lockfile, since global installs are project-independent and there's no shared anchor. Global lockfiles use the same v2.0 schema with a single entry under `tools.<name>`.
+
+The unified workspace lockfile means `findInstalledTools` is just `Object.keys(lockfile.tools)` — no scanning each tool subdir for a `.ai-toolkit-lock.json`. It also means `remove --all` knows about MCP files that live *outside* the tool's workspace dir (`.mcp.json` at projectRoot, `.vscode/mcp.json` for vscode-copilot), because their `configFile` paths are recorded on the lockfile entry rather than implied by the tool's subdir.
 
 MCP entries have a different shape, because they aren't files:
 

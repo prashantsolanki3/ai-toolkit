@@ -21,164 +21,198 @@ import { createLogger } from '../lib/logger.js';
 
 const ASSET_TYPES = ['skills', 'agents', 'commands', 'hooks', 'rules', 'mcp'];
 
+// Same rule as install/update: workspace lockfile lives at projectRoot,
+// global at the tool's own global dir. Workspace tools therefore share a
+// single lockfile; global tools each have their own.
+function lockfileLocation({ scope, projectRoot, toolTarget }) {
+  return scope === 'global' ? toolTarget : projectRoot;
+}
+
 export async function remove(opts) {
   const logger = opts.logger || createLogger();
   const sourceRoot =
     opts.sourceRoot || path.resolve(path.dirname(new URL(import.meta.url).pathname), '..', '..');
   const projectRoot = opts.target || process.cwd();
   const tools = loadTools(path.join(sourceRoot, 'config'));
+  const scope = opts.scope || 'workspace';
 
-  // When --all is passed and no --tool specified, remove from all installed tools.
-  // Sibling tools that share a workspace dir (vscode-copilot + copilot-cli at
-  // .github/, kiro + kiro-cli at .kiro/) come back as separate entries from
-  // findInstalledTools; dedupe by directory so we only tear each one down once.
-  if (opts.all && !opts.tool) {
+  if (scope === 'global' && !opts.tool) {
+    throw new Error(`--scope global requires --tool <name> (no autodiscovery for global scope).`);
+  }
+
+  // Decide which tool(s) we operate on.
+  let toolNames;
+  if (opts.tool) {
+    toolNames = [opts.tool];
+  } else {
+    // No --tool: autodiscover from the project-root lockfile. Without
+    // --all, the legacy single-tool semantics require exactly one match;
+    // with --all, fan out across every installed tool.
     const found = findInstalledTools(tools, projectRoot);
     if (found.length === 0) {
       throw new Error(
         `No installed tools found under ${projectRoot}. Pass --tool <name> or --target <project-root>.`,
       );
     }
-    const seenDirs = new Set();
-    const results = [];
-    for (const toolInfo of found) {
-      if (seenDirs.has(toolInfo.dir)) continue;
-      seenDirs.add(toolInfo.dir);
-      const result = await removeFromTool(toolInfo.dir, tools, sourceRoot, projectRoot, opts, logger);
-      results.push(result);
+    if (!opts.all && found.length > 1) {
+      const names = found.map((f) => f.tool).join(', ');
+      throw new Error(
+        `Multiple installed tools found under ${projectRoot} (${names}). Pass --tool <name> to disambiguate, or --all to remove from every tool.`,
+      );
     }
-    return { removed: results.flatMap((r) => r.removed), notFound: results.flatMap((r) => r.notFound) };
+    toolNames = found.map((f) => f.tool);
   }
 
-  const target = resolveRemoveTarget({ tools, projectRoot, toolName: opts.tool });
-  return removeFromTool(target, tools, sourceRoot, projectRoot, opts, logger);
+  // Read every lockfile we'll touch, keyed by lockDir. Workspace = one
+  // entry (projectRoot). Global = one entry per tool target.
+  const lockfilesByDir = new Map();
+
+  const aggregate = { removed: [], notFound: [] };
+
+  for (const toolName of toolNames) {
+    const tool = getTool(tools, toolName);
+    const target = resolveTargetPath(tool, scope, projectRoot);
+    const lockDir = lockfileLocation({ scope, projectRoot, toolTarget: target });
+
+    let lockfile = lockfilesByDir.get(lockDir);
+    if (lockfile === undefined) {
+      lockfile = readLockfile(lockDir);
+      if (!lockfile) {
+        logger.warn(`No lockfile at ${path.join(lockDir, LOCKFILE_NAME)}; skipping ${toolName}.`);
+        lockfilesByDir.set(lockDir, null);
+        continue;
+      }
+      lockfilesByDir.set(lockDir, lockfile);
+    } else if (lockfile === null) {
+      continue;
+    }
+
+    const toolSection = lockfile.tools?.[toolName];
+    if (!toolSection) {
+      logger.warn(`Tool ${toolName} not tracked in lockfile at ${lockDir}; nothing to remove.`);
+      continue;
+    }
+
+    const toRemove = pickRemovalSet({ opts, toolSection, sourceRoot });
+
+    for (const type of ASSET_TYPES) {
+      if (!toRemove[type] || toRemove[type].length === 0) continue;
+      if (!supportsAsset(tool, type)) {
+        logger.warn(`Tool ${tool.displayName} does not support ${type}; nothing to remove.`);
+        continue;
+      }
+      for (const name of toRemove[type]) {
+        const tracked = toolSection.assets?.[type]?.[name];
+        if (!tracked) {
+          logger.warn(`${type}/${name}: not installed (skip)`);
+          aggregate.notFound.push({ type, name, tool: toolName });
+          continue;
+        }
+
+        if (type === 'mcp') {
+          const r = removeMcpEntryForCommand({
+            tool,
+            scope: toolSection.scope || scope,
+            projectRoot,
+            name,
+            trackedEntry: tracked,
+            dryRun: opts.dryRun,
+            logger,
+          });
+          if (r.status === 'removed') {
+            if (!opts.dryRun) {
+              lockfile = removeAsset(lockfile, toolName, 'mcp', name);
+              lockfilesByDir.set(lockDir, lockfile);
+            }
+            aggregate.removed.push({ type, name, tool: toolName });
+          }
+          continue;
+        }
+
+        const dest = getAssetDestination(tool, target, type, name);
+        const sidecarSpec = tool.assetFormats[type]?.sidecar;
+        if (opts.dryRun) {
+          logger.dryRun(`remove ${type}/${name} at ${dest}`);
+          if (sidecarSpec) logger.dryRun(`remove sidecar for ${type}/${name}`);
+        } else {
+          if (pathExists(dest)) removePath(dest);
+          if (sidecarSpec) {
+            removeSidecar({ destPath: dest, sidecarSpec, assetName: name });
+          }
+          lockfile = removeAsset(lockfile, toolName, type, name);
+          lockfilesByDir.set(lockDir, lockfile);
+          logger.success(`removed ${type}/${name}`);
+        }
+        aggregate.removed.push({ type, name, tool: toolName });
+      }
+    }
+
+    // Per-tool: when the tool's section is empty after removals, scrub
+    // any empty subtree under the tool's target dir so we don't strand
+    // .claude/skills/ behind. Bounded by projectRoot.
+    if (!opts.dryRun) {
+      const stillHasAssets = ASSET_TYPES.some(
+        (t) => Object.keys(lockfile.tools?.[toolName]?.assets?.[t] || {}).length > 0,
+      );
+      if (!stillHasAssets) {
+        // Drop the empty tool section entirely.
+        if (lockfile.tools?.[toolName]) {
+          delete lockfile.tools[toolName];
+          lockfilesByDir.set(lockDir, lockfile);
+        }
+        if (pathExists(target)) cleanupEmptyDirs(target, projectRoot);
+      }
+    }
+  }
+
+  // Finalize each lockfile we touched.
+  if (!opts.dryRun) {
+    for (const [lockDir, lockfile] of lockfilesByDir.entries()) {
+      if (lockfile == null) continue;
+      const remaining = Object.keys(lockfile.tools || {}).length;
+      const lockfilePath = path.join(lockDir, LOCKFILE_NAME);
+      if (remaining === 0) {
+        if (pathExists(lockfilePath)) {
+          removePath(lockfilePath);
+          logger.success(`removed ${LOCKFILE_NAME}`);
+        }
+        // Tidy the lockfile's containing dir up to projectRoot (no-op for
+        // workspace since lockDir IS projectRoot; for global, this lets
+        // empty ~/.kiro/settings/ go away after the last global remove).
+        if (lockDir !== projectRoot) cleanupEmptyDirs(lockDir, projectRoot);
+      } else {
+        lockfile.lastUpdatedAt = new Date().toISOString();
+        writeLockfile(lockDir, lockfile);
+      }
+    }
+  }
+
+  return aggregate;
 }
 
-async function removeFromTool(target, tools, sourceRoot, projectRoot, opts, logger) {
-  let lockfile = readLockfile(target);
-  if (!lockfile) {
-    throw new Error(`No lockfile at ${path.join(target, LOCKFILE_NAME)}; nothing to remove (not installed).`);
-  }
-
-  const tool = getTool(tools, lockfile.tool);
-
-  let toRemove = Object.fromEntries(ASSET_TYPES.map((t) => [t, []]));
+// Build the per-type removal set from --all / --preset / --skills / etc.
+function pickRemovalSet({ opts, toolSection, sourceRoot }) {
+  const toRemove = Object.fromEntries(ASSET_TYPES.map((t) => [t, []]));
 
   if (opts.all) {
     for (const type of ASSET_TYPES) {
-      const tracked = (lockfile.assets && lockfile.assets[type]) || {};
-      toRemove[type] = Object.keys(tracked);
+      toRemove[type] = Object.keys(toolSection.assets?.[type] || {});
     }
-  } else {
-    if (opts.preset) {
-      const manifest = loadManifest(sourceRoot);
-      const preset = resolvePreset(manifest, opts.preset);
-      for (const type of ASSET_TYPES) {
-        for (const name of preset[type] || []) toRemove[type].push(name);
-      }
-    }
-    for (const type of ASSET_TYPES) {
-      if (Array.isArray(opts[type])) toRemove[type].push(...opts[type]);
-    }
-    // Deduplicate after preset + explicit union.
-    for (const type of ASSET_TYPES) {
-      toRemove[type] = Array.from(new Set(toRemove[type]));
-    }
+    return toRemove;
   }
 
-  const result = { removed: [], notFound: [] };
-
+  if (opts.preset) {
+    const manifest = loadManifest(sourceRoot);
+    const preset = resolvePreset(manifest, opts.preset);
+    for (const type of ASSET_TYPES) {
+      for (const name of preset[type] || []) toRemove[type].push(name);
+    }
+  }
   for (const type of ASSET_TYPES) {
-    if (!toRemove[type] || toRemove[type].length === 0) continue;
-    if (!supportsAsset(tool, type)) {
-      logger.warn(`Tool ${tool.displayName} does not support ${type}; nothing to remove.`);
-      continue;
-    }
-    for (const name of toRemove[type]) {
-      const tracked = lockfile.assets && lockfile.assets[type] && lockfile.assets[type][name];
-      if (!tracked) {
-        logger.warn(`${type}/${name}: not installed (skip)`);
-        result.notFound.push({ type, name });
-        continue;
-      }
-
-      if (type === 'mcp') {
-        const r = removeMcpEntryForCommand({
-          tool,
-          scope: lockfile.scope || 'workspace',
-          projectRoot,
-          name,
-          trackedEntry: tracked,
-          dryRun: opts.dryRun,
-          logger,
-        });
-        if (r.status === 'removed') {
-          if (!opts.dryRun) lockfile = removeAsset(lockfile, 'mcp', name);
-          result.removed.push({ type, name });
-        }
-        continue;
-      }
-
-      const dest = getAssetDestination(tool, target, type, name);
-      const sidecarSpec = tool.assetFormats[type]?.sidecar;
-      if (opts.dryRun) {
-        logger.dryRun(`remove ${type}/${name} at ${dest}`);
-        if (sidecarSpec) logger.dryRun(`remove sidecar for ${type}/${name}`);
-      } else {
-        if (pathExists(dest)) removePath(dest);
-        if (sidecarSpec) {
-          removeSidecar({ destPath: dest, sidecarSpec, assetName: name });
-        }
-        lockfile = removeAsset(lockfile, type, name);
-        logger.success(`removed ${type}/${name}`);
-      }
-      result.removed.push({ type, name });
-    }
+    if (Array.isArray(opts[type])) toRemove[type].push(...opts[type]);
   }
-
-  if (!opts.dryRun) {
-    lockfile.lastUpdatedAt = new Date().toISOString();
-    
-    // Check if all assets have been removed
-    const hasAnyAssets = ASSET_TYPES.some(type => 
-      lockfile.assets && lockfile.assets[type] && Object.keys(lockfile.assets[type]).length > 0
-    );
-    
-    if (!hasAnyAssets) {
-      // All assets removed, delete the lockfile
-      const lockfilePath = path.join(target, LOCKFILE_NAME);
-      if (pathExists(lockfilePath)) {
-        removePath(lockfilePath);
-        logger.success(`removed ${LOCKFILE_NAME}`);
-      }
-      
-      // Clean up empty directories starting from tool root, stopping at project root
-      cleanupEmptyDirs(target, projectRoot);
-    } else {
-      // Still have assets, just update the lockfile
-      writeLockfile(target, lockfile);
-    }
+  for (const type of ASSET_TYPES) {
+    toRemove[type] = Array.from(new Set(toRemove[type]));
   }
-
-  return result;
-}
-
-function resolveRemoveTarget({ tools, projectRoot, toolName }) {
-  if (toolName) {
-    const tool = getTool(tools, toolName);
-    return resolveTargetPath(tool, 'workspace', projectRoot);
-  }
-  const found = findInstalledTools(tools, projectRoot);
-  if (found.length === 0) {
-    throw new Error(
-      `No installed tools found under ${projectRoot}. Pass --tool <name> or --target <project-root>.`,
-    );
-  }
-  if (found.length > 1) {
-    const names = found.map((f) => f.tool).join(', ');
-    throw new Error(
-      `Multiple installed tools found under ${projectRoot} (${names}). Pass --tool <name> to disambiguate.`,
-    );
-  }
-  return found[0].dir;
+  return toRemove;
 }

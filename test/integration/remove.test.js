@@ -36,9 +36,9 @@ test('remove: single asset deletes files and updates lockfile', async () => {
     assert.ok(fs.existsSync(path.join(dir, 'skills', 'api-endpoint-design')));
     await remove({ target, sourceRoot: REPO_ROOT, skills: ['api-endpoint-design'], logger });
     assert.equal(fs.existsSync(path.join(dir, 'skills', 'api-endpoint-design')), false);
-    const lock = JSON.parse(fs.readFileSync(path.join(dir, LOCKFILE_NAME), 'utf8'));
-    assert.equal(lock.assets.skills['api-endpoint-design'], undefined);
-    assert.ok(lock.assets.skills['code-review-checklist']);
+    const lock = JSON.parse(fs.readFileSync(path.join(target, LOCKFILE_NAME), 'utf8'));
+    assert.equal(lock.tools['claude-code'].assets.skills['api-endpoint-design'], undefined);
+    assert.ok(lock.tools['claude-code'].assets.skills['code-review-checklist']);
   } finally {
     cleanupTmpProject(target);
   }
@@ -54,8 +54,8 @@ test('remove: --all removes every tracked asset and clears lockfile entries', as
     assert.equal(fs.existsSync(path.join(dir, 'skills', 'api-endpoint-design')), false);
     assert.equal(fs.existsSync(path.join(dir, 'agents', 'senior-architect.md')), false);
     assert.equal(fs.existsSync(path.join(dir, 'commands', 'summarize-diff.md')), false);
-    // Lockfile should be deleted when all assets are removed
-    assert.equal(fs.existsSync(path.join(dir, LOCKFILE_NAME)), false);
+    // Unified lockfile at project root should be deleted when no tool tracks anything.
+    assert.equal(fs.existsSync(path.join(target, LOCKFILE_NAME)), false);
   } finally {
     cleanupTmpProject(target);
   }
@@ -100,14 +100,12 @@ test('remove: --all without --tool removes from all installed tools', async () =
     
     // Remove all from both tools
     await remove({ target, sourceRoot: REPO_ROOT, all: true, logger });
-    
-    // Verify both tool dirs are cleaned
-    const claudeDir = toolDir(target, 'claude-code');
-    const cursorDir = toolDir(target, 'cursor');
-    
-    // Lockfiles should be deleted when all assets are removed
-    assert.equal(fs.existsSync(path.join(claudeDir, LOCKFILE_NAME)), false);
-    assert.equal(fs.existsSync(path.join(cursorDir, LOCKFILE_NAME)), false);
+
+    // The single unified lockfile at the project root must be gone.
+    assert.equal(fs.existsSync(path.join(target, LOCKFILE_NAME)), false);
+    // Tool dirs are gone too.
+    assert.equal(fs.existsSync(toolDir(target, 'claude-code')), false);
+    assert.equal(fs.existsSync(toolDir(target, 'cursor')), false);
   } finally {
     cleanupTmpProject(target);
   }
@@ -118,12 +116,11 @@ test('remove: --all deletes lockfile when all assets are removed', async () => {
   const { logger } = silentLogger();
   try {
     await install({ tool: 'claude-code', preset: 'backend-essentials', target, sourceRoot: REPO_ROOT, logger });
-    const dir = toolDir(target, 'claude-code');
-    const lockfilePath = path.join(dir, LOCKFILE_NAME);
-    assert.ok(fs.existsSync(lockfilePath), 'lockfile should exist after install');
-    
+    const lockfilePath = path.join(target, LOCKFILE_NAME);
+    assert.ok(fs.existsSync(lockfilePath), 'unified lockfile should exist at projectRoot after install');
+
     await remove({ target, sourceRoot: REPO_ROOT, all: true, logger });
-    
+
     assert.equal(fs.existsSync(lockfilePath), false, 'lockfile should be deleted after remove --all');
   } finally {
     cleanupTmpProject(target);

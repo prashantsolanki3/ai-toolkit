@@ -43,7 +43,7 @@ test('install: claude-code with backend-essentials preset writes expected files'
     assert.ok(fs.existsSync(path.join(installDir, 'skills', 'code-review-checklist', 'SKILL.md')));
     assert.ok(fs.existsSync(path.join(installDir, 'agents', 'senior-architect.md')));
     assert.ok(fs.existsSync(path.join(installDir, 'commands', 'summarize-diff.md')));
-    assert.ok(fs.existsSync(path.join(installDir, LOCKFILE_NAME)));
+    assert.ok(fs.existsSync(path.join(target, LOCKFILE_NAME)));
   } finally {
     cleanupTmpProject(target);
   }
@@ -102,14 +102,14 @@ test('install: lockfile carries tool name, scope, source, and asset entries', as
       sourceRoot: REPO_ROOT,
       logger,
     });
-    const installDir = toolDir(target, 'claude-code');
-    const lock = JSON.parse(fs.readFileSync(path.join(installDir, LOCKFILE_NAME), 'utf8'));
-    assert.equal(lock.tool, 'claude-code');
-    assert.equal(lock.preset, 'backend-essentials');
-    assert.ok(lock.assets.skills['api-endpoint-design']);
-    assert.match(lock.assets.skills['api-endpoint-design'].sha, /^[a-f0-9]{64}$/);
-    assert.ok(lock.assets.agents['senior-architect']);
-    assert.ok(lock.assets.commands['summarize-diff']);
+    const lock = JSON.parse(fs.readFileSync(path.join(target, LOCKFILE_NAME), 'utf8'));
+    assert.ok(lock.tools['claude-code'], 'unified lockfile must record the tool under tools.<name>');
+    assert.equal(lock.tools['claude-code'].scope, 'workspace');
+    assert.equal(lock.tools['claude-code'].preset, 'backend-essentials');
+    assert.ok(lock.tools['claude-code'].assets.skills['api-endpoint-design']);
+    assert.match(lock.tools['claude-code'].assets.skills['api-endpoint-design'].sha, /^[a-f0-9]{64}$/);
+    assert.ok(lock.tools['claude-code'].assets.agents['senior-architect']);
+    assert.ok(lock.tools['claude-code'].assets.commands['summarize-diff']);
   } finally {
     cleanupTmpProject(target);
   }
@@ -129,7 +129,7 @@ test('install: dryRun writes no files but logs plan', async () => {
     });
     const installDir = toolDir(target, 'claude-code');
     assert.equal(fs.existsSync(path.join(installDir, 'skills')), false);
-    assert.equal(fs.existsSync(path.join(installDir, LOCKFILE_NAME)), false);
+    assert.equal(fs.existsSync(path.join(target, LOCKFILE_NAME)), false);
     assert.ok(lines.some(([level]) => level === 'dryRun'));
   } finally {
     cleanupTmpProject(target);
@@ -176,8 +176,8 @@ test('install: re-running on the same target is idempotent (no errors, assets pr
     });
     const installDir = toolDir(target, 'claude-code');
     assert.ok(fs.existsSync(path.join(installDir, 'skills', 'api-endpoint-design', 'SKILL.md')));
-    const lock = JSON.parse(fs.readFileSync(path.join(installDir, LOCKFILE_NAME), 'utf8'));
-    const apiCount = Object.keys(lock.assets.skills).filter((s) => s === 'api-endpoint-design').length;
+    const lock = JSON.parse(fs.readFileSync(path.join(target, LOCKFILE_NAME), 'utf8'));
+    const apiCount = Object.keys(lock.tools['claude-code'].assets.skills).filter((s) => s === 'api-endpoint-design').length;
     assert.equal(apiCount, 1);
   } finally {
     cleanupTmpProject(target);

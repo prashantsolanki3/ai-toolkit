@@ -68,10 +68,12 @@ test('install (no --tool): tools that share a workspace subdir are deduped', asy
       logger,
     });
 
-    // vscode-copilot and copilot-cli both use .github; only one writes a lockfile there
-    const githubLockfile = path.join(toolDir(target, 'vscode-copilot'), LOCKFILE_NAME);
-    assert.ok(fs.existsSync(githubLockfile));
-    // The dedup messages should mention the skipped tool.
+    // With the unified project-root lockfile, vscode-copilot writes its
+    // section first; copilot-cli is skipped with a "destination already
+    // populated" info line. The lockfile records only one of them.
+    const lock = JSON.parse(fs.readFileSync(path.join(target, LOCKFILE_NAME), 'utf8'));
+    assert.ok(lock.tools['vscode-copilot']);
+    assert.equal(lock.tools['copilot-cli'], undefined);
     assert.ok(
       lines.some(([level, m]) => level === 'info' && /already populated/.test(m) && /copilot-cli/.test(m)),
       `expected a dedup message about copilot-cli; got: ${JSON.stringify(lines.filter((l) => /populated/.test(l[1])))}`,
@@ -81,7 +83,7 @@ test('install (no --tool): tools that share a workspace subdir are deduped', asy
   }
 });
 
-test('install (no --tool): each tool writes its own lockfile', async () => {
+test('install (no --tool): unified lockfile records every successfully-installed tool', async () => {
   const target = createTmpProject();
   const { logger } = recordingLogger();
   try {
@@ -92,12 +94,13 @@ test('install (no --tool): each tool writes its own lockfile', async () => {
       logger,
     });
 
-    // claude-code, cursor, antigravity, gemini-cli, kiro should each have their own lockfile.
+    const lock = JSON.parse(fs.readFileSync(path.join(target, LOCKFILE_NAME), 'utf8'));
     for (const toolName of ['claude-code', 'cursor', 'antigravity', 'gemini-cli', 'kiro']) {
-      const lockPath = path.join(toolDir(target, toolName), LOCKFILE_NAME);
-      assert.ok(fs.existsSync(lockPath), `missing lockfile for ${toolName} at ${lockPath}`);
-      const lock = JSON.parse(fs.readFileSync(lockPath, 'utf8'));
-      assert.equal(lock.tool, toolName);
+      assert.ok(
+        lock.tools[toolName],
+        `tools.${toolName} should appear in the unified lockfile`,
+      );
+      assert.equal(lock.tools[toolName].scope, 'workspace');
     }
   } finally {
     cleanupTmpProject(target);

@@ -60,8 +60,8 @@ verify-manifest:  ## Fail if manifest.json is out of date relative to asset fron
 bootstrap:  ## Symlink toolkit's own assets into .claude/.cursor/.github/ for self-hosting
 	./scripts/bootstrap.sh
 
-unbootstrap:  ## Tear down every tool's bootstrap (`remove --all` + bulldoze any orphans declared in config/tools.json)
-	./scripts/unbootstrap.sh
+unbootstrap:  ## Tear down every tool's bootstrap via the unified lockfile (`ai-toolkit remove --all`)
+	@node bin/cli.js remove --all || true
 
 # ---------- End-to-end ----------
 

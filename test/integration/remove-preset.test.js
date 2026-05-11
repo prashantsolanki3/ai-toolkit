@@ -24,9 +24,9 @@ test('remove --preset tears down every tracked asset in that preset', async () =
     await install({ tool: 'claude-code', preset: 'maintenance-mode', target, sourceRoot: REPO_ROOT, logger: silentLogger() });
 
     const dir = toolDir(target, 'claude-code');
-    const lockBefore = JSON.parse(fs.readFileSync(path.join(dir, LOCKFILE_NAME), 'utf8'));
-    assert.ok(lockBefore.assets.skills['api-endpoint-design']);   // backend-essentials
-    assert.ok(lockBefore.assets.skills['dependency-upgrade']);     // maintenance-mode
+    const lockBefore = JSON.parse(fs.readFileSync(path.join(target, LOCKFILE_NAME), 'utf8'));
+    assert.ok(lockBefore.tools['claude-code'].assets.skills['api-endpoint-design']);   // backend-essentials
+    assert.ok(lockBefore.tools['claude-code'].assets.skills['dependency-upgrade']);     // maintenance-mode
 
     await remove({
       target,
@@ -36,17 +36,18 @@ test('remove --preset tears down every tracked asset in that preset', async () =
       logger: silentLogger(),
     });
 
-    const lockAfter = JSON.parse(fs.readFileSync(path.join(dir, LOCKFILE_NAME), 'utf8'));
+    const lockAfter = JSON.parse(fs.readFileSync(path.join(target, LOCKFILE_NAME), 'utf8'));
+    const afterAssets = lockAfter.tools['claude-code'].assets;
 
     // backend-essentials assets: gone.
-    assert.equal(lockAfter.assets.skills['api-endpoint-design'], undefined);
-    assert.equal(lockAfter.assets.skills['code-review-checklist'], undefined);
-    assert.equal(lockAfter.assets.agents['senior-architect'], undefined);
-    assert.equal(lockAfter.assets.commands['summarize-diff'], undefined);
+    assert.equal(afterAssets.skills['api-endpoint-design'], undefined);
+    assert.equal(afterAssets.skills['code-review-checklist'], undefined);
+    assert.equal(afterAssets.agents['senior-architect'], undefined);
+    assert.equal(afterAssets.commands['summarize-diff'], undefined);
 
     // maintenance-mode assets: still there.
-    assert.ok(lockAfter.assets.skills['dependency-upgrade']);
-    assert.ok(lockAfter.assets.agents['refactoring-specialist']);
+    assert.ok(afterAssets.skills['dependency-upgrade']);
+    assert.ok(afterAssets.agents['refactoring-specialist']);
 
     // Files on disk also removed.
     assert.equal(fs.existsSync(path.join(dir, 'skills', 'api-endpoint-design')), false);
@@ -73,11 +74,12 @@ test('remove --preset + explicit lists union both selections', async () => {
     });
 
     const lock = JSON.parse(
-      fs.readFileSync(path.join(toolDir(target, 'claude-code'), LOCKFILE_NAME), 'utf8'),
+      fs.readFileSync(path.join(target, LOCKFILE_NAME), 'utf8'),
     );
-    assert.equal(lock.assets.skills['api-endpoint-design'], undefined); // from preset
-    assert.equal(lock.assets.skills['dependency-upgrade'], undefined);  // from --skills
-    assert.ok(lock.assets.agents['refactoring-specialist']);            // untouched
+    const a = lock.tools['claude-code'].assets;
+    assert.equal(a.skills['api-endpoint-design'], undefined); // from preset
+    assert.equal(a.skills['dependency-upgrade'], undefined);  // from --skills
+    assert.ok(a.agents['refactoring-specialist']);            // untouched
   } finally {
     cleanupTmpProject(target);
   }
@@ -103,9 +105,9 @@ test('remove --preset is a no-op when none of its assets are tracked', async () 
     });
     // backend-essentials assets still intact.
     const lock = JSON.parse(
-      fs.readFileSync(path.join(toolDir(target, 'claude-code'), LOCKFILE_NAME), 'utf8'),
+      fs.readFileSync(path.join(target, LOCKFILE_NAME), 'utf8'),
     );
-    assert.ok(lock.assets.skills['api-endpoint-design']);
+    assert.ok(lock.tools['claude-code'].assets.skills['api-endpoint-design']);
   } finally {
     cleanupTmpProject(target);
   }

@@ -98,8 +98,11 @@ test('tools-filter: rule with tools allowlist installs only for allowed tools', 
     // step). The asset's tools allowlist includes claude-code, so it lands.
     // If this fails, the tool-config still hasn't been updated to support
     // rules for claude-code — see step "Wire rules destinations into tools".
-    const lockfile = path.join(toolDir(target, 'claude-code'), '.ai-toolkit-lock.json');
-    assert.ok(fs.existsSync(lockfile));
+    // Unified lockfile lives at the project root; it must track claude-code.
+    const lockfilePath = path.join(target, '.ai-toolkit-lock.json');
+    assert.ok(fs.existsSync(lockfilePath));
+    const lock = JSON.parse(fs.readFileSync(lockfilePath, 'utf8'));
+    assert.ok(lock.tools['claude-code']);
   } finally {
     cleanupTmpProject(target);
   }

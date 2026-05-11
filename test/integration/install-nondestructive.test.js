@@ -153,10 +153,9 @@ test('install: skipped assets are NOT recorded in the lockfile', async () => {
       logger,
     });
 
-    const installDir = toolDir(target, 'claude-code');
-    const lock = JSON.parse(fs.readFileSync(path.join(installDir, LOCKFILE_NAME), 'utf8'));
+    const lock = JSON.parse(fs.readFileSync(path.join(target, LOCKFILE_NAME), 'utf8'));
     assert.equal(
-      lock.assets.commands && lock.assets.commands['summarize-diff'],
+      lock.tools?.['claude-code']?.assets?.commands?.['summarize-diff'],
       undefined,
       'skipped install must not write a lockfile entry',
     );
@@ -182,8 +181,7 @@ test('install: dryRun reports an "already exists" plan without writing or warnin
 
     const after = fs.readFileSync(dest, 'utf8');
     assert.equal(after, 'PRE-EXISTING');
-    const installDir = toolDir(target, 'claude-code');
-    assert.equal(fs.existsSync(path.join(installDir, LOCKFILE_NAME)), false);
+    assert.equal(fs.existsSync(path.join(target, LOCKFILE_NAME)), false);
     assert.ok(
       lines.some(([level, m]) => level === 'dryRun' && /skip|force|exist/i.test(m)),
       `expected dry-run plan to flag the conflict; got: ${JSON.stringify(lines)}`,
