@@ -39,7 +39,7 @@ test('install: claude-code with backend-essentials preset writes expected files'
 
     assert.ok(fs.existsSync(path.join(target, 'skills', 'api-endpoint-design', 'SKILL.md')));
     assert.ok(fs.existsSync(path.join(target, 'skills', 'code-review-checklist', 'SKILL.md')));
-    assert.ok(fs.existsSync(path.join(target, 'agents', 'senior-architect', 'agent.md')));
+    assert.ok(fs.existsSync(path.join(target, 'agents', 'senior-architect.md')));
     assert.ok(fs.existsSync(path.join(target, 'commands', 'summarize-diff.md')));
     assert.ok(fs.existsSync(path.join(target, LOCKFILE_NAME)));
   } finally {
@@ -59,7 +59,10 @@ test('install: cursor uses .cursor-style paths and skips unsupported types', asy
       logger,
     });
 
-    assert.ok(fs.existsSync(path.join(target, 'skills', 'api-endpoint-design', 'SKILL.md')));
+    // Cursor maps skills source -> .cursor/rules/<name>.mdc (file format with
+    // SKILL.md extracted from the source directory). It does not support
+    // agents/commands/hooks.
+    assert.ok(fs.existsSync(path.join(target, 'rules', 'api-endpoint-design.mdc')));
     assert.equal(fs.existsSync(path.join(target, 'agents')), false);
     assert.equal(fs.existsSync(path.join(target, 'commands')), false);
     assert.ok(lines.some(([level, m]) => level === 'warn' && /agents|commands/.test(m)));

@@ -33,9 +33,13 @@ for (const toolName of TOOL_NAMES) {
   test(`matrix: ${toolName} – full install/update/remove cycle for a skill`, async () => {
     const target = createTmpProject();
     try {
-      // Some tools (e.g. cursor) have null defaultTarget.global. The matrix
-      // always passes an explicit --target so this is not relevant to the test.
       const expectedDest = getAssetDestination(tool, target, 'skills', UNIVERSAL_SKILL);
+      const destFormat = tool.assetFormats.skills;
+
+      // For directory-format destinations the SKILL.md lives inside the dir;
+      // for file-format destinations the destination IS the file.
+      const expectedFile =
+        destFormat.type === 'directory' ? path.join(expectedDest, 'SKILL.md') : expectedDest;
 
       await install({
         tool: toolName,
@@ -46,8 +50,8 @@ for (const toolName of TOOL_NAMES) {
       });
 
       assert.ok(
-        fs.existsSync(path.join(expectedDest, 'SKILL.md')),
-        `expected SKILL.md at tool-specific destination ${expectedDest}`,
+        fs.existsSync(expectedFile),
+        `expected skill content at tool-specific destination ${expectedFile}`,
       );
 
       const updateResult = await update({

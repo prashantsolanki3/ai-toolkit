@@ -12,7 +12,7 @@ cd "$TMPDIR/test-project"
 
 node "$REPO_ROOT/bin/cli.js" install --preset backend-essentials --tool claude-code --target .claude
 test -f .claude/skills/api-endpoint-design/SKILL.md
-test -f .claude/agents/senior-architect/agent.md
+test -f .claude/agents/senior-architect.md
 test -f .claude/commands/summarize-diff.md
 test -f .claude/.ai-toolkit-lock.json
 

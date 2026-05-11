@@ -16,11 +16,12 @@
       },
       "assetFormats": {
         "skills": { "filename": "SKILL.md", "type": "directory" },
-        "agents": { "filename": "agent.md", "type": "directory" },
+        "agents": { "filename": "{name}.md", "type": "file", "sourceFile": "agent.md" },
         "commands": { "filename": "{name}.md", "type": "file" },
         "hooks": { "filename": "{name}.sh", "type": "file" }
       },
-      "supportedAssets": ["skills", "agents", "commands", "hooks"]
+      "supportedAssets": ["skills", "agents", "commands", "hooks"],
+      "notes": "Skills live as directories (Claude Code reads frontmatter from SKILL.md). Agents are flat files at .claude/agents/<name>.md with frontmatter — we extract the inner agent.md. Hook scripts are stored under .claude/hooks/<name>.sh but must also be referenced from .claude/settings.json to actually run."
     },
     "cursor": {
       "displayName": "Cursor",
@@ -29,14 +30,15 @@
         "workspace": ".cursor"
       },
       "assetPaths": {
-        "skills": "skills",
+        "skills": "rules",
         "rules": "rules"
       },
       "assetFormats": {
-        "skills": { "filename": "SKILL.md", "type": "directory" },
+        "skills": { "filename": "{name}.mdc", "type": "file", "sourceFile": "SKILL.md" },
         "rules": { "filename": "{name}.mdc", "type": "file" }
       },
-      "supportedAssets": ["skills", "rules"]
+      "supportedAssets": ["skills", "rules"],
+      "notes": "Cursor's only persistent customization is project rules at .cursor/rules/<name>.mdc. Our skills land there as .mdc files with a Cursor-compatible frontmatter (description, globs, alwaysApply). No global scope: Cursor reads rules per-workspace."
     },
     "antigravity": {
       "displayName": "Antigravity",
@@ -50,7 +52,8 @@
       "assetFormats": {
         "skills": { "filename": "SKILL.md", "type": "directory" }
       },
-      "supportedAssets": ["skills"]
+      "supportedAssets": ["skills"],
+      "notes": "Google Antigravity reads skills as directories containing SKILL.md. Workspace location is .agent/skills/; global at ~/.gemini/antigravity/skills/. The assetPaths.skills value is empty so skills land at the target root."
     },
     "gemini-cli": {
       "displayName": "Gemini CLI",
@@ -64,7 +67,96 @@
       "assetFormats": {
         "skills": { "filename": "SKILL.md", "type": "directory" }
       },
-      "supportedAssets": ["skills"]
+      "supportedAssets": ["skills"],
+      "notes": "Gemini CLI's skills support is evolving. This config places skills at ~/.gemini/skills/ (global) or .gemini/skills/ (workspace). Verify against your installed Gemini CLI version — earlier versions only honour a GEMINI.md context file."
+    },
+    "vscode-copilot": {
+      "displayName": "VS Code Copilot",
+      "defaultTarget": {
+        "global": null,
+        "workspace": ".github"
+      },
+      "assetPaths": {
+        "skills": "instructions",
+        "commands": "prompts",
+        "agents": "chatmodes"
+      },
+      "assetFormats": {
+        "skills": {
+          "filename": "{name}.instructions.md",
+          "type": "file",
+          "sourceFile": "SKILL.md"
+        },
+        "commands": { "filename": "{name}.prompt.md", "type": "file" },
+        "agents": {
+          "filename": "{name}.chatmode.md",
+          "type": "file",
+          "sourceFile": "agent.md"
+        }
+      },
+      "supportedAssets": ["skills", "commands", "agents"],
+      "notes": "VS Code Copilot reads .github/instructions/<name>.instructions.md (custom instructions with applyTo frontmatter), .github/prompts/<name>.prompt.md (reusable prompts), and .github/chatmodes/<name>.chatmode.md (custom chat modes). For Copilot to pick the files up, the workspace setting chat.promptFiles must be enabled. No global scope: Copilot reads from the workspace .github/."
+    },
+    "copilot-cli": {
+      "displayName": "GitHub Copilot CLI",
+      "defaultTarget": {
+        "global": "~/.copilot",
+        "workspace": ".github"
+      },
+      "assetPaths": {
+        "skills": "instructions",
+        "commands": "prompts"
+      },
+      "assetFormats": {
+        "skills": {
+          "filename": "{name}.instructions.md",
+          "type": "file",
+          "sourceFile": "SKILL.md"
+        },
+        "commands": { "filename": "{name}.prompt.md", "type": "file" }
+      },
+      "supportedAssets": ["skills", "commands"],
+      "notes": "GitHub Copilot CLI (the newer agentic `copilot` command) reads .github/copilot-instructions.md plus the same .github/instructions/ and .github/prompts/ tree that VS Code Copilot uses. Global ~/.copilot/ supports user-wide instructions. Note: gh copilot (the older gh extension) does NOT consume these files — use this config for the new agentic CLI only."
+    },
+    "kiro": {
+      "displayName": "Kiro",
+      "defaultTarget": {
+        "global": null,
+        "workspace": ".kiro"
+      },
+      "assetPaths": {
+        "skills": "steering",
+        "hooks": "hooks"
+      },
+      "assetFormats": {
+        "skills": {
+          "filename": "{name}.md",
+          "type": "file",
+          "sourceFile": "SKILL.md"
+        },
+        "hooks": { "filename": "{name}.sh", "type": "file" }
+      },
+      "supportedAssets": ["skills", "hooks"],
+      "notes": "AWS Kiro reads markdown files from .kiro/steering/ to inject project-wide guidance into the agent. Hooks at .kiro/hooks/ also need a corresponding .kiro.hook JSON metadata file; this config installs the script only, you must register it via the Kiro UI or by hand-crafting the .kiro.hook file."
+    },
+    "kiro-cli": {
+      "displayName": "Kiro CLI",
+      "defaultTarget": {
+        "global": "~/.kiro",
+        "workspace": ".kiro"
+      },
+      "assetPaths": {
+        "skills": "steering"
+      },
+      "assetFormats": {
+        "skills": {
+          "filename": "{name}.md",
+          "type": "file",
+          "sourceFile": "SKILL.md"
+        }
+      },
+      "supportedAssets": ["skills"],
+      "notes": "Treated as a sibling of Kiro IDE — shares .kiro/steering/ at workspace scope and supports a ~/.kiro/ user-wide steering directory. If your Kiro CLI build uses different paths, override this config or pass --target."
     }
   }
 }

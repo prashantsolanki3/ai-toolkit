@@ -37,9 +37,17 @@
               "required": ["filename", "type"],
               "properties": {
                 "filename": { "type": "string" },
-                "type": { "enum": ["directory", "file"] }
+                "type": { "enum": ["directory", "file"] },
+                "sourceFile": {
+                  "type": "string",
+                  "description": "When converting a directory-format source to a file-format destination, the relative path inside the source dir to copy."
+                }
               }
             }
+          },
+          "notes": {
+            "type": "string",
+            "description": "Optional notes about the tool — useful when its asset model is uncertain or has caveats."
           },
           "supportedAssets": {
             "type": "array",
