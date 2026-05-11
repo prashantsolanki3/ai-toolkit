@@ -2,7 +2,8 @@ import path from 'node:path';
 import { loadTools, getTool, resolveTargetPath, getAssetDestination, supportsAsset } from '../lib/tools.js';
 import { loadManifest } from '../lib/manifest.js';
 import { resolveInstallTargets } from '../lib/resolver.js';
-import { copyAsset, hashDir, hashFile, pathExists } from '../lib/fs-ops.js';
+import { hashDir, hashFile, pathExists } from '../lib/fs-ops.js';
+import { resolveSourcePath, copyAssetAdaptive } from '../lib/source-adapter.js';
 import { read as readLockfile, write as writeLockfile, addAsset, emptyLockfile } from '../lib/lockfile.js';
 import { createLogger } from '../lib/logger.js';
 
@@ -20,21 +21,14 @@ export async function install(opts) {
   const target = resolveTargetPath(tool, scope, opts.target);
 
   const plan = resolveInstallTargets(
-    {
-      preset: opts.preset,
-      skills: opts.skills,
-      agents: opts.agents,
-      commands: opts.commands,
-      hooks: opts.hooks,
-      rules: opts.rules,
-    },
+    pickAssetSelectors(opts),
     manifest,
     tool,
   );
 
   for (const warning of plan.warnings) logger.warn(warning);
 
-  const totalAssets = ASSET_TYPES.reduce((n, t) => n + plan[t].length, 0);
+  const totalAssets = ASSET_TYPES.reduce((n, t) => n + (plan[t]?.length || 0), 0);
   if (totalAssets === 0) {
     logger.warn('Nothing to install (no assets resolved for this tool).');
     return { target, installed: {}, lockfile: null };
@@ -44,7 +38,7 @@ export async function install(opts) {
 
   if (opts.dryRun) {
     for (const type of ASSET_TYPES) {
-      for (const name of plan[type]) {
+      for (const name of plan[type] || []) {
         const dest = getAssetDestination(tool, target, type, name);
         logger.dryRun(`copy ${type}/${name} -> ${dest}`);
       }
@@ -66,18 +60,20 @@ export async function install(opts) {
   for (const type of ASSET_TYPES) {
     if (!supportsAsset(tool, type)) continue;
     installedSummary[type] = [];
-    for (const name of plan[type]) {
-      const format = tool.assetFormats[type];
-      const sourcePath = sourceAssetPath(sourceRoot, type, name, format);
-      if (!pathExists(sourcePath)) {
-        throw new Error(`Source asset missing: ${sourcePath}`);
-      }
+    for (const name of plan[type] || []) {
+      const destFormat = tool.assetFormats[type];
+      const source = resolveSourcePath({ sourceRoot, assetType: type, name, destFormat });
       const dest = getAssetDestination(tool, target, type, name);
-      copyAsset(sourcePath, dest, format);
-      const sha = format.type === 'directory' ? hashDir(dest) : hashFile(dest);
+      copyAssetAdaptive({
+        sourcePath: source.path,
+        sourceKind: source.kind,
+        destPath: dest,
+        destFormat,
+      });
+      const sha = destFormat.type === 'directory' ? hashDir(dest) : hashFile(dest);
       lockfile = addAsset(lockfile, type, name, {
         sha,
-        sourcePath: path.posix.join(typeToSourceDir(type), name + (format.type === 'file' ? extFromFilename(format.filename, name) : '')),
+        sourcePath: path.posix.join(type, name + (destFormat.type === 'file' && source.kind === 'file' && !destFormat.sourceFile ? extFromFilename(destFormat.filename, name) : '')),
       });
       installedSummary[type].push(name);
       logger.success(`installed ${type}/${name}`);
@@ -89,20 +85,18 @@ export async function install(opts) {
   return { target, installed: installedSummary, lockfile };
 }
 
-function typeToSourceDir(type) {
-  return type;
+function pickAssetSelectors(opts) {
+  return {
+    preset: opts.preset,
+    skills: opts.skills,
+    agents: opts.agents,
+    commands: opts.commands,
+    hooks: opts.hooks,
+    rules: opts.rules,
+  };
 }
 
 function extFromFilename(template, name) {
-  const expanded = template.replace('{name}', name);
+  const expanded = (template || '{name}').replace('{name}', name);
   return expanded.slice(name.length);
-}
-
-function sourceAssetPath(sourceRoot, type, name, format) {
-  const dir = path.join(sourceRoot, typeToSourceDir(type));
-  if (format.type === 'directory') {
-    return path.join(dir, name);
-  }
-  const filename = (format.filename || '{name}').replace('{name}', name);
-  return path.join(dir, filename);
 }

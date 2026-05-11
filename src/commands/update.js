@@ -1,6 +1,7 @@
 import path from 'node:path';
 import { loadTools, getTool, getAssetDestination, supportsAsset } from '../lib/tools.js';
-import { copyAsset, hashDir, hashFile, pathExists } from '../lib/fs-ops.js';
+import { hashDir, hashFile, pathExists } from '../lib/fs-ops.js';
+import { resolveSourcePath, copyAssetAdaptive } from '../lib/source-adapter.js';
 import { read as readLockfile, write as writeLockfile, LOCKFILE_NAME } from '../lib/lockfile.js';
 import { createLogger } from '../lib/logger.js';
 
@@ -27,20 +28,23 @@ export async function update(opts) {
     if (!supportsAsset(tool, type)) continue;
     const tracked = (lockfile.assets && lockfile.assets[type]) || {};
     for (const name of Object.keys(tracked)) {
-      const format = tool.assetFormats[type];
-      const sourcePath = sourceAssetPath(sourceRoot, type, name, format);
-      const dest = getAssetDestination(tool, target, type, name);
+      const destFormat = tool.assetFormats[type];
 
-      if (!pathExists(sourcePath)) {
+      let source;
+      try {
+        source = resolveSourcePath({ sourceRoot, assetType: type, name, destFormat });
+      } catch {
         logger.warn(`${type}/${name}: removed upstream — leaving in place, untrack via 'remove'`);
         result.missing.push({ type, name });
         continue;
       }
 
-      const sourceSha = format.type === 'directory' ? hashDir(sourcePath) : hashFile(sourcePath);
+      const dest = getAssetDestination(tool, target, type, name);
+      const sourceSha =
+        source.kind === 'directory' ? hashDir(source.path) : hashFile(source.path);
       const lockSha = tracked[name].sha;
       const installedSha = pathExists(dest)
-        ? format.type === 'directory'
+        ? destFormat.type === 'directory'
           ? hashDir(dest)
           : hashFile(dest)
         : null;
@@ -69,8 +73,13 @@ export async function update(opts) {
         continue;
       }
 
-      copyAsset(sourcePath, dest, format);
-      const newSha = format.type === 'directory' ? hashDir(dest) : hashFile(dest);
+      copyAssetAdaptive({
+        sourcePath: source.path,
+        sourceKind: source.kind,
+        destPath: dest,
+        destFormat,
+      });
+      const newSha = destFormat.type === 'directory' ? hashDir(dest) : hashFile(dest);
       lockfile.assets[type][name] = {
         ...tracked[name],
         sha: newSha,
@@ -87,13 +96,4 @@ export async function update(opts) {
   }
 
   return result;
-}
-
-function sourceAssetPath(sourceRoot, type, name, format) {
-  const dir = path.join(sourceRoot, type);
-  if (format.type === 'directory') {
-    return path.join(dir, name);
-  }
-  const filename = (format.filename || '{name}').replace('{name}', name);
-  return path.join(dir, filename);
 }
