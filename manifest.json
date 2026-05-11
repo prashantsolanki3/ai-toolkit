@@ -17,6 +17,13 @@
       ],
       "author": "ai-toolkit"
     },
+    "comprehensive-review": {
+      "description": "Deep code review skill with referenced scripts, style references, and evaluation prompts.",
+      "presets": [
+        "quality-gates"
+      ],
+      "author": "ai-toolkit"
+    },
     "database-migration-safety": {
       "description": "Patterns for zero-downtime schema migrations on relational databases.",
       "presets": [
@@ -161,6 +168,7 @@
       "description": "Linting, review, and testing helpers wired together as a starter quality baseline.",
       "skills": [
         "code-review-checklist",
+        "comprehensive-review",
         "error-handling-patterns"
       ],
       "agents": [
