@@ -35,19 +35,31 @@ export async function install(opts) {
     return { target, installed: {}, lockfile: null };
   }
 
-  logger.info(`Installing into ${target} (tool: ${tool.displayName}, scope: ${scope})`);
+  const existingLockfile = readLockfile(target);
 
   if (opts.dryRun) {
+    logger.info(`Would install into ${target} (tool: ${tool.displayName}, scope: ${scope})`);
     for (const type of ASSET_TYPES) {
       for (const name of plan[type] || []) {
         const dest = getAssetDestination(tool, target, type, name);
-        logger.dryRun(`copy ${type}/${name} -> ${dest}`);
+        const conflict = detectConflict({
+          dest,
+          destFormat: tool.assetFormats[type],
+          tracked: existingLockfile?.assets?.[type]?.[name],
+        });
+        if (conflict && !opts.force) {
+          logger.dryRun(`skip ${type}/${name} — destination exists and was not installed by ai-toolkit (use --force to overwrite)`);
+        } else {
+          logger.dryRun(`copy ${type}/${name} -> ${dest}`);
+        }
       }
     }
     return { target, installed: plan, lockfile: null };
   }
 
-  let lockfile = readLockfile(target) || emptyLockfile({
+  logger.info(`Installing into ${target} (tool: ${tool.displayName}, scope: ${scope})`);
+
+  let lockfile = existingLockfile || emptyLockfile({
     tool: opts.tool,
     scope,
     source: opts.source || null,
@@ -58,6 +70,8 @@ export async function install(opts) {
   if (!lockfile.scope) lockfile.scope = scope;
 
   const installedSummary = {};
+  const result = { installed: installedSummary, skipped: [] };
+
   for (const type of ASSET_TYPES) {
     if (!supportsAsset(tool, type)) continue;
     installedSummary[type] = [];
@@ -65,6 +79,20 @@ export async function install(opts) {
       const destFormat = tool.assetFormats[type];
       const source = resolveSourcePath({ sourceRoot, assetType: type, name, destFormat });
       const dest = getAssetDestination(tool, target, type, name);
+
+      const conflict = detectConflict({
+        dest,
+        destFormat,
+        tracked: lockfile.assets?.[type]?.[name],
+      });
+      if (conflict && !opts.force) {
+        logger.warn(
+          `${type}/${name}: destination already exists and was not installed by ai-toolkit (${conflict}). Skipping; pass --force to overwrite.`,
+        );
+        result.skipped.push({ type, name, reason: conflict });
+        continue;
+      }
+
       copyAssetAdaptive({
         sourcePath: source.path,
         sourceKind: source.kind,
@@ -83,7 +111,15 @@ export async function install(opts) {
 
   lockfile.lastUpdatedAt = new Date().toISOString();
   writeLockfile(target, lockfile);
-  return { target, installed: installedSummary, lockfile };
+  return { target, ...result, lockfile };
+}
+
+function detectConflict({ dest, destFormat, tracked }) {
+  if (!pathExists(dest)) return null;
+  if (!tracked) return 'untracked file at destination';
+  const currentSha = destFormat.type === 'directory' ? hashDir(dest) : hashFile(dest);
+  if (currentSha !== tracked.sha) return 'destination differs from lockfile sha (local edits)';
+  return null;
 }
 
 function pickAssetSelectors(opts) {

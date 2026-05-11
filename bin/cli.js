@@ -44,6 +44,7 @@ const installCmd = program
   .option('--preset <name>', 'preset to install')
   .addOption(new Option('--scope <scope>', 'install scope').choices(['global', 'workspace']).default('workspace'))
   .option('--target <path>', 'override the default install target')
+  .option('--force', 'overwrite destinations that already exist or have local edits', false)
   .option('--dry-run', 'plan only, write nothing', false)
   .option('--verbose', 'verbose output', false);
 
@@ -59,6 +60,7 @@ commonAssetOptions(installCmd).action(async (opts) => {
     rules: opts.rules,
     scope: opts.scope,
     target: opts.target,
+    force: opts.force,
     dryRun: opts.dryRun,
     sourceRoot: SOURCE_ROOT,
     logger,
