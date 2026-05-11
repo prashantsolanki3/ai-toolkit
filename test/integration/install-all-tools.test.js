@@ -1,0 +1,192 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { install } from '../../src/commands/install.js';
+import { createTmpProject, cleanupTmpProject } from '../helpers/tmp-project.js';
+import { toolDir } from '../helpers/tool-paths.js';
+import { LOCKFILE_NAME } from '../../src/lib/lockfile.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const REPO_ROOT = path.resolve(__dirname, '..', '..');
+
+function recordingLogger() {
+  const lines = [];
+  return {
+    logger: {
+      info: (m) => lines.push(['info', m]),
+      success: (m) => lines.push(['success', m]),
+      warn: (m) => lines.push(['warn', m]),
+      error: (m) => lines.push(['error', m]),
+      dryRun: (m) => lines.push(['dryRun', m]),
+      verbose: (m) => lines.push(['verbose', m]),
+    },
+    lines,
+  };
+}
+
+test('install (no --tool): installs the asset for every supported tool', async () => {
+  const target = createTmpProject();
+  const { logger, lines } = recordingLogger();
+  try {
+    const result = await install({
+      skills: ['code-review-checklist'],
+      target,
+      sourceRoot: REPO_ROOT,
+      logger,
+    });
+
+    // At least the four distinct destinations should have the skill.
+    for (const toolName of ['claude-code', 'cursor', 'antigravity', 'gemini-cli', 'vscode-copilot', 'kiro']) {
+      // Some tools install dir-format, others file-format. Just confirm SOMETHING
+      // is at the resolved tool dir.
+      const dir = toolDir(target, toolName);
+      assert.ok(
+        fs.existsSync(dir),
+        `expected ${toolName} install dir to exist: ${dir}`,
+      );
+    }
+
+    // The result should report the per-tool outcome.
+    assert.ok(Array.isArray(result.installedAll));
+    const installed = result.installedAll.filter((r) => r.lockfile != null);
+    assert.ok(installed.length >= 5, `expected ≥5 tools installed, got ${installed.length}`);
+  } finally {
+    cleanupTmpProject(target);
+  }
+});
+
+test('install (no --tool): tools that share a workspace subdir are deduped', async () => {
+  const target = createTmpProject();
+  const { logger, lines } = recordingLogger();
+  try {
+    await install({
+      skills: ['code-review-checklist'],
+      target,
+      sourceRoot: REPO_ROOT,
+      logger,
+    });
+
+    // vscode-copilot and copilot-cli both use .github; only one writes a lockfile there
+    const githubLockfile = path.join(toolDir(target, 'vscode-copilot'), LOCKFILE_NAME);
+    assert.ok(fs.existsSync(githubLockfile));
+    // The dedup messages should mention the skipped tool.
+    assert.ok(
+      lines.some(([level, m]) => level === 'info' && /already populated/.test(m) && /copilot-cli/.test(m)),
+      `expected a dedup message about copilot-cli; got: ${JSON.stringify(lines.filter((l) => /populated/.test(l[1])))}`,
+    );
+  } finally {
+    cleanupTmpProject(target);
+  }
+});
+
+test('install (no --tool): each tool writes its own lockfile', async () => {
+  const target = createTmpProject();
+  const { logger } = recordingLogger();
+  try {
+    await install({
+      skills: ['code-review-checklist'],
+      target,
+      sourceRoot: REPO_ROOT,
+      logger,
+    });
+
+    // claude-code, cursor, antigravity, gemini-cli, kiro should each have their own lockfile.
+    for (const toolName of ['claude-code', 'cursor', 'antigravity', 'gemini-cli', 'kiro']) {
+      const lockPath = path.join(toolDir(target, toolName), LOCKFILE_NAME);
+      assert.ok(fs.existsSync(lockPath), `missing lockfile for ${toolName} at ${lockPath}`);
+      const lock = JSON.parse(fs.readFileSync(lockPath, 'utf8'));
+      assert.equal(lock.tool, toolName);
+    }
+  } finally {
+    cleanupTmpProject(target);
+  }
+});
+
+test('install (no --tool) with mixed assets: each tool installs what it supports', async () => {
+  const target = createTmpProject();
+  const { logger } = recordingLogger();
+  try {
+    await install({
+      skills: ['code-review-checklist'],
+      agents: ['senior-architect'],
+      commands: ['summarize-diff'],
+      hooks: ['pre-commit-lint'],
+      rules: ['no-bare-todos'],
+      target,
+      sourceRoot: REPO_ROOT,
+      logger,
+    });
+
+    // Claude Code supports everything → all 5 land.
+    const claude = toolDir(target, 'claude-code');
+    assert.ok(fs.existsSync(path.join(claude, 'skills', 'code-review-checklist', 'SKILL.md')));
+    assert.ok(fs.existsSync(path.join(claude, 'agents', 'senior-architect.md')));
+    assert.ok(fs.existsSync(path.join(claude, 'commands', 'summarize-diff.md')));
+    assert.ok(fs.existsSync(path.join(claude, 'hooks', 'pre-commit-lint.sh')));
+    assert.ok(fs.existsSync(path.join(claude, 'rules', 'no-bare-todos.md')));
+
+    // Cursor supports skills + rules only.
+    const cursor = toolDir(target, 'cursor');
+    assert.ok(fs.existsSync(path.join(cursor, 'rules', 'code-review-checklist.mdc')));
+    assert.ok(fs.existsSync(path.join(cursor, 'rules', 'no-bare-todos.mdc')));
+    assert.equal(fs.existsSync(path.join(cursor, 'agents')), false);
+    assert.equal(fs.existsSync(path.join(cursor, 'commands')), false);
+    assert.equal(fs.existsSync(path.join(cursor, 'hooks')), false);
+
+    // Kiro supports skills + hooks. The hook becomes a steering + a .kiro.hook sidecar.
+    const kiro = toolDir(target, 'kiro');
+    assert.ok(fs.existsSync(path.join(kiro, 'steering', 'code-review-checklist.md')));
+    assert.ok(fs.existsSync(path.join(kiro, 'hooks', 'pre-commit-lint.sh')));
+    assert.ok(fs.existsSync(path.join(kiro, 'hooks', 'pre-commit-lint.kiro.hook')));
+  } finally {
+    cleanupTmpProject(target);
+  }
+});
+
+test('install (no --tool) with dry-run plans for every tool without writing', async () => {
+  const target = createTmpProject();
+  const { logger, lines } = recordingLogger();
+  try {
+    await install({
+      skills: ['code-review-checklist'],
+      target,
+      sourceRoot: REPO_ROOT,
+      dryRun: true,
+      logger,
+    });
+    // No tool dirs should exist.
+    for (const toolName of ['claude-code', 'cursor', 'antigravity', 'gemini-cli', 'kiro']) {
+      assert.equal(fs.existsSync(toolDir(target, toolName)), false, `${toolName} dir should NOT exist after dry-run`);
+    }
+    // Every tool should have logged at least one dry-run plan line.
+    const dryLines = lines.filter(([level]) => level === 'dryRun');
+    assert.ok(dryLines.length >= 5, `expected ≥5 dryRun lines, got ${dryLines.length}`);
+  } finally {
+    cleanupTmpProject(target);
+  }
+});
+
+test('installed (no --tool): reports every tool that has a lockfile', async () => {
+  const { installed } = await import('../../src/commands/installed.js');
+  const target = createTmpProject();
+  const { logger: install_logger } = recordingLogger();
+  const { logger, lines } = recordingLogger();
+  try {
+    await install({
+      skills: ['code-review-checklist'],
+      target,
+      sourceRoot: REPO_ROOT,
+      logger: install_logger,
+    });
+    await installed({ target, sourceRoot: REPO_ROOT, logger });
+    const out = lines.map((l) => l[1]).join('\n');
+    // Each tool with a lockfile should appear in the report.
+    assert.match(out, /claude-code/);
+    assert.match(out, /cursor/);
+    assert.match(out, /kiro\b/);
+  } finally {
+    cleanupTmpProject(target);
+  }
+});

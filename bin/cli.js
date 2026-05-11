@@ -47,8 +47,8 @@ program
 
 const installCmd = program
   .command('install')
-  .description('Install assets into the tool-specific subdir under a project root')
-  .requiredOption('--tool <name>', 'target tool (e.g. claude-code, cursor, antigravity)')
+  .description('Install assets into the tool-specific subdir under a project root. Without --tool, installs for every tool in config/tools.json (deduped by destination).')
+  .option('--tool <name>', 'target tool (e.g. claude-code, cursor, antigravity). When omitted, installs for every configured tool.')
   .option('--preset <name>', 'preset to install')
   .addOption(new Option('--scope <scope>', 'install scope').choices(['global', 'workspace']).default('workspace'))
   .option('--target <path>', 'project root (defaults to current directory). The tool decides which subdirectory to populate inside it (.claude, .cursor, .github, ...).')

@@ -11,6 +11,59 @@ import { createLogger } from '../lib/logger.js';
 const ASSET_TYPES = ['skills', 'agents', 'commands', 'hooks', 'rules'];
 
 export async function install(opts) {
+  if (!opts.tool) {
+    return installAll(opts);
+  }
+  return installOne(opts);
+}
+
+async function installAll(opts) {
+  const logger = opts.logger || createLogger();
+  const sourceRoot = opts.sourceRoot || path.resolve(path.dirname(new URL(import.meta.url).pathname), '..', '..');
+  const tools = loadTools(path.join(sourceRoot, 'config'));
+  const scope = opts.scope || 'workspace';
+  const projectRoot = opts.target || process.cwd();
+
+  const seenDirs = new Set();
+  const results = [];
+
+  for (const toolName of Object.keys(tools.tools)) {
+    const tool = tools.tools[toolName];
+    let dir;
+    try {
+      dir = resolveTargetPath(tool, scope, projectRoot);
+    } catch (err) {
+      logger.warn(`Skipping ${toolName}: ${err.message}`);
+      results.push({ tool: toolName, skipped: true, reason: err.message });
+      continue;
+    }
+
+    if (seenDirs.has(dir)) {
+      logger.info(
+        `Skipping ${toolName} — destination ${dir} already populated by a previous tool in this run.`,
+      );
+      results.push({ tool: toolName, skipped: true, reason: 'destination already populated' });
+      continue;
+    }
+    seenDirs.add(dir);
+
+    logger.info(`\n── ${toolName} (${tool.displayName}) ──`);
+    try {
+      const r = await installOne({ ...opts, tool: toolName });
+      results.push({ tool: toolName, ...r });
+    } catch (err) {
+      logger.error(`Failed to install ${toolName}: ${err.message}`);
+      results.push({ tool: toolName, error: err.message });
+    }
+  }
+
+  const successful = results.filter((r) => r.lockfile != null);
+  logger.info('');
+  logger.info(`Installed for ${successful.length} tool(s).`);
+  return { installedAll: results };
+}
+
+async function installOne(opts) {
   const logger = opts.logger || createLogger();
   const sourceRoot = opts.sourceRoot || path.resolve(path.dirname(new URL(import.meta.url).pathname), '..', '..');
 

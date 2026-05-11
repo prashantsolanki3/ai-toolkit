@@ -73,7 +73,7 @@ npx git+ssh://...ai-toolkit.git install --skills code-review-checklist --tool an
 ## Commands
 
 ```
-ai-toolkit install   --tool <name> [--preset <name>] [--skills a,b] [--agents c]
+ai-toolkit install   [--tool <name>] [--preset <name>] [--skills a,b] [--agents c]
                      [--commands d] [--hooks e] [--rules f]
                      [--scope global|workspace] [--target <project-root>]
                      [--force]   # overwrite existing or locally-edited dests
@@ -92,10 +92,23 @@ ai-toolkit list      [--type skills|agents|commands|hooks|rules|presets|tools]
 
 | Flag | Meaning | Default |
 | --- | --- | --- |
-| `--tool <name>` | Which AI coding tool (claude-code, cursor, vscode-copilot, …) | required for install; optional for the rest |
+| `--tool <name>` | Which AI coding tool (claude-code, cursor, vscode-copilot, …) | optional — see below |
 | `--target <path>` | **The project root** — the directory you want to set up. The tool decides which subdir under it to populate (`.claude/`, `.cursor/`, `.github/`, …) via [`config/tools.json`](config/tools.json). | current working directory |
 
-For `update` / `remove` / `installed`: if `--tool` isn't passed, the toolkit scans every tool's subdir under `--target` and uses whichever one has a lockfile. Multiple matches require `--tool` to disambiguate (e.g. `.github/` is shared between vscode-copilot and copilot-cli).
+**`--tool` is optional on every command:**
+
+- For `install`: when omitted, the toolkit installs for **every** tool in `config/tools.json`. Each tool gets its own subdir under `--target`. Tools that share a subdir (e.g. vscode-copilot and copilot-cli both write to `.github/`) are deduplicated — the first wins, the second is skipped with a clear message. Tools that don't support a requested asset type drop those assets with a warning, then carry on.
+- For `update` / `remove` / `installed`: when omitted, the toolkit scans every tool's subdir under `--target` and uses whichever one has a lockfile. Multiple matches require `--tool` to disambiguate.
+
+```bash
+# Set up every tool's integration in one go:
+cd ~/my-project
+ai-toolkit install --preset backend-essentials
+# → .claude/, .cursor/, .github/, .agent/skills/, .gemini/, .kiro/ all populated.
+
+# Or stay surgical:
+ai-toolkit install --tool cursor --skills code-review-checklist
+```
 
 A lockfile (`.ai-toolkit-lock.json`) is written into the tool's subdirectory, recording the tool, scope, preset, and both source/destination SHAs per installed asset.
 
