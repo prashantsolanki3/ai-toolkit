@@ -1,6 +1,9 @@
 ---
 name: bump-version
 description: Update version across package metadata, changelog, and tags consistently.
+author: ai-toolkit
+presets:
+  - maintenance-mode
 ---
 
 # /bump-version

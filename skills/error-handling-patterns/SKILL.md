@@ -1,6 +1,10 @@
 ---
 name: error-handling-patterns
 description: Patterns for consistent, debuggable error handling across a codebase.
+author: ai-toolkit
+presets:
+  - backend-essentials
+  - quality-gates
 ---
 
 # Error Handling Patterns

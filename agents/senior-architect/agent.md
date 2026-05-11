@@ -1,6 +1,9 @@
 ---
 name: senior-architect
 description: System design reviewer focused on scale, failure modes, and tradeoffs.
+author: ai-toolkit
+presets:
+  - backend-essentials
 ---
 
 # Senior Architect

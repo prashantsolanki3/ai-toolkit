@@ -1,6 +1,11 @@
 ---
 name: code-review-checklist
 description: A short, generic checklist to apply when reviewing a code change.
+author: ai-toolkit
+presets:
+  - backend-essentials
+  - maintenance-mode
+  - quality-gates
 ---
 
 # Code Review Checklist

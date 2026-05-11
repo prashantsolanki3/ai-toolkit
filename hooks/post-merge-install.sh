@@ -1,4 +1,10 @@
 #!/usr/bin/env bash
+# === ai-toolkit metadata ===
+# name: post-merge-install
+# description: Runs npm/pnpm/yarn install when the lockfile changed after merge.
+# author: ai-toolkit
+# === end metadata ===
+
 # post-merge-install.sh — sample post-merge hook
 #
 # Place at .git/hooks/post-merge.

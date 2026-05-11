@@ -1,6 +1,9 @@
 ---
 name: explain-error
 description: Analyze a stack trace or error message and explain the root cause.
+author: ai-toolkit
+presets:
+  - maintenance-mode
 ---
 
 # /explain-error

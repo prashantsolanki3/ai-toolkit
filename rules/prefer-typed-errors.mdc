@@ -1,0 +1,39 @@
+---
+name: prefer-typed-errors
+description: Prefer specific error types over a generic Error / Exception / RuntimeException.
+author: ai-toolkit
+presets:
+  - quality-gates
+tools:
+  - cursor
+  - claude-code
+---
+
+# Rule: prefer typed errors
+
+Throw a specific error class, not a generic `Error` / `Exception` / `RuntimeException`. Specific types let callers handle the failure they actually care about and let observability tools group incidents.
+
+## Good
+
+```
+throw new TimeoutError('database connect', { timeoutMs: 5000 });
+throw new ValidationError('email', value, 'must be a valid email');
+```
+
+## Bad
+
+```
+throw new Error('something went wrong');
+throw new Exception('failed');
+```
+
+## When this rule does not apply
+
+- Internal scripts and prototypes where the catcher is your eyeballs and the stack trace is the API.
+- Re-throwing inside a wrapper where the inner error already carries the type information you need.
+
+## How to apply
+
+When introducing a `throw`, ask: "What does the caller need to do differently for this failure mode vs. every other one?" If the answer isn't "nothing", the error should carry a type that lets them branch.
+
+<!-- MIT, see LICENSE -->

@@ -1,6 +1,9 @@
 ---
 name: refactoring-specialist
 description: Identifies and applies refactoring patterns without changing behavior.
+author: ai-toolkit
+presets:
+  - maintenance-mode
 ---
 
 # Refactoring Specialist

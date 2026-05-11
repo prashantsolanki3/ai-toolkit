@@ -1,6 +1,9 @@
 ---
 name: dependency-upgrade
 description: A systematic approach to upgrading a dependency safely.
+author: ai-toolkit
+presets:
+  - maintenance-mode
 ---
 
 # Dependency Upgrade

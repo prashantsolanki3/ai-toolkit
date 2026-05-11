@@ -1,0 +1,14 @@
+{
+  "version": "1.0",
+  "presets": {
+    "backend-essentials": {
+      "description": "Skills, agents, and commands for everyday backend engineering work — API design, migrations, error handling, and code review."
+    },
+    "maintenance-mode": {
+      "description": "Helpers for upgrading dependencies, refactoring, and walking through stack traces in an existing codebase."
+    },
+    "quality-gates": {
+      "description": "Linting, review, and testing helpers wired together as a starter quality baseline."
+    }
+  }
+}

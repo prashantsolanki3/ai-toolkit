@@ -1,6 +1,9 @@
 ---
 name: api-endpoint-design
 description: Checklist for designing new HTTP/REST endpoints — naming, status codes, pagination, versioning.
+author: ai-toolkit
+presets:
+  - backend-essentials
 ---
 
 # API Endpoint Design

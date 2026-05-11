@@ -1,6 +1,9 @@
 ---
 name: test-writer
 description: Generates test cases from acceptance criteria or function signatures.
+author: ai-toolkit
+presets:
+  - quality-gates
 ---
 
 # Test Writer

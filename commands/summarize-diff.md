@@ -1,6 +1,9 @@
 ---
 name: summarize-diff
 description: Generate a clean PR description from a git diff.
+author: ai-toolkit
+presets:
+  - backend-essentials
 ---
 
 # /summarize-diff

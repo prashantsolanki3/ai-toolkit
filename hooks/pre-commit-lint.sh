@@ -1,4 +1,12 @@
 #!/usr/bin/env bash
+# === ai-toolkit metadata ===
+# name: pre-commit-lint
+# description: Sample lint-staged pre-commit hook.
+# author: ai-toolkit
+# presets:
+#   - quality-gates
+# === end metadata ===
+
 # pre-commit-lint.sh — sample pre-commit hook
 #
 # Place at .git/hooks/pre-commit (or wire via lint-staged / husky).

@@ -1,6 +1,9 @@
 ---
 name: database-migration-safety
 description: Patterns for zero-downtime schema migrations on relational databases.
+author: ai-toolkit
+presets:
+  - backend-essentials
 ---
 
 # Database Migration Safety
