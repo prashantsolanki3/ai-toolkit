@@ -100,6 +100,8 @@ export async function install(opts) {
         destPath: dest,
         destFormat,
         toolName: opts.tool,
+        link: opts.link,
+        onFallback: (msg) => logger.warn(`${type}/${name}: ${msg}`),
       });
       if (destFormat.sidecar) {
         writeSidecar({

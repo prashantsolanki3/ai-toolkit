@@ -60,7 +60,43 @@ export function resolveSourcePath({ sourceRoot, assetType, name, destFormat }) {
   return { path: filePath, kind: 'file' };
 }
 
-export function copyAssetAdaptive({ sourcePath, sourceKind, destPath, destFormat, toolName }) {
+function canSymlink(sourceKind, destFormat) {
+  // Symlinks preserve byte-for-byte identity with the source, so they only
+  // work when the destination format requires no transformation.
+  if (destFormat.frontmatter) return false;
+  if (sourceKind === 'directory' && destFormat.type === 'directory') return true;
+  if (sourceKind === 'file' && destFormat.type === 'file') return true;
+  // dir→file via sourceFile would symlink to the inner file; valid as long
+  // as no frontmatter transform is requested.
+  if (sourceKind === 'directory' && destFormat.type === 'file' && destFormat.sourceFile) return true;
+  return false;
+}
+
+function createSymlink(target, linkPath) {
+  fs.mkdirSync(path.dirname(linkPath), { recursive: true });
+  if (pathExists(linkPath)) {
+    fs.rmSync(linkPath, { recursive: true, force: true });
+  }
+  fs.symlinkSync(path.resolve(target), linkPath);
+}
+
+export function copyAssetAdaptive({ sourcePath, sourceKind, destPath, destFormat, toolName, link, onFallback }) {
+  if (link && canSymlink(sourceKind, destFormat)) {
+    if (sourceKind === 'directory' && destFormat.type === 'file' && destFormat.sourceFile) {
+      const innerFile = path.join(sourcePath, destFormat.sourceFile);
+      createSymlink(innerFile, destPath);
+      return;
+    }
+    createSymlink(sourcePath, destPath);
+    return;
+  }
+
+  if (link && onFallback) {
+    onFallback(
+      `linked install requested but destination requires frontmatter transformation; falling back to a copy`,
+    );
+  }
+
   if (sourceKind === 'directory' && destFormat.type === 'directory') {
     copyAsset(sourcePath, destPath, { type: 'directory' });
     return;
