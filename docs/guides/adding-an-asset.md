@@ -92,7 +92,7 @@ git commit -m "feat(content): my-new-skill"
 
 ## Step by step — a new agent
 
-Identical to skills but at `agents/<name>/agent.md`. Agents installed for Claude Code flatten to `.claude/agents/<name>.md`; for VS Code Copilot they become `.github/chatmodes/<name>.chatmode.md`. The toolkit handles the format transform.
+Identical to skills but at `agents/<name>/agent.md`. Agents installed for Claude Code flatten to `.claude/agents/<name>.md`; for VS Code Copilot they become `.github/agents/<name>.md` (Copilot custom agents); for Cursor they become `.cursor/agents/<name>.md` (Cursor subagents). The toolkit handles the format transform.
 
 ## Step by step — a new command
 

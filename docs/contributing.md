@@ -106,7 +106,7 @@ The multi-tool integration matrix (`test/integration/multi-tool.test.js`) automa
 ```
 .claude/   -> symlinks back to skills/, agents/, commands/, hooks/, rules/
 .cursor/   -> rules with Cursor-shape frontmatter (copies, not links — transform required)
-.github/   -> instructions/prompts/chatmodes for VS Code Copilot
+.github/   -> instructions/prompts/agents for VS Code Copilot
 .kiro/     -> steering + hooks with .kiro.hook sidecars
 .agent/    -> Antigravity skills
 .gemini/   -> Gemini CLI skills

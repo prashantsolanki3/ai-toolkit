@@ -121,7 +121,7 @@ Then Claude Code pulls the rule body into context whenever it loads project memo
   3. Run the **"Chat: Configure Chat Instructions"** command (palette) — the installed instruction file should appear in the list.
   4. Open Copilot Chat. The `applyTo`-matched instruction should be surfaced or attached automatically.
   5. Custom agents: confirm Copilot loads `.github/agents/<name>.md` for the agent personas. The agent file should be discoverable in Copilot's agent picker / `@`-mention surface.
-- **Caveats:** GitHub's docs list `prompt` as a required frontmatter field on custom agents. The toolkit currently puts the agent body in the file body (the most common convention across agent-supporting tools). If your Copilot version strictly requires `prompt:` in frontmatter, edit the asset to set `overrides.vscode-copilot.prompt` with the body content — file an issue if you hit this so we can adjust the default. The chatmodes/`.chatmode.md` path is intentionally **not** generated; if you want chat modes alongside, hand-craft them.
+- **Caveats:** Chatmodes (`.chatmode.md`) are intentionally not generated — Copilot's custom-agent mechanism replaces them for our purposes. If you want chat modes alongside, hand-craft them.
 - **Last verified:** _pending_
 
 ## copilot-cli
