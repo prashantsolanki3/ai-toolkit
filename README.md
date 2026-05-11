@@ -1,6 +1,6 @@
 # ai-toolkit
 
-Tool-agnostic CLI that installs and updates skills, agents, commands, hooks, and rules across AI coding tools. Currently ships configs for **Claude Code**, **Cursor**, **Antigravity**, **Gemini CLI**, **VS Code Copilot**, **GitHub Copilot CLI**, **Kiro**, and **Kiro CLI** — adding a new tool is one block in [`config/tools.json`](config/tools.json).
+Tool-agnostic CLI that installs and updates skills, agents, commands, hooks, rules, and MCP servers across AI coding tools. Currently ships configs for **Claude Code**, **Cursor**, **Antigravity**, **Gemini CLI**, **VS Code Copilot**, **GitHub Copilot CLI**, **Kiro**, and **Kiro CLI** — adding a new tool is one block in [`config/tools.json`](config/tools.json).
 
 Distributed as a **private GitHub repo**, installed via `npx git+ssh://...` directly from the repo. Not published to npm.
 
@@ -43,7 +43,7 @@ Full index at [docs/README.md](docs/README.md).
 
 ```
 ai-toolkit install   [--tool <name>] [--preset <name>] [--skills a,b] [--agents c]
-                     [--commands d] [--hooks e] [--rules f]
+                     [--commands d] [--hooks e] [--rules f] [--mcp g]
                      [--scope global|workspace] [--target <project-root>]
                      [--force] [--link] [--dry-run]
 ai-toolkit update    [--target <project-root>] [--tool <name>]
@@ -54,7 +54,7 @@ ai-toolkit remove    [--target <project-root>] [--tool <name>]
                      [--all] [--dry-run]
 ai-toolkit installed [--target <project-root>] [--tool <name>]
                      [--type <type>] [--preset <name>]
-ai-toolkit list      [--type skills|agents|commands|hooks|rules|presets|tools]
+ai-toolkit list      [--type skills|agents|commands|hooks|rules|mcp|presets|tools]
                      [--tool <name>]
 ```
 

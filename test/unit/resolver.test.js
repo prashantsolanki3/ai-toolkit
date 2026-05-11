@@ -157,3 +157,55 @@ test('resolveInstallTargets() keeps assets that omit tools (treated as universal
   );
   assert.deepEqual(result.skills, ['universal']);
 });
+
+// ── MCP awareness ──────────────────────────────────────────────────────
+
+const mcpManifest = {
+  ...manifest,
+  mcp: { everything: { description: 'demo' }, 'claude-only-mcp': { tools: ['claude-code'] } },
+  presets: {
+    ...manifest.presets,
+    'with-mcp': { skills: [], agents: [], commands: [], hooks: [], rules: [], mcp: ['everything'] },
+  },
+};
+
+const mcpTool = {
+  ...fullTool,
+  supportedAssets: [...fullTool.supportedAssets, 'mcp'],
+};
+
+test('resolveInstallTargets() includes the mcp bucket', () => {
+  const result = resolveInstallTargets({ preset: 'with-mcp' }, mcpManifest, mcpTool);
+  assert.deepEqual(result.mcp, ['everything']);
+});
+
+test('resolveInstallTargets() merges explicit --mcp flag with preset', () => {
+  const m = {
+    ...mcpManifest,
+    mcp: { ...mcpManifest.mcp, extra: { description: 'extra' } },
+  };
+  const result = resolveInstallTargets(
+    { preset: 'with-mcp', mcp: ['extra'] },
+    m,
+    mcpTool,
+  );
+  assert.deepEqual(result.mcp.sort(), ['everything', 'extra']);
+});
+
+test('resolveInstallTargets() drops mcp entries when the tool does not support mcp, with a warning', () => {
+  const result = resolveInstallTargets({ mcp: ['everything'] }, mcpManifest, fullTool);
+  assert.deepEqual(result.mcp, []);
+  assert.ok(result.warnings.some((w) => /mcp/.test(w) && /support/.test(w)));
+});
+
+test('resolveInstallTargets() applies the per-asset tools allowlist to mcp entries too', () => {
+  const result = resolveInstallTargets(
+    { mcp: ['claude-only-mcp', 'everything'] },
+    mcpManifest,
+    mcpTool,
+    { toolName: 'cursor' },
+  );
+  assert.ok(!result.mcp.includes('claude-only-mcp'));
+  assert.ok(result.mcp.includes('everything'));
+  assert.ok(result.warnings.some((w) => /claude-only-mcp/.test(w)));
+});

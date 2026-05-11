@@ -6,9 +6,10 @@ import { hashDir, hashFile, pathExists } from '../lib/fs-ops.js';
 import { resolveSourcePath, copyAssetAdaptive } from '../lib/source-adapter.js';
 import { read as readLockfile, write as writeLockfile, addAsset, emptyLockfile } from '../lib/lockfile.js';
 import { writeSidecar, frontmatterKindForFile } from '../lib/sidecar.js';
+import { installMcpEntry } from '../lib/mcp.js';
 import { createLogger } from '../lib/logger.js';
 
-const ASSET_TYPES = ['skills', 'agents', 'commands', 'hooks', 'rules'];
+const ASSET_TYPES = ['skills', 'agents', 'commands', 'hooks', 'rules', 'mcp'];
 
 export async function install(opts) {
   if (!opts.tool) {
@@ -95,6 +96,22 @@ async function installOne(opts) {
     logger.info(`Would install into ${target} (tool: ${tool.displayName}, scope: ${scope})`);
     for (const type of ASSET_TYPES) {
       for (const name of plan[type] || []) {
+        if (type === 'mcp') {
+          installMcpEntry({
+            tool,
+            toolName: opts.tool,
+            scope,
+            projectRoot: opts.target || process.cwd(),
+            name,
+            manifest,
+            sourceRoot,
+            trackedEntry: existingLockfile?.assets?.mcp?.[name],
+            force: opts.force,
+            dryRun: true,
+            logger,
+          });
+          continue;
+        }
         const dest = getAssetDestination(tool, target, type, name);
         const conflict = detectConflict({
           dest,
@@ -130,6 +147,29 @@ async function installOne(opts) {
     if (!supportsAsset(tool, type)) continue;
     installedSummary[type] = [];
     for (const name of plan[type] || []) {
+      if (type === 'mcp') {
+        const r = installMcpEntry({
+          tool,
+          toolName: opts.tool,
+          scope,
+          projectRoot: opts.target || process.cwd(),
+          name,
+          manifest,
+          sourceRoot,
+          trackedEntry: lockfile.assets?.mcp?.[name],
+          force: opts.force,
+          dryRun: false,
+          logger,
+        });
+        if (r.status === 'installed' && r.lockfileEntry) {
+          lockfile = addAsset(lockfile, 'mcp', name, r.lockfileEntry);
+          installedSummary.mcp.push(name);
+        } else if (r.status === 'skipped-conflict' || r.status === 'skipped-scope') {
+          result.skipped.push({ type, name, reason: r.reason });
+        }
+        continue;
+      }
+
       const destFormat = tool.assetFormats[type];
       const source = resolveSourcePath({ sourceRoot, assetType: type, name, destFormat });
       const dest = getAssetDestination(tool, target, type, name);
@@ -201,6 +241,7 @@ function pickAssetSelectors(opts) {
     commands: opts.commands,
     hooks: opts.hooks,
     rules: opts.rules,
+    mcp: opts.mcp,
   };
 }
 

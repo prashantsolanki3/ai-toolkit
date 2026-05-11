@@ -68,6 +68,33 @@
             "type": "array",
             "items": { "type": "string" },
             "minItems": 1
+          },
+          "mcpConfig": {
+            "type": "object",
+            "description": "How this tool reads MCP server definitions. MCP is not a copy-file asset like skills/agents — it's a JSON entry merged into a tool-managed config file at a fixed path. Required iff supportedAssets includes \"mcp\".",
+            "required": ["wrapperPath", "file"],
+            "properties": {
+              "wrapperPath": {
+                "type": "array",
+                "items": { "type": "string" },
+                "minItems": 1,
+                "description": "Dot-path of keys inside the config file under which named MCP server entries live. Most tools use [\"mcpServers\"]; VS Code Copilot uses [\"servers\"]."
+              },
+              "file": {
+                "type": "object",
+                "required": ["workspace", "global"],
+                "properties": {
+                  "workspace": {
+                    "type": ["string", "null"],
+                    "description": "Path to the MCP config file for workspace scope, relative to the project root. null when the tool offers no per-workspace MCP config."
+                  },
+                  "global": {
+                    "type": ["string", "null"],
+                    "description": "Path to the MCP config file for global/user scope (typically under ~). null when the tool offers no user-wide MCP config."
+                  }
+                }
+              }
+            }
           }
         }
       }

@@ -16,9 +16,10 @@ import {
   LOCKFILE_NAME,
 } from '../lib/lockfile.js';
 import { removeSidecar } from '../lib/sidecar.js';
+import { removeMcpEntryForCommand } from '../lib/mcp.js';
 import { createLogger } from '../lib/logger.js';
 
-const ASSET_TYPES = ['skills', 'agents', 'commands', 'hooks', 'rules'];
+const ASSET_TYPES = ['skills', 'agents', 'commands', 'hooks', 'rules', 'mcp'];
 
 export async function remove(opts) {
   const logger = opts.logger || createLogger();
@@ -75,6 +76,24 @@ export async function remove(opts) {
         result.notFound.push({ type, name });
         continue;
       }
+
+      if (type === 'mcp') {
+        const r = removeMcpEntryForCommand({
+          tool,
+          scope: lockfile.scope || 'workspace',
+          projectRoot,
+          name,
+          trackedEntry: tracked,
+          dryRun: opts.dryRun,
+          logger,
+        });
+        if (r.status === 'removed') {
+          if (!opts.dryRun) lockfile = removeAsset(lockfile, 'mcp', name);
+          result.removed.push({ type, name });
+        }
+        continue;
+      }
+
       const dest = getAssetDestination(tool, target, type, name);
       const sidecarSpec = tool.assetFormats[type]?.sidecar;
       if (opts.dryRun) {

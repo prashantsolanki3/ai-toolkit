@@ -17,7 +17,7 @@ function silentLogger() {
 
 function copySourceRoot() {
   const tmpSrc = createTmpProject('aitk-src-update-filters-');
-  for (const sub of ['skills', 'agents', 'commands', 'hooks', 'rules', 'config', 'manifest.json']) {
+  for (const sub of ['skills', 'agents', 'commands', 'hooks', 'rules', 'mcp', 'config', 'manifest.json']) {
     const from = path.join(REPO_ROOT, sub);
     const to = path.join(tmpSrc, sub);
     if (fs.statSync(from).isDirectory()) fs.cpSync(from, to, { recursive: true });

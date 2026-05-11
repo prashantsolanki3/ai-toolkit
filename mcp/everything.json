@@ -1,0 +1,9 @@
+{
+  "description": "Reference MCP server bundling prompt/resource/tool examples — safe to install anywhere, no auth required. Runs via npx @modelcontextprotocol/server-everything.",
+  "author": "ai-toolkit",
+  "presets": ["skill-development"],
+  "config": {
+    "command": "npx",
+    "args": ["-y", "@modelcontextprotocol/server-everything"]
+  }
+}

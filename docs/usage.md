@@ -6,25 +6,25 @@ This is the day-to-day reference. For first-time setup see [installation.md](ins
 
 ```
 ai-toolkit install   [--tool <name>] [--preset <name>] [--skills a,b] [--agents c]
-                     [--commands d] [--hooks e] [--rules f]
+                     [--commands d] [--hooks e] [--rules f] [--mcp g]
                      [--scope global|workspace] [--target <project-root>]
                      [--force] [--link] [--dry-run]
 
 ai-toolkit update    [--target <project-root>] [--tool <name>]
                      [--preset <name>] [--skills a,b] [--agents c]
-                     [--commands d] [--hooks e] [--rules f]
+                     [--commands d] [--hooks e] [--rules f] [--mcp g]
                      [--force] [--dry-run]
 
 ai-toolkit remove    [--target <project-root>] [--tool <name>]
                      [--preset <name>] [--skills a,b] [--agents c]
-                     [--commands d] [--hooks e] [--rules f]
+                     [--commands d] [--hooks e] [--rules f] [--mcp g]
                      [--all] [--dry-run]
 
 ai-toolkit installed [--target <project-root>] [--tool <name>]
-                     [--type skills|agents|commands|hooks|rules]
+                     [--type skills|agents|commands|hooks|rules|mcp]
                      [--preset <name>]
 
-ai-toolkit list      [--type skills|agents|commands|hooks|rules|presets|tools]
+ai-toolkit list      [--type skills|agents|commands|hooks|rules|mcp|presets|tools]
                      [--tool <name>]
 ```
 
@@ -277,6 +277,35 @@ vim skills/my-skill/SKILL.md
 ```
 
 See [guides/evaluation-workflow.md](guides/evaluation-workflow.md) for the full loop.
+
+### Installing MCP servers
+
+MCP entries (under `mcp/<name>.json` in the source repo) install differently from skills/agents/commands/hooks/rules: there is no file dropped at a predictable location. Each tool keeps a single JSON config file (`.mcp.json`, `.cursor/mcp.json`, `.vscode/mcp.json`, `~/.gemini/settings.json`, …) and the toolkit merges a named entry into that file.
+
+```bash
+# Install one MCP server everywhere this toolkit knows about
+ai-toolkit install --mcp everything
+
+# Or just for a specific tool
+ai-toolkit install --tool claude-code --mcp everything
+
+# Use --scope global to write to the user-wide config file instead
+ai-toolkit install --tool cursor --mcp everything --scope global
+
+# List available MCP entries the toolkit ships
+ai-toolkit list --type mcp
+
+# See what's currently merged in
+ai-toolkit installed --type mcp
+
+# Tear it back out — only our named entry is removed; siblings the
+# user added by hand are untouched
+ai-toolkit remove --mcp everything
+```
+
+Pre-existing entries with the same name are *never* overwritten unless `--force` is passed; the toolkit treats them like file conflicts. Drift (a user hand-editing an entry we own) is detected by sha and surfaces a warning in `update` so an upstream change doesn't silently clobber local tweaks.
+
+See [architecture.md#mcp-servers](architecture.md#mcp-servers) for the per-tool config paths, the JSON wrapper keys (`mcpServers` vs `servers`), and per-tool field overrides like Gemini CLI's `httpUrl`.
 
 ### Verifying a fresh contributor setup
 

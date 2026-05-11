@@ -22,8 +22,15 @@
         "hooks": { "filename": "{name}.sh", "type": "file" },
         "rules": { "filename": "{name}.md", "type": "file" }
       },
-      "supportedAssets": ["skills", "agents", "commands", "hooks", "rules"],
-      "notes": "Skills live as directories (Claude Code reads frontmatter from SKILL.md). Agents are flat files at .claude/agents/<name>.md with frontmatter — we extract the inner agent.md. Hook scripts are stored under .claude/hooks/<name>.sh but must also be referenced from .claude/settings.json to actually run. Rules land at .claude/rules/<name>.md — Claude Code does not auto-load this directory; reference the rules from CLAUDE.md or another loaded context file."
+      "supportedAssets": ["skills", "agents", "commands", "hooks", "rules", "mcp"],
+      "mcpConfig": {
+        "wrapperPath": ["mcpServers"],
+        "file": {
+          "workspace": ".mcp.json",
+          "global": "~/.claude.json"
+        }
+      },
+      "notes": "Skills live as directories (Claude Code reads frontmatter from SKILL.md). Agents are flat files at .claude/agents/<name>.md with frontmatter — we extract the inner agent.md. Hook scripts are stored under .claude/hooks/<name>.sh but must also be referenced from .claude/settings.json to actually run. Rules land at .claude/rules/<name>.md — Claude Code does not auto-load this directory; reference the rules from CLAUDE.md or another loaded context file. MCP servers are merged into project-root /.mcp.json (workspace) or ~/.claude.json (user/global) under the mcpServers key."
     },
     "cursor": {
       "displayName": "Cursor",
@@ -65,8 +72,15 @@
           }
         }
       },
-      "supportedAssets": ["skills", "rules", "agents"],
-      "notes": "Cursor reads project rules at .cursor/rules/<name>.mdc and subagents at .cursor/agents/<name>.md (https://cursor.com/docs/subagents). Skill content becomes a rule with the Cursor frontmatter contract; agents land at .cursor/agents/<name>.md. Cursor also reads from .claude/agents/, so installing for claude-code overlaps with this — that's fine, both paths get populated. Override per-asset via overrides.cursor.{globs, alwaysApply, model, readonly, is_background}."
+      "supportedAssets": ["skills", "rules", "agents", "mcp"],
+      "mcpConfig": {
+        "wrapperPath": ["mcpServers"],
+        "file": {
+          "workspace": ".cursor/mcp.json",
+          "global": "~/.cursor/mcp.json"
+        }
+      },
+      "notes": "Cursor reads project rules at .cursor/rules/<name>.mdc and subagents at .cursor/agents/<name>.md (https://cursor.com/docs/subagents). Skill content becomes a rule with the Cursor frontmatter contract; agents land at .cursor/agents/<name>.md. Cursor also reads from .claude/agents/, so installing for claude-code overlaps with this — that's fine, both paths get populated. Override per-asset via overrides.cursor.{globs, alwaysApply, model, readonly, is_background}. MCP servers land at .cursor/mcp.json (workspace) or ~/.cursor/mcp.json (global) under the mcpServers key."
     },
     "antigravity": {
       "displayName": "Antigravity",
@@ -80,8 +94,15 @@
       "assetFormats": {
         "skills": { "filename": "SKILL.md", "type": "directory" }
       },
-      "supportedAssets": ["skills"],
-      "notes": "Google Antigravity reads skills as directories containing SKILL.md. Workspace location is .agent/skills/; global at ~/.gemini/antigravity/skills/. The assetPaths.skills value is empty so skills land at the target root."
+      "supportedAssets": ["skills", "mcp"],
+      "mcpConfig": {
+        "wrapperPath": ["mcpServers"],
+        "file": {
+          "workspace": null,
+          "global": "~/.gemini/antigravity/mcp_config.json"
+        }
+      },
+      "notes": "Google Antigravity reads skills as directories containing SKILL.md. Workspace location is .agent/skills/; global at ~/.gemini/antigravity/skills/. The assetPaths.skills value is empty so skills land at the target root. MCP servers are stored only globally at ~/.gemini/antigravity/mcp_config.json — Antigravity does not (as of mid-2026) support per-workspace MCP configs."
     },
     "gemini-cli": {
       "displayName": "Gemini CLI",
@@ -95,8 +116,15 @@
       "assetFormats": {
         "skills": { "filename": "SKILL.md", "type": "directory" }
       },
-      "supportedAssets": ["skills"],
-      "notes": "Gemini CLI's skills support is evolving. This config places skills at ~/.gemini/skills/ (global) or .gemini/skills/ (workspace). Verify against your installed Gemini CLI version — earlier versions only honour a GEMINI.md context file."
+      "supportedAssets": ["skills", "mcp"],
+      "mcpConfig": {
+        "wrapperPath": ["mcpServers"],
+        "file": {
+          "workspace": ".gemini/settings.json",
+          "global": "~/.gemini/settings.json"
+        }
+      },
+      "notes": "Gemini CLI's skills support is evolving. This config places skills at ~/.gemini/skills/ (global) or .gemini/skills/ (workspace). Verify against your installed Gemini CLI version — earlier versions only honour a GEMINI.md context file. MCP servers are merged into settings.json under the mcpServers key. Gemini-specific per-server fields you may want to set via overrides: httpUrl (HTTP-streaming transport, distinct from url which is SSE), cwd, timeout, trust, includeTools, excludeTools."
     },
     "vscode-copilot": {
       "displayName": "VS Code Copilot",
@@ -136,8 +164,15 @@
           }
         }
       },
-      "supportedAssets": ["skills", "commands", "agents"],
-      "notes": "Custom agents land at .github/agents/<name>.md per GitHub's docs (https://docs.github.com/en/copilot/concepts/agents/cloud-agent/about-custom-agents). Skill content becomes .github/instructions/<name>.instructions.md and commands become .github/prompts/<name>.prompt.md. Per-asset overrides via overrides.vscode-copilot.{applyTo,mode,tools,model,mcp-servers}. For Copilot to load the files, enable the workspace setting chat.promptFiles."
+      "supportedAssets": ["skills", "commands", "agents", "mcp"],
+      "mcpConfig": {
+        "wrapperPath": ["servers"],
+        "file": {
+          "workspace": ".vscode/mcp.json",
+          "global": null
+        }
+      },
+      "notes": "Custom agents land at .github/agents/<name>.md per GitHub's docs (https://docs.github.com/en/copilot/concepts/agents/cloud-agent/about-custom-agents). Skill content becomes .github/instructions/<name>.instructions.md and commands become .github/prompts/<name>.prompt.md. Per-asset overrides via overrides.vscode-copilot.{applyTo,mode,tools,model,mcp-servers}. For Copilot to load the files, enable the workspace setting chat.promptFiles. MCP servers are merged into .vscode/mcp.json — note that VS Code uses the wrapper key 'servers' (not 'mcpServers'). User-scope MCP config exists but is managed via the 'MCP: Open User Configuration' command, so we don't write it directly."
     },
     "copilot-cli": {
       "displayName": "GitHub Copilot CLI",
@@ -177,8 +212,15 @@
           }
         }
       },
-      "supportedAssets": ["skills", "commands", "agents"],
-      "notes": "Shares the .github/ tree with vscode-copilot — agents at .github/agents/<name>.md, instructions at .github/instructions/, prompts at .github/prompts/. Global ~/.copilot/ holds user-wide instructions. The legacy `gh copilot` extension does NOT consume these files; this config targets the newer agentic `copilot` CLI."
+      "supportedAssets": ["skills", "commands", "agents", "mcp"],
+      "mcpConfig": {
+        "wrapperPath": ["mcpServers"],
+        "file": {
+          "workspace": null,
+          "global": "~/.copilot/mcp-config.json"
+        }
+      },
+      "notes": "Shares the .github/ tree with vscode-copilot — agents at .github/agents/<name>.md, instructions at .github/instructions/, prompts at .github/prompts/. Global ~/.copilot/ holds user-wide instructions. The legacy `gh copilot` extension does NOT consume these files; this config targets the newer agentic `copilot` CLI. MCP servers are written to ~/.copilot/mcp-config.json (global only); the CLI also discovers workspace-local mcp-config.json files but the GitHub docs don't standardize a per-project path."
     },
     "kiro": {
       "displayName": "Kiro",
@@ -211,8 +253,15 @@
           }
         }
       },
-      "supportedAssets": ["skills", "hooks"],
-      "notes": "Steering files at .kiro/steering/<name>.md inject project guidance into the agent. Hooks land at .kiro/hooks/<name>.sh PLUS a sibling <name>.kiro.hook JSON describing the hook (name, description, command, enabled). Kiro discovers hooks via the JSON sidecar; the .sh alone is not enough."
+      "supportedAssets": ["skills", "hooks", "mcp"],
+      "mcpConfig": {
+        "wrapperPath": ["mcpServers"],
+        "file": {
+          "workspace": ".kiro/settings/mcp.json",
+          "global": "~/.kiro/settings/mcp.json"
+        }
+      },
+      "notes": "Steering files at .kiro/steering/<name>.md inject project guidance into the agent. Hooks land at .kiro/hooks/<name>.sh PLUS a sibling <name>.kiro.hook JSON describing the hook (name, description, command, enabled). Kiro discovers hooks via the JSON sidecar; the .sh alone is not enough. MCP servers are merged into .kiro/settings/mcp.json (workspace) or ~/.kiro/settings/mcp.json (global). Kiro-specific per-server fields you may want to set via overrides: disabled, autoApprove, disabledTools."
     },
     "kiro-cli": {
       "displayName": "Kiro CLI",
@@ -230,8 +279,15 @@
           "sourceFile": "SKILL.md"
         }
       },
-      "supportedAssets": ["skills"],
-      "notes": "Treated as a sibling of Kiro IDE — shares .kiro/steering/ at workspace scope and supports a ~/.kiro/ user-wide steering directory. If your Kiro CLI build uses different paths, override this config or pass --target."
+      "supportedAssets": ["skills", "mcp"],
+      "mcpConfig": {
+        "wrapperPath": ["mcpServers"],
+        "file": {
+          "workspace": ".kiro/settings/mcp.json",
+          "global": "~/.kiro/settings/mcp.json"
+        }
+      },
+      "notes": "Treated as a sibling of Kiro IDE — shares .kiro/steering/ at workspace scope and supports a ~/.kiro/ user-wide steering directory. If your Kiro CLI build uses different paths, override this config or pass --target. MCP servers share the same path layout as Kiro IDE."
     }
   }
 }

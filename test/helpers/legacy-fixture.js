@@ -351,6 +351,42 @@ export function buildLegacyFixture() {
     '# Rule: prefer typed errors\n\nLegacy fixture body.',
   );
 
+  // ── mcp ───────────────────────────────────────────────────────────
+  fs.mkdirSync(path.join(dir, 'mcp'), { recursive: true });
+  fs.writeFileSync(
+    path.join(dir, 'mcp', 'everything.json'),
+    JSON.stringify(
+      {
+        description: 'Reference MCP server bundling prompt/resource/tool examples.',
+        author: 'fixture',
+        presets: ['skill-development'],
+        config: {
+          command: 'npx',
+          args: ['-y', '@modelcontextprotocol/server-everything'],
+        },
+      },
+      null,
+      2,
+    ),
+  );
+  fs.writeFileSync(
+    path.join(dir, 'mcp', 'maintenance-helper.json'),
+    JSON.stringify(
+      {
+        description: 'Second sample MCP entry to exercise multi-entry merge behaviour.',
+        author: 'fixture',
+        presets: ['maintenance-mode'],
+        config: {
+          command: 'node',
+          args: ['./mcp-server.js'],
+          env: { MAINTENANCE: '1' },
+        },
+      },
+      null,
+      2,
+    ),
+  );
+
   regenerateManifest(dir);
   return dir;
 }

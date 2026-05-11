@@ -71,6 +71,28 @@ test('cli: unknown command exits non-zero', () => {
   assert.notEqual(r.status, 0);
 });
 
+test('cli: --mcp flag installs an MCP server entry into the right per-tool file', () => {
+  const target = createTmpProject();
+  try {
+    const r = run([
+      'install', '--tool', 'claude-code', '--mcp', 'everything', '--target', target,
+    ]);
+    assert.equal(r.status, 0, `install failed: ${r.stderr}`);
+    const mcpFile = path.join(target, '.mcp.json');
+    assert.ok(fs.existsSync(mcpFile), '.mcp.json should exist at project root');
+    const data = JSON.parse(fs.readFileSync(mcpFile, 'utf8'));
+    assert.ok(data.mcpServers && data.mcpServers.everything, 'mcpServers.everything should be present');
+  } finally {
+    cleanupTmpProject(target);
+  }
+});
+
+test('cli: list --type mcp prints MCP assets', () => {
+  const r = run(['list', '--type', 'mcp']);
+  assert.equal(r.status, 0);
+  assert.match(r.stdout, /everything/);
+});
+
 test('cli: install --dry-run does not write files', () => {
   const target = createTmpProject();
   try {

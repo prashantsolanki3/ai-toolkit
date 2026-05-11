@@ -8,6 +8,11 @@ const ASSET_SPECS = {
   commands: { kind: 'file', ext: '.md' },
   hooks: { kind: 'file', ext: '.sh', frontmatterKind: 'shell' },
   rules: { kind: 'file', ext: '.mdc' },
+  // MCP entries are pure JSON — no frontmatter to parse. The whole file is
+  // treated as the asset record: metadata (description, presets, tools,
+  // overrides) lives at the top level alongside a required `config` block
+  // that holds the literal MCP server entry written into each tool's MCP file.
+  mcp: { kind: 'file', ext: '.json', meta: 'json' },
 };
 
 const ASSET_TYPES = Object.keys(ASSET_SPECS);
@@ -22,7 +27,7 @@ export function generateManifest(sourceRoot) {
 
   const presetMembership = {};
   for (const presetName of Object.keys(presetsConfig.presets)) {
-    presetMembership[presetName] = { skills: [], agents: [], commands: [], hooks: [], rules: [] };
+    presetMembership[presetName] = emptyBuckets();
   }
 
   for (const type of ASSET_TYPES) {
@@ -48,17 +53,18 @@ export function generateManifest(sourceRoot) {
 
   manifest.presets = {};
   for (const [name, def] of Object.entries(presetsConfig.presets)) {
-    manifest.presets[name] = {
-      description: def.description || '',
-      skills: presetMembership[name].skills.sort(),
-      agents: presetMembership[name].agents.sort(),
-      commands: presetMembership[name].commands.sort(),
-      hooks: presetMembership[name].hooks.sort(),
-      rules: presetMembership[name].rules.sort(),
-    };
+    const presetEntry = { description: def.description || '' };
+    for (const type of ASSET_TYPES) {
+      presetEntry[type] = (presetMembership[name][type] || []).slice().sort();
+    }
+    manifest.presets[name] = presetEntry;
   }
 
   return manifest;
+}
+
+function emptyBuckets() {
+  return Object.fromEntries(ASSET_TYPES.map((t) => [t, []]));
 }
 
 function scanAssetType(sourceRoot, type, spec) {
@@ -71,21 +77,48 @@ function scanAssetType(sourceRoot, type, spec) {
     if (spec.kind === 'directory' && entry.isDirectory()) {
       const file = path.join(dir, entry.name, spec.entry);
       if (!fs.existsSync(file)) continue;
-      results.push(readAsset(file, entry.name, undefined));
+      results.push(readAsset(file, entry.name, spec));
     } else if (spec.kind === 'file' && entry.isFile() && entry.name.endsWith(spec.ext)) {
       const baseName = entry.name.slice(0, -spec.ext.length);
       const file = path.join(dir, entry.name);
-      results.push(readAsset(file, baseName, spec.frontmatterKind));
+      results.push(readAsset(file, baseName, spec));
     }
   }
   return results;
 }
 
-function readAsset(filePath, defaultName, frontmatterKind) {
+function readAsset(filePath, defaultName, spec) {
   const content = fs.readFileSync(filePath, 'utf8');
-  const { data } = parseFrontmatter(content, frontmatterKind ? { kind: frontmatterKind } : undefined);
+
+  if (spec.meta === 'json') {
+    return readJsonAsset(filePath, defaultName, content);
+  }
+
+  const { data } = parseFrontmatter(
+    content,
+    spec.frontmatterKind ? { kind: spec.frontmatterKind } : undefined,
+  );
   const name = data.name || defaultName;
   return { ...data, name, file: filePath };
+}
+
+function readJsonAsset(filePath, defaultName, content) {
+  let parsed;
+  try {
+    parsed = JSON.parse(content);
+  } catch (err) {
+    throw new Error(`${filePath}: invalid JSON — ${err.message}`);
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new Error(`${filePath}: expected a JSON object at the top level.`);
+  }
+  if (!parsed.config || typeof parsed.config !== 'object' || Array.isArray(parsed.config)) {
+    throw new Error(
+      `${filePath}: missing required "config" object — for mcp assets, place the literal MCP server entry under "config".`,
+    );
+  }
+  const name = parsed.name || defaultName;
+  return { ...parsed, name, file: filePath };
 }
 
 function assetEntry(asset) {

@@ -34,7 +34,8 @@ function commonAssetOptions(cmd) {
     .option('--agents <name>', 'agent name (repeatable, comma-separated)', splitList, [])
     .option('--commands <name>', 'command name (repeatable, comma-separated)', splitList, [])
     .option('--hooks <name>', 'hook name (repeatable, comma-separated)', splitList, [])
-    .option('--rules <name>', 'rule name (repeatable, comma-separated)', splitList, []);
+    .option('--rules <name>', 'rule name (repeatable, comma-separated)', splitList, [])
+    .option('--mcp <name>', 'MCP server name (repeatable, comma-separated)', splitList, []);
 }
 
 const program = new Command();
@@ -67,6 +68,7 @@ commonAssetOptions(installCmd).action(async (opts) => {
     commands: opts.commands,
     hooks: opts.hooks,
     rules: opts.rules,
+    mcp: opts.mcp,
     scope: opts.scope,
     target: opts.target,
     force: opts.force,
@@ -98,6 +100,7 @@ commonAssetOptions(updateCmd).action(async (opts) => {
     commands: opts.commands,
     hooks: opts.hooks,
     rules: opts.rules,
+    mcp: opts.mcp,
     sourceRoot: SOURCE_ROOT,
     force: opts.force,
     dryRun: opts.dryRun,
@@ -126,6 +129,7 @@ commonAssetOptions(removeCmd).action(async (opts) => {
     commands: opts.commands,
     hooks: opts.hooks,
     rules: opts.rules,
+    mcp: opts.mcp,
     all: opts.all,
     dryRun: opts.dryRun,
     sourceRoot: SOURCE_ROOT,
@@ -136,7 +140,7 @@ commonAssetOptions(removeCmd).action(async (opts) => {
 program
   .command('list')
   .description('List available assets, presets, or tools. With --tool, restrict the listing to what that tool supports (and honour each asset\'s tools: allowlist).')
-  .option('--type <type>', 'one of: skills, agents, commands, hooks, rules, presets, tools')
+  .option('--type <type>', 'one of: skills, agents, commands, hooks, rules, mcp, presets, tools')
   .option('--tool <name>', 'restrict the listing to assets supported by this tool')
   .option('--verbose', 'verbose output', false)
   .action(async (opts) => {
@@ -154,7 +158,7 @@ program
   .description('Show what is installed in the project. Without --tool, scans every tool subdir for a lockfile. --type and --preset filter the report.')
   .option('--target <path>', 'project root (defaults to current directory)')
   .option('--tool <name>', 'show only this tool')
-  .option('--type <type>', 'filter the report to a single asset type (skills, agents, commands, hooks, rules)')
+  .option('--type <type>', 'filter the report to a single asset type (skills, agents, commands, hooks, rules, mcp)')
   .option('--preset <name>', 'filter the report to assets in this preset')
   .option('--verbose', 'verbose output', false)
   .action(async (opts) => {

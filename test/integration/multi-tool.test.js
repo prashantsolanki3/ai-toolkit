@@ -83,6 +83,15 @@ for (const toolName of TOOL_NAMES) {
 
   test(`matrix: ${toolName} – every supported asset type has a path and format defined`, () => {
     for (const t of tool.supportedAssets) {
+      // MCP doesn't use the file-copy assetPaths/assetFormats machinery —
+      // it merges JSON into a fixed file declared via mcpConfig instead.
+      if (t === 'mcp') {
+        assert.ok(
+          tool.mcpConfig && tool.mcpConfig.file && Array.isArray(tool.mcpConfig.wrapperPath),
+          `tool "${toolName}" supports mcp but is missing a complete mcpConfig {wrapperPath, file}`,
+        );
+        continue;
+      }
       assert.ok(
         Object.prototype.hasOwnProperty.call(tool.assetPaths, t),
         `tool "${toolName}" supports ${t} but is missing assetPaths.${t}`,

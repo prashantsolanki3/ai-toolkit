@@ -1,7 +1,7 @@
 import { resolvePreset, getAsset } from './manifest.js';
 import { supportsAsset } from './tools.js';
 
-const ASSET_TYPES = ['skills', 'agents', 'commands', 'hooks', 'rules'];
+const ASSET_TYPES = ['skills', 'agents', 'commands', 'hooks', 'rules', 'mcp'];
 
 export function resolveInstallTargets(opts, manifest, tool, ctx = {}) {
   const warnings = [];

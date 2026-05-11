@@ -21,6 +21,7 @@ AGENTS=$(node -e "console.log(Object.keys(require('./manifest.json').agents).joi
 COMMANDS=$(node -e "console.log(Object.keys(require('./manifest.json').commands).join(','))")
 HOOKS=$(node -e "console.log(Object.keys(require('./manifest.json').hooks).join(','))")
 RULES=$(node -e "console.log(Object.keys(require('./manifest.json').rules).join(','))")
+MCP=$(node -e "console.log(Object.keys(require('./manifest.json').mcp || {}).join(','))")
 
 echo "→ Bootstrapping every configured tool with every shipped asset"
 echo "  skills:   $SKILLS"
@@ -28,6 +29,7 @@ echo "  agents:   $AGENTS"
 echo "  commands: $COMMANDS"
 echo "  hooks:    $HOOKS"
 echo "  rules:    $RULES"
+echo "  mcp:      $MCP"
 echo ""
 
 # No --tool means: install for every tool in config/tools.json.
@@ -39,7 +41,8 @@ node bin/cli.js install \
   --agents "$AGENTS" \
   --commands "$COMMANDS" \
   --hooks "$HOOKS" \
-  --rules "$RULES"
+  --rules "$RULES" \
+  --mcp "$MCP"
 
 echo ""
 echo "✓ Bootstrap complete. Generated trees:"

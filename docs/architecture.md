@@ -4,7 +4,7 @@ This doc covers the toolkit's design decisions and how the pieces fit together. 
 
 ## Core abstraction
 
-The thing the toolkit is *trying* to be: a single command that installs the same set of skills/agents/commands/hooks/rules across many AI coding tools, where each tool gets the layout and format it expects.
+The thing the toolkit is *trying* to be: a single command that installs the same set of skills/agents/commands/hooks/rules/MCP-servers across many AI coding tools, where each tool gets the layout and format it expects.
 
 The trick is that every tool's expected layout is data, not code. [`config/tools.json`](../config/tools.json) is the entire abstraction. Each block declares:
 
@@ -15,13 +15,14 @@ The trick is that every tool's expected layout is data, not code. [`config/tools
 - `assetFormats.<type>.frontmatter` — a YAML template written to file-format destinations, with `{key}` substitutions from the source asset's frontmatter (Cursor's `globs`/`alwaysApply`, Copilot's `applyTo`/`mode`).
 - `assetFormats.<type>.sidecar` — an optional sibling file (Kiro's `.kiro.hook` JSON).
 - `supportedAssets` — which asset types this tool understands.
+- `mcpConfig` — only present when the tool supports `mcp`. Describes the per-tool MCP file as a `{ wrapperPath, file: { workspace, global } }` triple; see [the MCP section](#mcp-servers).
 - `notes` — human-readable context, especially caveats.
 
 Adding a new tool means adding one block. The multi-tool integration matrix and per-tool path tests pick it up without any code change.
 
 ## Asset taxonomy
 
-The source repo ships five asset types:
+The source repo ships six asset types:
 
 | Type | Source shape | Why it exists |
 | --- | --- | --- |
@@ -30,6 +31,7 @@ The source repo ships five asset types:
 | `commands/<name>.md` | flat file | Slash-command bodies. |
 | `hooks/<name>.sh` | flat file | Shell scripts triggered by tool events. Frontmatter lives in a `# === ai-toolkit metadata === / # === end metadata ===` comment block at the top of the file (since `.sh` isn't markdown). |
 | `rules/<name>.mdc` | flat file | Always-on / pattern-matched directives that constrain output. |
+| `mcp/<name>.json` | JSON object (`description`, `presets`, `tools`, `overrides`, required `config`) | A Model Context Protocol server entry. Not copied as a file — *merged* as a named entry into each tool's MCP config (see [the MCP section](#mcp-servers)). |
 
 Each tool maps these to its own destinations. Examples:
 
@@ -54,6 +56,56 @@ For file-format destinations whose receiving tool has its own frontmatter expect
 
 Result: the destination has the right shape for the tool, the toolkit's own metadata (`name`, `presets`, `tools`) doesn't leak through, and per-asset overrides let a single source say "for Cursor my globs are `**/*.ts`."
 
+## MCP servers
+
+MCP is the one asset type that doesn't follow the copy-a-file model. Every tool that supports MCP exposes a *config file* (a JSON document) into which named server entries are merged. The path of that file and the wrapper key it uses both vary:
+
+| Tool | Workspace path | Global path | Wrapper key |
+| --- | --- | --- | --- |
+| `claude-code` | `.mcp.json` (project root) | `~/.claude.json` | `mcpServers` |
+| `cursor` | `.cursor/mcp.json` | `~/.cursor/mcp.json` | `mcpServers` |
+| `vscode-copilot` | `.vscode/mcp.json` | _(via VS Code's "MCP: Open User Configuration" command)_ | `servers` |
+| `copilot-cli` | _(not standardized in docs)_ | `~/.copilot/mcp-config.json` | `mcpServers` |
+| `gemini-cli` | `.gemini/settings.json` | `~/.gemini/settings.json` | `mcpServers` |
+| `antigravity` | _(not supported)_ | `~/.gemini/antigravity/mcp_config.json` | `mcpServers` |
+| `kiro` / `kiro-cli` | `.kiro/settings/mcp.json` | `~/.kiro/settings/mcp.json` | `mcpServers` |
+
+Two pieces of the architecture make this work without bleeding tool-specific code into the commands:
+
+1. **`config/tools.json` declares the per-tool config file and wrapper key.** A tool that supports MCP carries a `mcpConfig` block:
+
+   ```jsonc
+   "mcpConfig": {
+     "wrapperPath": ["mcpServers"],   // or ["servers"] for vscode-copilot
+     "file": {
+       "workspace": ".mcp.json",      // null when the tool doesn't expose this scope
+       "global": "~/.claude.json"
+     }
+   }
+   ```
+
+2. **`src/lib/json-merge.js` is the only thing that touches these files.** It provides `setAtPath` / `unsetAtPath` / `mergeMcpEntry` / `removeMcpEntry`, all immutable, all atomic (scratch-file rename). Crucially, `removeMcpEntry` deletes *only the key we own* — sibling entries the user added by hand survive. `src/lib/mcp.js` wraps these primitives into `installMcpEntry` / `updateMcpEntry` / `removeMcpEntryForCommand` so the install/update/remove commands branch on `type === 'mcp'` and delegate.
+
+The source file shape is intentionally JSON, not Markdown with frontmatter, since the body *is* a structured object:
+
+```jsonc
+// mcp/everything.json
+{
+  "description": "...",
+  "presets": ["skill-development"],
+  "tools": ["claude-code", "cursor"],           // optional allowlist
+  "config": {                                   // the literal value merged under wrapperPath[name]
+    "command": "npx",
+    "args": ["-y", "@modelcontextprotocol/server-everything"]
+  },
+  "overrides": {                                // optional per-tool overlays
+    "gemini-cli": { "httpUrl": "http://..." }   // gemini uses `httpUrl` instead of `url` for HTTP streaming
+  }
+}
+```
+
+Drift detection mirrors the file-copy model: the lockfile records `sourceSha` (hash of `config`) and `valueSha` (hash of what we actually wrote, after applying overrides). `update` compares both; `--force` is needed to overwrite a hand-edited entry.
+
 ## Lockfile
 
 Each tool's install writes `<tool-subdir>/.ai-toolkit-lock.json`. Per asset:
@@ -69,6 +121,21 @@ Each tool's install writes `<tool-subdir>/.ai-toolkit-lock.json`. Per asset:
 ```
 
 Tracking both shas matters because for transformed destinations they're literally different files. `update` compares `sourceSha` to detect upstream changes and `destSha` to detect local edits. Either one diverging triggers the right branch.
+
+MCP entries have a different shape, because they aren't files:
+
+```jsonc
+"asset-name": {
+  "configFile":   ".mcp.json",            // relative to project root
+  "wrapperPath":  ["mcpServers"],
+  "key":          "asset-name",
+  "sourceSha":    "<sha of source `config` block>",
+  "valueSha":     "<sha of merged value, including any per-tool overrides>",
+  "installedAt":  "<iso 8601>"
+}
+```
+
+`configFile` + `wrapperPath` + `key` together are everything `remove` needs to scrub our entry without touching neighbouring keys — including in the global-scope case where the file lives outside the project tree.
 
 ## --tool optional → install for all
 

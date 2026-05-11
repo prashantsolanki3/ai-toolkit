@@ -10,6 +10,9 @@ coverage/
 /.kiro/
 /.gemini/
 /.agent/
+/.vscode/
+# MCP files dropped at the project root by `make bootstrap`
+/.mcp.json
 
 test/fixtures/tmp/
 *.log

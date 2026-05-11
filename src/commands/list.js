@@ -3,7 +3,7 @@ import { loadManifest, listAssets, listPresets, resolvePreset } from '../lib/man
 import { loadTools, getTool, supportsAsset } from '../lib/tools.js';
 import { createLogger } from '../lib/logger.js';
 
-const ASSET_TYPES = ['skills', 'agents', 'commands', 'hooks', 'rules'];
+const ASSET_TYPES = ['skills', 'agents', 'commands', 'hooks', 'rules', 'mcp'];
 
 export async function list(opts = {}) {
   const logger = opts.logger || createLogger();

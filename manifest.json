@@ -36,6 +36,22 @@
   },
   "hooks": {},
   "rules": {},
+  "mcp": {
+    "everything": {
+      "description": "Reference MCP server bundling prompt/resource/tool examples — safe to install anywhere, no auth required. Runs via npx @modelcontextprotocol/server-everything.",
+      "presets": [
+        "skill-development"
+      ],
+      "author": "ai-toolkit",
+      "config": {
+        "command": "npx",
+        "args": [
+          "-y",
+          "@modelcontextprotocol/server-everything"
+        ]
+      }
+    }
+  },
   "presets": {
     "skill-development": {
       "description": "Authoring tools for the toolkit itself — the documentation agent, the skill evaluator, and the eval/improve commands.",
@@ -50,7 +66,10 @@
         "improve-skill"
       ],
       "hooks": [],
-      "rules": []
+      "rules": [],
+      "mcp": [
+        "everything"
+      ]
     }
   }
 }

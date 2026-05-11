@@ -11,9 +11,10 @@ import { loadManifest, resolvePreset } from '../lib/manifest.js';
 import { hashDir, hashFile, pathExists } from '../lib/fs-ops.js';
 import { resolveSourcePath, copyAssetAdaptive } from '../lib/source-adapter.js';
 import { read as readLockfile, write as writeLockfile, LOCKFILE_NAME } from '../lib/lockfile.js';
+import { updateMcpEntry } from '../lib/mcp.js';
 import { createLogger } from '../lib/logger.js';
 
-const ASSET_TYPES = ['skills', 'agents', 'commands', 'hooks', 'rules'];
+const ASSET_TYPES = ['skills', 'agents', 'commands', 'hooks', 'rules', 'mcp'];
 
 export async function update(opts) {
   const logger = opts.logger || createLogger();
@@ -41,6 +42,34 @@ export async function update(opts) {
     const tracked = (lockfile.assets && lockfile.assets[type]) || {};
     for (const name of Object.keys(tracked)) {
       if (!filter.includes(type, name)) continue;
+
+      if (type === 'mcp') {
+        const r = updateMcpEntry({
+          tool,
+          toolName: lockfile.tool,
+          scope: lockfile.scope || 'workspace',
+          projectRoot,
+          name,
+          manifest,
+          sourceRoot,
+          trackedEntry: tracked[name],
+          force: opts.force,
+          dryRun: opts.dryRun,
+          logger,
+        });
+        if (r.status === 'updated') {
+          if (r.lockfileEntry) lockfile.assets.mcp[name] = r.lockfileEntry;
+          result.updated.push({ type, name });
+        } else if (r.status === 'unchanged') {
+          result.unchanged.push({ type, name });
+        } else if (r.status === 'skipped-edited') {
+          result.skipped.push({ type, name, reason: r.reason });
+        } else if (r.status === 'missing') {
+          result.missing.push({ type, name });
+        }
+        continue;
+      }
+
       const destFormat = tool.assetFormats[type];
 
       let source;

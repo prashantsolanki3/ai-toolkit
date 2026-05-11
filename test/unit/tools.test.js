@@ -9,6 +9,8 @@ import {
   getAssetDestination,
   supportsAsset,
   findInstalledTools,
+  getMcpConfigPath,
+  getMcpWrapperPath,
 } from '../../src/lib/tools.js';
 import { createFakeSource } from '../helpers/fake-source.js';
 import { createTmpProject, cleanupTmpProject } from '../helpers/tmp-project.js';
@@ -194,4 +196,68 @@ test('findInstalledTools() returns empty when no tool dirs have lockfiles', () =
   } finally {
     cleanupTmpProject(dir);
   }
+});
+
+// ── MCP config path resolution ─────────────────────────────────────────
+
+const mcpTool = {
+  displayName: 'MCP Demo',
+  defaultTarget: { global: '~/.demo', workspace: '.demo' },
+  assetPaths: {},
+  assetFormats: {},
+  supportedAssets: ['mcp'],
+  mcpConfig: {
+    wrapperPath: ['mcpServers'],
+    file: {
+      workspace: '.demo/mcp.json',
+      global: '~/.demo/mcp.json',
+    },
+  },
+};
+
+test('getMcpConfigPath() resolves the workspace file relative to projectRoot', () => {
+  const p = getMcpConfigPath(mcpTool, 'workspace', '/repos/project');
+  assert.equal(p, path.resolve('/repos/project', '.demo/mcp.json'));
+});
+
+test('getMcpConfigPath() resolves the global file with ~ expansion, ignoring projectRoot', () => {
+  const p = getMcpConfigPath(mcpTool, 'global', '/repos/project');
+  assert.ok(path.isAbsolute(p));
+  assert.ok(!p.startsWith('~'));
+  assert.ok(!p.startsWith('/repos/project'));
+  assert.ok(p.endsWith(path.join('.demo', 'mcp.json')));
+});
+
+test('getMcpConfigPath() defaults projectRoot to CWD when not provided', () => {
+  const p = getMcpConfigPath(mcpTool, 'workspace', null);
+  assert.equal(p, path.resolve(process.cwd(), '.demo/mcp.json'));
+});
+
+test('getMcpConfigPath() throws when MCP is not supported', () => {
+  const bare = {
+    ...mcpTool,
+    supportedAssets: ['skills'],
+    mcpConfig: undefined,
+  };
+  assert.throws(() => getMcpConfigPath(bare, 'workspace', '/x'), /mcp|not support/i);
+});
+
+test('getMcpConfigPath() throws when the requested scope is null', () => {
+  const workspaceOnly = {
+    ...mcpTool,
+    mcpConfig: {
+      wrapperPath: ['mcpServers'],
+      file: { workspace: '.demo/mcp.json', global: null },
+    },
+  };
+  assert.throws(() => getMcpConfigPath(workspaceOnly, 'global', '/x'), /global|not support/i);
+});
+
+test('getMcpWrapperPath() returns the configured wrapper key list', () => {
+  assert.deepEqual(getMcpWrapperPath(mcpTool), ['mcpServers']);
+});
+
+test('getMcpWrapperPath() throws when MCP is not supported', () => {
+  const bare = { ...mcpTool, supportedAssets: ['skills'], mcpConfig: undefined };
+  assert.throws(() => getMcpWrapperPath(bare), /mcp|not support/i);
 });

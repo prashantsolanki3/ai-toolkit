@@ -104,6 +104,35 @@ export function supportsAsset(tool, assetType) {
   return Array.isArray(tool.supportedAssets) && tool.supportedAssets.includes(assetType);
 }
 
+// MCP is the one asset type that doesn't follow the file-copy model — it
+// merges a JSON entry into an existing per-tool config file at a fixed path.
+// We resolve that path here so commands can stay agnostic of how each tool
+// names or nests its MCP file.
+export function getMcpConfigPath(tool, scope, projectRoot) {
+  const cfg = tool.mcpConfig;
+  if (!cfg || !cfg.file) {
+    throw new Error(`Tool "${tool.displayName}" does not support MCP servers (no mcpConfig).`);
+  }
+  const file = cfg.file[scope];
+  if (file == null) {
+    throw new Error(
+      `Tool "${tool.displayName}" does not support MCP at scope "${scope}" (mcpConfig.file.${scope} is null).`,
+    );
+  }
+  const expanded = expandHome(file);
+  if (path.isAbsolute(expanded)) return expanded;
+  const root = projectRoot ? expandHome(projectRoot) : process.cwd();
+  return path.resolve(root, expanded);
+}
+
+export function getMcpWrapperPath(tool) {
+  const cfg = tool.mcpConfig;
+  if (!cfg || !Array.isArray(cfg.wrapperPath)) {
+    throw new Error(`Tool "${tool.displayName}" does not support MCP servers (no mcpConfig.wrapperPath).`);
+  }
+  return [...cfg.wrapperPath];
+}
+
 export function getAssetDestination(tool, targetDir, assetType, assetName) {
   if (!supportsAsset(tool, assetType)) {
     throw new Error(`Tool does not support asset type "${assetType}"`);

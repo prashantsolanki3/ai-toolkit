@@ -32,7 +32,16 @@ test('generateManifest: empty source yields empty manifest with declared presets
     assert.deepEqual(m.commands, {});
     assert.deepEqual(m.hooks, {});
     assert.deepEqual(m.rules, {});
-    assert.deepEqual(m.presets.p1, { description: 'p1', skills: [], agents: [], commands: [], hooks: [], rules: [] });
+    assert.deepEqual(m.mcp, {});
+    assert.deepEqual(m.presets.p1, {
+      description: 'p1',
+      skills: [],
+      agents: [],
+      commands: [],
+      hooks: [],
+      rules: [],
+      mcp: [],
+    });
   } finally {
     cleanupTmpProject(src);
   }
@@ -199,6 +208,68 @@ test('generateManifest: throws on duplicate asset name within a type', () => {
   });
   try {
     assert.throws(() => generateManifest(src), /duplicate|dup/i);
+  } finally {
+    cleanupTmpProject(src);
+  }
+});
+
+test('generateManifest: mcp/<name>.json with description+presets+config populates mcp bucket', () => {
+  const src = setupSource({
+    presets: { version: '1.0', presets: { 'pack-a': { description: 'pa' } } },
+    files: {
+      'mcp/everything.json': JSON.stringify({
+        description: 'demo mcp server',
+        presets: ['pack-a'],
+        config: { command: 'npx', args: ['-y', '@modelcontextprotocol/server-everything'] },
+      }, null, 2),
+    },
+  });
+  try {
+    const m = generateManifest(src);
+    assert.equal(m.mcp.everything.description, 'demo mcp server');
+    assert.deepEqual(m.mcp.everything.presets, ['pack-a']);
+    // The on-disk server config block should be preserved on the manifest entry
+    // (so commands and tests can read the canonical value without re-reading the file).
+    assert.deepEqual(m.mcp.everything.config, {
+      command: 'npx',
+      args: ['-y', '@modelcontextprotocol/server-everything'],
+    });
+    assert.deepEqual(m.presets['pack-a'].mcp, ['everything']);
+  } finally {
+    cleanupTmpProject(src);
+  }
+});
+
+test('generateManifest: mcp asset can declare tools allowlist and overrides', () => {
+  const src = setupSource({
+    presets: { version: '1.0', presets: {} },
+    files: {
+      'mcp/cool-server.json': JSON.stringify({
+        description: 'd',
+        config: { command: 'x' },
+        tools: ['claude-code'],
+        overrides: { 'gemini-cli': { httpUrl: 'http://example' } },
+      }, null, 2),
+    },
+  });
+  try {
+    const m = generateManifest(src);
+    assert.deepEqual(m.mcp['cool-server'].tools, ['claude-code']);
+    assert.deepEqual(m.mcp['cool-server'].overrides, { 'gemini-cli': { httpUrl: 'http://example' } });
+  } finally {
+    cleanupTmpProject(src);
+  }
+});
+
+test('generateManifest: mcp entry missing the config block throws', () => {
+  const src = setupSource({
+    presets: { version: '1.0', presets: {} },
+    files: {
+      'mcp/broken.json': JSON.stringify({ description: 'no config here' }),
+    },
+  });
+  try {
+    assert.throws(() => generateManifest(src), /config|mcp/i);
   } finally {
     cleanupTmpProject(src);
   }

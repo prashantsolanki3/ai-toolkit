@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_ROOT = path.resolve(__dirname, '..', '..');
 
-const ASSET_TYPES = ['skills', 'agents', 'commands', 'hooks', 'rules'];
+const ASSET_TYPES = ['skills', 'agents', 'commands', 'hooks', 'rules', 'mcp'];
 const REQUIRED = ['version', 'presets'];
 
 export function loadManifest(rootDir = DEFAULT_ROOT) {

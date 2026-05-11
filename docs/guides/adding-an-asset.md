@@ -1,6 +1,6 @@
-# Guide: adding a new skill / agent / command / hook / rule
+# Guide: adding a new skill / agent / command / hook / rule / MCP server
 
-The toolkit ships five asset types. To add a new one:
+The toolkit ships six asset types. To add a new one:
 
 1. Drop a file (or folder) at the right location.
 2. Fill in frontmatter.
@@ -18,6 +18,7 @@ That's it — no other code changes. `manifest.json` is derived from frontmatter
 | **Command** | `commands/<name>.md` | Flat slash-command bodies. |
 | **Hook** | `hooks/<name>.sh` | Shell scripts. Frontmatter lives in a `# === ai-toolkit metadata ===` comment block at the top (since `.sh` isn't markdown). |
 | **Rule** | `rules/<name>.mdc` | Always-on or pattern-matched directives. |
+| **MCP server** | `mcp/<name>.json` | A Model Context Protocol server entry. Not a Markdown file — the whole asset is a JSON object whose `config` block is merged as `mcpServers.<name>` into each tool's MCP config file. See [the MCP section below](#mcp-server-entries). |
 
 ## Frontmatter — universal fields
 
@@ -167,6 +168,47 @@ make register
 ```
 
 For Cursor, the rule lands at `.cursor/rules/my-rule.mdc` with the right frontmatter. For Claude Code, it lands at `.claude/rules/my-rule.md` but isn't auto-loaded — see [verification-matrix.md](../verification-matrix.md#claude-code) for how to import it from `CLAUDE.md`.
+
+## MCP server entries
+
+MCP servers are the one asset type that **isn't a Markdown file with frontmatter**. The whole asset is a JSON object: a `config` block (the literal MCP server entry that gets merged into each tool's MCP config) plus the usual metadata sitting next to it.
+
+```bash
+cat > mcp/my-server.json <<'EOF'
+{
+  "description": "What this MCP server does, one line.",
+  "author": "me",
+  "presets": ["skill-development"],
+  "tools": ["claude-code", "cursor"],
+  "config": {
+    "command": "npx",
+    "args": ["-y", "@my-org/mcp-server"],
+    "env": {
+      "API_KEY": "${API_KEY}"
+    }
+  },
+  "overrides": {
+    "gemini-cli": {
+      "httpUrl": "http://localhost:3000/mcp"
+    },
+    "kiro": {
+      "autoApprove": ["safe_read_tool"]
+    }
+  }
+}
+EOF
+
+make register
+ai-toolkit list --type mcp | grep my-server
+```
+
+Field roles:
+
+- `config` — **required.** The literal MCP server entry the toolkit merges into each tool's MCP config file as `mcpServers.my-server` (or `servers.my-server` for VS Code Copilot — the wrapper key is per-tool, not per-asset).
+- `description`, `author`, `presets`, `tools` — same meaning as the universal frontmatter fields.
+- `overrides.<toolName>` — shallow-merged on top of `config` for that specific tool. Use this when a tool needs a different transport field (e.g. Gemini CLI's `httpUrl` instead of `url` for HTTP streaming) or a tool-specific flag (Kiro's `autoApprove`, `disabled`, `disabledTools`).
+
+At install time the toolkit writes the resolved value into `.mcp.json` / `.cursor/mcp.json` / `.vscode/mcp.json` / `~/.gemini/settings.json` / `~/.gemini/antigravity/mcp_config.json` / `~/.copilot/mcp-config.json` / `.kiro/settings/mcp.json` depending on the tool and `--scope`. Existing entries the user added under different names are never touched. See [architecture.md#mcp-servers](../architecture.md#mcp-servers) for the path table and merge semantics.
 
 ## Adding to a preset
 

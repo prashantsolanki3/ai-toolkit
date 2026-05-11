@@ -1,0 +1,24 @@
+{
+  "description": "Short, single-line summary shown in `ai-toolkit list --type mcp` and `installed`.",
+  "author": "your-name-or-org",
+  "presets": ["some-preset-declared-in-config/presets.json"],
+  "tools": ["claude-code", "cursor"],
+  "config": {
+    "command": "npx",
+    "args": ["-y", "@some/mcp-server"],
+    "env": {
+      "EXAMPLE_KEY": "${EXAMPLE_KEY}"
+    }
+  },
+  "overrides": {
+    "gemini-cli": {
+      "httpUrl": "http://localhost:3000/mcp"
+    },
+    "kiro": {
+      "autoApprove": ["safe_tool_name"]
+    },
+    "vscode-copilot": {
+      "type": "stdio"
+    }
+  }
+}

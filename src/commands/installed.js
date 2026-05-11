@@ -4,7 +4,7 @@ import { loadManifest, resolvePreset } from '../lib/manifest.js';
 import { read as readLockfile } from '../lib/lockfile.js';
 import { createLogger } from '../lib/logger.js';
 
-const ASSET_TYPES = ['skills', 'agents', 'commands', 'hooks', 'rules'];
+const ASSET_TYPES = ['skills', 'agents', 'commands', 'hooks', 'rules', 'mcp'];
 
 export async function installed(opts = {}) {
   const logger = opts.logger || createLogger();
@@ -73,7 +73,10 @@ function reportLockfile({ logger, dir, projectRoot, filter }) {
     if (names.length === 0) continue;
     logger.info(`${type} (${names.length}):`);
     for (const name of names) {
-      const shortSha = (tracked[name].sha || '').slice(0, 12);
+      // MCP entries don't use the file-copy `sha` field — use `valueSha`
+      // so the report still shows a stable identifier per entry.
+      const sha = tracked[name].sha || tracked[name].valueSha || '';
+      const shortSha = sha.slice(0, 12);
       logger.info(`  ${name}${shortSha ? `  [${shortSha}]` : ''}`);
       total += 1;
     }
