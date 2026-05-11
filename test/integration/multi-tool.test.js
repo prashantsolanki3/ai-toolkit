@@ -31,9 +31,10 @@ for (const toolName of TOOL_NAMES) {
   const tool = tools.tools[toolName];
 
   test(`matrix: ${toolName} – full install/update/remove cycle for a skill`, async () => {
-    const target = createTmpProject();
+    const projectRoot = createTmpProject();
     try {
-      const expectedDest = getAssetDestination(tool, target, 'skills', UNIVERSAL_SKILL);
+      const installDir = resolveTargetPath(tool, 'workspace', projectRoot);
+      const expectedDest = getAssetDestination(tool, installDir, 'skills', UNIVERSAL_SKILL);
       const destFormat = tool.assetFormats.skills;
 
       // For directory-format destinations the SKILL.md lives inside the dir;
@@ -44,7 +45,7 @@ for (const toolName of TOOL_NAMES) {
       await install({
         tool: toolName,
         skills: [UNIVERSAL_SKILL],
-        target,
+        target: projectRoot,
         sourceRoot: REPO_ROOT,
         logger: silentLogger(),
       });
@@ -55,21 +56,23 @@ for (const toolName of TOOL_NAMES) {
       );
 
       const updateResult = await update({
-        target,
+        target: projectRoot,
+        tool: toolName,
         sourceRoot: REPO_ROOT,
         logger: silentLogger(),
       });
       assert.deepEqual(updateResult.updated, []);
 
       await remove({
-        target,
+        target: projectRoot,
+        tool: toolName,
         sourceRoot: REPO_ROOT,
         skills: [UNIVERSAL_SKILL],
         logger: silentLogger(),
       });
       assert.equal(fs.existsSync(expectedDest), false);
     } finally {
-      cleanupTmpProject(target);
+      cleanupTmpProject(projectRoot);
     }
   });
 

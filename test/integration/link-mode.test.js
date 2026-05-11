@@ -5,6 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { install } from '../../src/commands/install.js';
 import { createTmpProject, cleanupTmpProject } from '../helpers/tmp-project.js';
+import { toolDir } from '../helpers/tool-paths.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
@@ -36,7 +37,7 @@ test('link: claude-code skill (dir→dir, no transform) creates a symlink', asyn
       link: true,
       logger,
     });
-    const dest = path.join(target, 'skills', 'code-review-checklist');
+    const dest = path.join(toolDir(target, 'claude-code'), 'skills', 'code-review-checklist');
     const stat = fs.lstatSync(dest);
     assert.ok(stat.isSymbolicLink(), 'expected a symlink at the destination');
     // Following the symlink should land on the source.
@@ -60,7 +61,7 @@ test('link: claude-code command (file→file, no transform) creates a symlink', 
       link: true,
       logger,
     });
-    const dest = path.join(target, 'commands', 'summarize-diff.md');
+    const dest = path.join(toolDir(target, 'claude-code'), 'commands', 'summarize-diff.md');
     const stat = fs.lstatSync(dest);
     assert.ok(stat.isSymbolicLink());
   } finally {
@@ -80,7 +81,7 @@ test('link: cursor skill (frontmatter transform required) falls back to copy + w
       link: true,
       logger,
     });
-    const dest = path.join(target, 'rules', 'code-review-checklist.mdc');
+    const dest = path.join(toolDir(target, 'cursor'), 'rules', 'code-review-checklist.mdc');
     const stat = fs.lstatSync(dest);
     assert.ok(!stat.isSymbolicLink(), 'frontmatter transform forces a copy, not a symlink');
     assert.ok(
@@ -104,7 +105,7 @@ test('link: claude-code agent (dir→file via sourceFile) symlinks the inner age
       link: true,
       logger,
     });
-    const dest = path.join(target, 'agents', 'senior-architect.md');
+    const dest = path.join(toolDir(target, 'claude-code'), 'agents', 'senior-architect.md');
     const stat = fs.lstatSync(dest);
     assert.ok(stat.isSymbolicLink(), 'inner agent.md is symlinkable when no transform is needed');
     const resolved = fs.realpathSync(dest);
@@ -145,7 +146,7 @@ test('link: edits to the source flow through symlinks to the destination', async
       '\n<!-- edited live -->\n',
     );
     const body = fs.readFileSync(
-      path.join(target, 'skills', 'code-review-checklist', 'SKILL.md'),
+      path.join(toolDir(target, 'claude-code'), 'skills', 'code-review-checklist', 'SKILL.md'),
       'utf8',
     );
     assert.match(body, /edited live/);

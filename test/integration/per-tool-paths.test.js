@@ -5,6 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { install } from '../../src/commands/install.js';
 import { createTmpProject, cleanupTmpProject } from '../helpers/tmp-project.js';
+import { toolDir } from '../helpers/tool-paths.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
@@ -38,17 +39,18 @@ test('claude-code: skills are dirs, agents are flat files, commands flat .md, ho
       sourceRoot: REPO_ROOT,
       logger: silentLogger(),
     });
+    const dir = toolDir(target, 'claude-code');
     assert.ok(
-      fs.existsSync(path.join(target, 'skills', 'code-review-checklist', 'SKILL.md')),
+      fs.existsSync(path.join(dir, 'skills', 'code-review-checklist', 'SKILL.md')),
       'skill should land as a directory containing SKILL.md',
     );
     assert.ok(
-      fs.existsSync(path.join(target, 'agents', 'senior-architect.md')),
+      fs.existsSync(path.join(dir, 'agents', 'senior-architect.md')),
       'agent should land as a flat file at agents/<name>.md',
     );
-    assert.ok(!fs.existsSync(path.join(target, 'agents', 'senior-architect', 'agent.md')));
-    assert.ok(fs.existsSync(path.join(target, 'commands', 'summarize-diff.md')));
-    assert.ok(fs.existsSync(path.join(target, 'hooks', 'pre-commit-lint.sh')));
+    assert.ok(!fs.existsSync(path.join(dir, 'agents', 'senior-architect', 'agent.md')));
+    assert.ok(fs.existsSync(path.join(dir, 'commands', 'summarize-diff.md')));
+    assert.ok(fs.existsSync(path.join(dir, 'hooks', 'pre-commit-lint.sh')));
   } finally {
     cleanupTmpProject(target);
   }
@@ -64,8 +66,9 @@ test('cursor: skills land as .cursor/rules/<name>.mdc, no skills/ subdir', async
       sourceRoot: REPO_ROOT,
       logger: silentLogger(),
     });
-    assert.ok(fs.existsSync(path.join(target, 'rules', 'code-review-checklist.mdc')));
-    assert.ok(!fs.existsSync(path.join(target, 'skills')));
+    const dir = toolDir(target, 'cursor');
+    assert.ok(fs.existsSync(path.join(dir, 'rules', 'code-review-checklist.mdc')));
+    assert.ok(!fs.existsSync(path.join(dir, 'skills')));
   } finally {
     cleanupTmpProject(target);
   }
@@ -81,7 +84,7 @@ test('cursor: explicit rules land as .cursor/rules/<name>.mdc', async () => {
       sourceRoot: REPO_ROOT,
       logger: silentLogger(),
     });
-    assert.ok(fs.existsSync(path.join(target, 'rules', 'no-bare-todos.mdc')));
+    assert.ok(fs.existsSync(path.join(toolDir(target, 'cursor'), 'rules', 'no-bare-todos.mdc')));
   } finally {
     cleanupTmpProject(target);
   }
@@ -97,13 +100,13 @@ test('claude-code: rules land as .claude/rules/<name>.md', async () => {
       sourceRoot: REPO_ROOT,
       logger: silentLogger(),
     });
-    assert.ok(fs.existsSync(path.join(target, 'rules', 'no-bare-todos.md')));
+    assert.ok(fs.existsSync(path.join(toolDir(target, 'claude-code'), 'rules', 'no-bare-todos.md')));
   } finally {
     cleanupTmpProject(target);
   }
 });
 
-test('antigravity: skills directory lands at target root (no skills/ subdir)', async () => {
+test('antigravity: skills land directly under .agent/skills/ (assetPaths.skills = "")', async () => {
   const target = createTmpProject();
   try {
     await install({
@@ -113,14 +116,15 @@ test('antigravity: skills directory lands at target root (no skills/ subdir)', a
       sourceRoot: REPO_ROOT,
       logger: silentLogger(),
     });
-    assert.ok(fs.existsSync(path.join(target, 'code-review-checklist', 'SKILL.md')));
-    assert.ok(!fs.existsSync(path.join(target, 'skills', 'code-review-checklist')));
+    const dir = toolDir(target, 'antigravity');
+    assert.ok(fs.existsSync(path.join(dir, 'code-review-checklist', 'SKILL.md')));
+    assert.ok(!fs.existsSync(path.join(dir, 'skills', 'code-review-checklist')));
   } finally {
     cleanupTmpProject(target);
   }
 });
 
-test('gemini-cli: skills under skills/<name>/SKILL.md (workspace .gemini)', async () => {
+test('gemini-cli: skills under .gemini/skills/<name>/SKILL.md', async () => {
   const target = createTmpProject();
   try {
     await install({
@@ -130,13 +134,17 @@ test('gemini-cli: skills under skills/<name>/SKILL.md (workspace .gemini)', asyn
       sourceRoot: REPO_ROOT,
       logger: silentLogger(),
     });
-    assert.ok(fs.existsSync(path.join(target, 'skills', 'code-review-checklist', 'SKILL.md')));
+    assert.ok(
+      fs.existsSync(
+        path.join(toolDir(target, 'gemini-cli'), 'skills', 'code-review-checklist', 'SKILL.md'),
+      ),
+    );
   } finally {
     cleanupTmpProject(target);
   }
 });
 
-test('vscode-copilot: skills→instructions, commands→prompts, agents→chatmodes', async () => {
+test('vscode-copilot: skills→instructions, commands→prompts, agents→chatmodes (under .github/)', async () => {
   const target = createTmpProject();
   try {
     await install({
@@ -148,11 +156,10 @@ test('vscode-copilot: skills→instructions, commands→prompts, agents→chatmo
       sourceRoot: REPO_ROOT,
       logger: silentLogger(),
     });
-    assert.ok(
-      fs.existsSync(path.join(target, 'instructions', 'code-review-checklist.instructions.md')),
-    );
-    assert.ok(fs.existsSync(path.join(target, 'prompts', 'summarize-diff.prompt.md')));
-    assert.ok(fs.existsSync(path.join(target, 'chatmodes', 'senior-architect.chatmode.md')));
+    const dir = toolDir(target, 'vscode-copilot');
+    assert.ok(fs.existsSync(path.join(dir, 'instructions', 'code-review-checklist.instructions.md')));
+    assert.ok(fs.existsSync(path.join(dir, 'prompts', 'summarize-diff.prompt.md')));
+    assert.ok(fs.existsSync(path.join(dir, 'chatmodes', 'senior-architect.chatmode.md')));
   } finally {
     cleanupTmpProject(target);
   }
@@ -169,10 +176,9 @@ test('copilot-cli: skills→.github/instructions, commands→.github/prompts', a
       sourceRoot: REPO_ROOT,
       logger: silentLogger(),
     });
-    assert.ok(
-      fs.existsSync(path.join(target, 'instructions', 'code-review-checklist.instructions.md')),
-    );
-    assert.ok(fs.existsSync(path.join(target, 'prompts', 'summarize-diff.prompt.md')));
+    const dir = toolDir(target, 'copilot-cli');
+    assert.ok(fs.existsSync(path.join(dir, 'instructions', 'code-review-checklist.instructions.md')));
+    assert.ok(fs.existsSync(path.join(dir, 'prompts', 'summarize-diff.prompt.md')));
   } finally {
     cleanupTmpProject(target);
   }
@@ -189,14 +195,15 @@ test('kiro: skills→.kiro/steering/<name>.md, hooks→.kiro/hooks/<name>.sh', a
       sourceRoot: REPO_ROOT,
       logger: silentLogger(),
     });
-    assert.ok(fs.existsSync(path.join(target, 'steering', 'code-review-checklist.md')));
-    assert.ok(fs.existsSync(path.join(target, 'hooks', 'pre-commit-lint.sh')));
+    const dir = toolDir(target, 'kiro');
+    assert.ok(fs.existsSync(path.join(dir, 'steering', 'code-review-checklist.md')));
+    assert.ok(fs.existsSync(path.join(dir, 'hooks', 'pre-commit-lint.sh')));
   } finally {
     cleanupTmpProject(target);
   }
 });
 
-test('kiro-cli: skills→steering/<name>.md', async () => {
+test('kiro-cli: skills→.kiro/steering/<name>.md', async () => {
   const target = createTmpProject();
   try {
     await install({
@@ -206,7 +213,7 @@ test('kiro-cli: skills→steering/<name>.md', async () => {
       sourceRoot: REPO_ROOT,
       logger: silentLogger(),
     });
-    assert.ok(fs.existsSync(path.join(target, 'steering', 'code-review-checklist.md')));
+    assert.ok(fs.existsSync(path.join(toolDir(target, 'kiro-cli'), 'steering', 'code-review-checklist.md')));
   } finally {
     cleanupTmpProject(target);
   }
@@ -224,15 +231,13 @@ test('vscode-copilot: body after frontmatter matches the source SKILL.md body', 
       logger: silentLogger(),
     });
     const written = fs.readFileSync(
-      path.join(target, 'instructions', 'code-review-checklist.instructions.md'),
+      path.join(toolDir(target, 'vscode-copilot'), 'instructions', 'code-review-checklist.instructions.md'),
       'utf8',
     );
     const source = fs.readFileSync(
       path.join(REPO_ROOT, 'skills', 'code-review-checklist', 'SKILL.md'),
       'utf8',
     );
-    // The frontmatter shape is tool-specific (see tool-frontmatter.test.js);
-    // here we only assert the body content survived the transform.
     const writtenBody = parseFrontmatter(written).body;
     const sourceBody = parseFrontmatter(source).body;
     assert.equal(writtenBody.trim(), sourceBody.trim());
@@ -253,7 +258,7 @@ test('cursor: body after frontmatter matches the source SKILL.md body', async ()
       logger: silentLogger(),
     });
     const written = fs.readFileSync(
-      path.join(target, 'rules', 'code-review-checklist.mdc'),
+      path.join(toolDir(target, 'cursor'), 'rules', 'code-review-checklist.mdc'),
       'utf8',
     );
     const source = fs.readFileSync(

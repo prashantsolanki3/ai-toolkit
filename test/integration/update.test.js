@@ -63,17 +63,21 @@ function buildSource(skillContent = 'v1', cmdContent = '# v1') {
   });
 }
 
+const DEMO_SUBDIR = '.demo'; // matches TOOL_CONFIG.tools.demo-tool.defaultTarget.workspace
+const installedDir = (projectRoot) => path.join(projectRoot, DEMO_SUBDIR);
+
 test('update: no source changes is a no-op (assets unchanged, lockfile timestamp refreshed)', async () => {
   const source = buildSource();
   const target = createTmpProject();
   const { logger } = silentLogger();
   try {
     await install({ tool: 'demo-tool', preset: 'basic', target, sourceRoot: source, logger });
-    const before = JSON.parse(fs.readFileSync(path.join(target, LOCKFILE_NAME), 'utf8'));
+    const dir = installedDir(target);
+    const before = JSON.parse(fs.readFileSync(path.join(dir, LOCKFILE_NAME), 'utf8'));
     const beforeSha = before.assets.skills['sample-skill'].sha;
     await new Promise((r) => setTimeout(r, 10));
-    const result = await update({ target, sourceRoot: source, logger });
-    const after = JSON.parse(fs.readFileSync(path.join(target, LOCKFILE_NAME), 'utf8'));
+    const result = await update({ target, tool: 'demo-tool', sourceRoot: source, logger });
+    const after = JSON.parse(fs.readFileSync(path.join(dir, LOCKFILE_NAME), 'utf8'));
     assert.equal(after.assets.skills['sample-skill'].sha, beforeSha);
     assert.notEqual(after.lastUpdatedAt, before.lastUpdatedAt);
     assert.deepEqual(result.updated, []);
@@ -89,11 +93,12 @@ test('update: source change is propagated; sha bumped', async () => {
   const { logger } = silentLogger();
   try {
     await install({ tool: 'demo-tool', preset: 'basic', target, sourceRoot: source, logger });
-    const before = JSON.parse(fs.readFileSync(path.join(target, LOCKFILE_NAME), 'utf8'));
+    const dir = installedDir(target);
+    const before = JSON.parse(fs.readFileSync(path.join(dir, LOCKFILE_NAME), 'utf8'));
     fs.writeFileSync(path.join(source, 'skills', 'sample-skill', 'SKILL.md'), 'v2-content');
-    const result = await update({ target, sourceRoot: source, logger });
-    const after = JSON.parse(fs.readFileSync(path.join(target, LOCKFILE_NAME), 'utf8'));
-    const installed = fs.readFileSync(path.join(target, 'skills', 'sample-skill', 'SKILL.md'), 'utf8');
+    const result = await update({ target, tool: 'demo-tool', sourceRoot: source, logger });
+    const after = JSON.parse(fs.readFileSync(path.join(dir, LOCKFILE_NAME), 'utf8'));
+    const installed = fs.readFileSync(path.join(dir, 'skills', 'sample-skill', 'SKILL.md'), 'utf8');
     assert.equal(installed, 'v2-content');
     assert.notEqual(after.assets.skills['sample-skill'].sha, before.assets.skills['sample-skill'].sha);
     assert.ok(result.updated.some((u) => u.name === 'sample-skill' && u.type === 'skills'));
@@ -109,10 +114,11 @@ test('update: local edit + no force = skip with warning', async () => {
   const { logger, lines } = silentLogger();
   try {
     await install({ tool: 'demo-tool', preset: 'basic', target, sourceRoot: source, logger });
-    fs.writeFileSync(path.join(target, 'skills', 'sample-skill', 'SKILL.md'), 'local-edit');
+    const dir = installedDir(target);
+    fs.writeFileSync(path.join(dir, 'skills', 'sample-skill', 'SKILL.md'), 'local-edit');
     fs.writeFileSync(path.join(source, 'skills', 'sample-skill', 'SKILL.md'), 'upstream-update');
-    const result = await update({ target, sourceRoot: source, logger });
-    const installed = fs.readFileSync(path.join(target, 'skills', 'sample-skill', 'SKILL.md'), 'utf8');
+    const result = await update({ target, tool: 'demo-tool', sourceRoot: source, logger });
+    const installed = fs.readFileSync(path.join(dir, 'skills', 'sample-skill', 'SKILL.md'), 'utf8');
     assert.equal(installed, 'local-edit');
     assert.ok(result.skipped.some((s) => s.name === 'sample-skill' && /local/i.test(s.reason)));
     assert.ok(lines.some(([level, m]) => level === 'warn' && /sample-skill/.test(m)));
@@ -128,10 +134,11 @@ test('update: local edit + force = overwrite', async () => {
   const { logger } = silentLogger();
   try {
     await install({ tool: 'demo-tool', preset: 'basic', target, sourceRoot: source, logger });
-    fs.writeFileSync(path.join(target, 'skills', 'sample-skill', 'SKILL.md'), 'local-edit');
+    const dir = installedDir(target);
+    fs.writeFileSync(path.join(dir, 'skills', 'sample-skill', 'SKILL.md'), 'local-edit');
     fs.writeFileSync(path.join(source, 'skills', 'sample-skill', 'SKILL.md'), 'upstream-update');
-    await update({ target, sourceRoot: source, logger, force: true });
-    const installed = fs.readFileSync(path.join(target, 'skills', 'sample-skill', 'SKILL.md'), 'utf8');
+    await update({ target, tool: 'demo-tool', sourceRoot: source, logger, force: true });
+    const installed = fs.readFileSync(path.join(dir, 'skills', 'sample-skill', 'SKILL.md'), 'utf8');
     assert.equal(installed, 'upstream-update');
   } finally {
     cleanupTmpProject(source);
@@ -146,8 +153,9 @@ test('update: source asset removed upstream is flagged, not auto-deleted', async
   try {
     await install({ tool: 'demo-tool', preset: 'basic', target, sourceRoot: source, logger });
     fs.rmSync(path.join(source, 'skills', 'sample-skill'), { recursive: true, force: true });
-    const result = await update({ target, sourceRoot: source, logger });
-    assert.ok(fs.existsSync(path.join(target, 'skills', 'sample-skill', 'SKILL.md')));
+    const result = await update({ target, tool: 'demo-tool', sourceRoot: source, logger });
+    const dir = installedDir(target);
+    assert.ok(fs.existsSync(path.join(dir, 'skills', 'sample-skill', 'SKILL.md')));
     assert.ok(result.missing.some((m) => m.name === 'sample-skill'));
     assert.ok(lines.some(([level, m]) => level === 'warn' && /sample-skill/.test(m)));
   } finally {
@@ -163,9 +171,10 @@ test('update: dryRun never writes', async () => {
   try {
     await install({ tool: 'demo-tool', preset: 'basic', target, sourceRoot: source, logger });
     fs.writeFileSync(path.join(source, 'skills', 'sample-skill', 'SKILL.md'), 'v2-content');
-    const before = fs.readFileSync(path.join(target, 'skills', 'sample-skill', 'SKILL.md'), 'utf8');
-    await update({ target, sourceRoot: source, logger, dryRun: true });
-    const after = fs.readFileSync(path.join(target, 'skills', 'sample-skill', 'SKILL.md'), 'utf8');
+    const dir = installedDir(target);
+    const before = fs.readFileSync(path.join(dir, 'skills', 'sample-skill', 'SKILL.md'), 'utf8');
+    await update({ target, tool: 'demo-tool', sourceRoot: source, logger, dryRun: true });
+    const after = fs.readFileSync(path.join(dir, 'skills', 'sample-skill', 'SKILL.md'), 'utf8');
     assert.equal(after, before);
   } finally {
     cleanupTmpProject(source);
@@ -179,7 +188,7 @@ test('update: throws when target has no lockfile', async () => {
   const { logger } = silentLogger();
   try {
     await assert.rejects(
-      () => update({ target, sourceRoot: source, logger }),
+      () => update({ target, tool: 'demo-tool', sourceRoot: source, logger }),
       /lockfile|not installed/i,
     );
   } finally {

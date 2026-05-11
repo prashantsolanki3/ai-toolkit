@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { install } from '../../src/commands/install.js';
 import { update } from '../../src/commands/update.js';
 import { createTmpProject, cleanupTmpProject } from '../helpers/tmp-project.js';
+import { toolDir } from '../helpers/tool-paths.js';
 import { LOCKFILE_NAME } from '../../src/lib/lockfile.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -56,7 +57,7 @@ test('update: cursor (file dest) round-trips edits from source SKILL.md to .curs
       sourceRoot: tmpSrc,
       logger: silentLogger(),
     });
-    const ruleFile = path.join(target, 'rules', 'code-review-checklist.mdc');
+    const ruleFile = path.join(toolDir(target, 'cursor'), 'rules', 'code-review-checklist.mdc');
     const before = fs.readFileSync(ruleFile, 'utf8');
 
     // mutate the upstream SKILL.md and ensure update picks up the new body
@@ -65,7 +66,7 @@ test('update: cursor (file dest) round-trips edits from source SKILL.md to .curs
       '\n<!-- upstream edit -->\n',
     );
 
-    const result = await update({ target, sourceRoot: tmpSrc, logger: silentLogger() });
+    const result = await update({ target, tool: 'cursor', sourceRoot: tmpSrc, logger: silentLogger() });
     assert.ok(result.updated.some((u) => u.name === 'code-review-checklist'));
 
     const after = fs.readFileSync(ruleFile, 'utf8');
@@ -88,7 +89,7 @@ test('update: claude-code agents (dir→file mapping) picks up upstream agent.md
       sourceRoot: tmpSrc,
       logger: silentLogger(),
     });
-    const agentFile = path.join(target, 'agents', 'senior-architect.md');
+    const agentFile = path.join(toolDir(target, 'claude-code'), 'agents', 'senior-architect.md');
     const before = fs.readFileSync(agentFile, 'utf8');
 
     fs.appendFileSync(
@@ -96,7 +97,7 @@ test('update: claude-code agents (dir→file mapping) picks up upstream agent.md
       '\n<!-- new advisory -->\n',
     );
 
-    const result = await update({ target, sourceRoot: tmpSrc, logger: silentLogger() });
+    const result = await update({ target, tool: 'claude-code', sourceRoot: tmpSrc, logger: silentLogger() });
     assert.ok(result.updated.some((u) => u.name === 'senior-architect'));
 
     const after = fs.readFileSync(agentFile, 'utf8');
@@ -119,7 +120,11 @@ test('update: vscode-copilot instructions detect local edits and skip without --
       sourceRoot: tmpSrc,
       logger: silentLogger(),
     });
-    const inst = path.join(target, 'instructions', 'code-review-checklist.instructions.md');
+    const inst = path.join(
+      toolDir(target, 'vscode-copilot'),
+      'instructions',
+      'code-review-checklist.instructions.md',
+    );
 
     fs.writeFileSync(inst, 'local-edit');
     fs.appendFileSync(
@@ -127,12 +132,13 @@ test('update: vscode-copilot instructions detect local edits and skip without --
       '\nupstream\n',
     );
 
-    const result = await update({ target, sourceRoot: tmpSrc, logger: silentLogger() });
+    const result = await update({ target, tool: 'vscode-copilot', sourceRoot: tmpSrc, logger: silentLogger() });
     assert.ok(result.skipped.some((s) => s.name === 'code-review-checklist'));
     assert.equal(fs.readFileSync(inst, 'utf8'), 'local-edit');
 
     const forced = await update({
       target,
+      tool: 'vscode-copilot',
       sourceRoot: tmpSrc,
       force: true,
       logger: silentLogger(),

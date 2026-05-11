@@ -1,5 +1,12 @@
 import path from 'node:path';
-import { loadTools, getTool, getAssetDestination, supportsAsset } from '../lib/tools.js';
+import {
+  loadTools,
+  getTool,
+  getAssetDestination,
+  resolveTargetPath,
+  supportsAsset,
+  findInstalledTools,
+} from '../lib/tools.js';
 import { hashDir, hashFile, pathExists } from '../lib/fs-ops.js';
 import { resolveSourcePath, copyAssetAdaptive } from '../lib/source-adapter.js';
 import { read as readLockfile, write as writeLockfile, LOCKFILE_NAME } from '../lib/lockfile.js';
@@ -11,15 +18,16 @@ export async function update(opts) {
   const logger = opts.logger || createLogger();
   const sourceRoot =
     opts.sourceRoot || path.resolve(path.dirname(new URL(import.meta.url).pathname), '..', '..');
-  const target = opts.target;
-  if (!target) throw new Error('update: missing target');
+  const projectRoot = opts.target || process.cwd();
+  const tools = loadTools(path.join(sourceRoot, 'config'));
+
+  const target = resolveUpdateTarget({ tools, projectRoot, toolName: opts.tool });
 
   const lockfile = readLockfile(target);
   if (!lockfile) {
     throw new Error(`No lockfile at ${path.join(target, LOCKFILE_NAME)}; nothing to update (not installed).`);
   }
 
-  const tools = loadTools(path.join(sourceRoot, 'config'));
   const tool = getTool(tools, lockfile.tool);
 
   const result = { updated: [], skipped: [], missing: [], unchanged: [] };
@@ -103,4 +111,24 @@ export async function update(opts) {
   }
 
   return result;
+}
+
+function resolveUpdateTarget({ tools, projectRoot, toolName }) {
+  if (toolName) {
+    const tool = getTool(tools, toolName);
+    return resolveTargetPath(tool, 'workspace', projectRoot);
+  }
+  const found = findInstalledTools(tools, projectRoot);
+  if (found.length === 0) {
+    throw new Error(
+      `No installed tools found under ${projectRoot}. Run \`ai-toolkit install --tool <name>\` first, or pass --target.`,
+    );
+  }
+  if (found.length > 1) {
+    const names = found.map((f) => f.tool).join(', ');
+    throw new Error(
+      `Multiple installed tools found under ${projectRoot} (${names}). Pass --tool <name> to disambiguate.`,
+    );
+  }
+  return found[0].dir;
 }

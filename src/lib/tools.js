@@ -51,15 +51,53 @@ export function getTool(config, name) {
   return tool;
 }
 
-export function resolveTargetPath(tool, scope, override) {
-  if (override) return expandHome(override);
-  const target = tool.defaultTarget && tool.defaultTarget[scope];
-  if (target == null) {
+// Resolve the on-disk install directory for a tool + scope.
+//
+// `projectRoot` is the user-facing --target: the directory the user is
+// working in. The tool's own defaultTarget[scope] is the subdir under
+// that root where the tool expects to read its configuration (e.g.
+// .claude, .cursor, .github). For "global" scope the tool's path is
+// typically absolute (~/.claude), in which case projectRoot is ignored.
+//
+// Defaults: if projectRoot is omitted, fall back to the caller's CWD.
+export function resolveTargetPath(tool, scope, projectRoot) {
+  const sub = tool.defaultTarget && tool.defaultTarget[scope];
+  if (sub == null) {
     throw new Error(
-      `Tool does not support scope "${scope}" (defaultTarget.${scope} is null). Pass --target to override.`,
+      `Tool does not support scope "${scope}" (defaultTarget.${scope} is null).`,
     );
   }
-  return expandHome(target);
+  const expanded = expandHome(sub);
+  if (path.isAbsolute(expanded)) return expanded;
+  const root = projectRoot ? expandHome(projectRoot) : process.cwd();
+  return path.resolve(root, expanded);
+}
+
+// Scan a project root for tool-specific lockfiles. Used by installed /
+// update / remove when --tool isn't passed: each tool block in the
+// config declares its workspace subdir; we check whether each subdir
+// contains an .ai-toolkit-lock.json.
+//
+// Skips tools whose workspace path is absolute (global-only tools).
+export function findInstalledTools(config, projectRoot) {
+  const root = projectRoot ? expandHome(projectRoot) : process.cwd();
+  const found = [];
+  for (const [name, tool] of Object.entries(config.tools || {})) {
+    const sub = tool.defaultTarget?.workspace;
+    if (sub == null) continue;
+    const expanded = expandHome(sub);
+    if (path.isAbsolute(expanded)) continue;
+    const dir = path.resolve(root, expanded);
+    const lock = path.join(dir, '.ai-toolkit-lock.json');
+    try {
+      if (fs.statSync(lock).isFile()) {
+        found.push({ tool: name, dir, lockfile: lock });
+      }
+    } catch {
+      // not installed for this tool — skip
+    }
+  }
+  return found;
 }
 
 export function supportsAsset(tool, assetType) {

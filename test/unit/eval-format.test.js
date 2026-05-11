@@ -115,6 +115,7 @@ test('comprehensive-review eval.json declares a sensible target_pass_rate and at
 test('claude-code dir install carries eval.json through to the destination', async () => {
   const { install } = await import('../../src/commands/install.js');
   const { createTmpProject, cleanupTmpProject } = await import('../helpers/tmp-project.js');
+  const { toolDir } = await import('../helpers/tool-paths.js');
   const target = createTmpProject();
   try {
     await install({
@@ -125,7 +126,9 @@ test('claude-code dir install carries eval.json through to the destination', asy
       logger: { info() {}, success() {}, warn() {}, error() {}, dryRun() {}, verbose() {} },
     });
     assert.ok(
-      fs.existsSync(path.join(target, 'skills', 'comprehensive-review', 'eval.json')),
+      fs.existsSync(
+        path.join(toolDir(target, 'claude-code'), 'skills', 'comprehensive-review', 'eval.json'),
+      ),
       'dir-format install should carry eval.json alongside SKILL.md',
     );
   } finally {

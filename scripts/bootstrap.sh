@@ -15,31 +15,33 @@ CLI="node bin/cli.js"
 
 bootstrap_tool() {
   local tool="$1"; shift
-  local target="$1"; shift
   echo ""
-  echo "→ Bootstrapping $tool into $target ($*)"
+  echo "→ Bootstrapping $tool ($*)"
   # shellcheck disable=SC2068
-  $CLI install --tool "$tool" --target "$target" --link --force $@
+  $CLI install --tool "$tool" --link --force $@
 }
 
-# Claude Code — primary maintainer-facing tool.
-bootstrap_tool claude-code .claude \
+# Each call below installs into the repo root (CWD) under whichever
+# subdirectory that tool wants — .claude/, .cursor/, .github/.
+
+# Claude Code — primary maintainer-facing tool. Lands in .claude/.
+bootstrap_tool claude-code \
   --skills code-review-checklist,api-endpoint-design,error-handling-patterns,comprehensive-review,skill-evaluator \
   --agents senior-architect,refactoring-specialist,test-writer \
   --commands summarize-diff,explain-error,bump-version,eval-skill,improve-skill \
   --hooks pre-commit-lint \
   --rules no-bare-todos,prefer-typed-errors
 
-# Cursor — uses .cursor/rules/. Frontmatter-transformed assets fall
+# Cursor — lands in .cursor/rules/. Frontmatter-transformed assets fall
 # back to a copy (warning is expected; we still want the file present).
-bootstrap_tool cursor .cursor \
+bootstrap_tool cursor \
   --skills code-review-checklist,api-endpoint-design,error-handling-patterns \
   --rules no-bare-todos,prefer-typed-errors
 
-# VS Code Copilot — uses .github/instructions, .github/prompts,
-# .github/chatmodes. Workspace must enable chat.promptFiles for Copilot
-# to actually load these (see docs/verification-matrix.md).
-bootstrap_tool vscode-copilot .github \
+# VS Code Copilot — lands in .github/. Workspace must enable
+# chat.promptFiles for Copilot to actually load these
+# (see docs/verification-matrix.md).
+bootstrap_tool vscode-copilot \
   --skills code-review-checklist,error-handling-patterns,skill-evaluator \
   --commands summarize-diff,explain-error,eval-skill,improve-skill \
   --agents senior-architect

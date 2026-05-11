@@ -36,7 +36,7 @@ test('installed: reads lockfile and prints human-readable summary', async () => 
       sourceRoot: REPO_ROOT,
       logger: installLogger,
     });
-    await installed({ target, logger });
+    await installed({ target, sourceRoot: REPO_ROOT, logger });
     const output = lines.map((l) => l[1]).join('\n');
     assert.match(output, /claude-code/);
     assert.match(output, /backend-essentials/);
@@ -52,7 +52,7 @@ test('installed: warns clearly when no lockfile exists', async () => {
   const target = createTmpProject();
   const { logger, lines } = captureLogger();
   try {
-    await installed({ target, logger });
+    await installed({ target, sourceRoot: REPO_ROOT, logger });
     const output = lines.map((l) => l[1]).join('\n');
     assert.match(output, /not installed|no lockfile|nothing installed/i);
   } finally {

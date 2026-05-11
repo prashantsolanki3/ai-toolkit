@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { install } from '../../src/commands/install.js';
 import { remove } from '../../src/commands/remove.js';
 import { createTmpProject, cleanupTmpProject } from '../helpers/tmp-project.js';
+import { toolDir } from '../helpers/tool-paths.js';
 import { LOCKFILE_NAME } from '../../src/lib/lockfile.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -31,10 +32,11 @@ test('remove: single asset deletes files and updates lockfile', async () => {
   const { logger } = silentLogger();
   try {
     await install({ tool: 'claude-code', preset: 'backend-essentials', target, sourceRoot: REPO_ROOT, logger });
-    assert.ok(fs.existsSync(path.join(target, 'skills', 'api-endpoint-design')));
+    const dir = toolDir(target, 'claude-code');
+    assert.ok(fs.existsSync(path.join(dir, 'skills', 'api-endpoint-design')));
     await remove({ target, sourceRoot: REPO_ROOT, skills: ['api-endpoint-design'], logger });
-    assert.equal(fs.existsSync(path.join(target, 'skills', 'api-endpoint-design')), false);
-    const lock = JSON.parse(fs.readFileSync(path.join(target, LOCKFILE_NAME), 'utf8'));
+    assert.equal(fs.existsSync(path.join(dir, 'skills', 'api-endpoint-design')), false);
+    const lock = JSON.parse(fs.readFileSync(path.join(dir, LOCKFILE_NAME), 'utf8'));
     assert.equal(lock.assets.skills['api-endpoint-design'], undefined);
     assert.ok(lock.assets.skills['code-review-checklist']);
   } finally {
@@ -48,10 +50,11 @@ test('remove: --all removes every tracked asset and clears lockfile entries', as
   try {
     await install({ tool: 'claude-code', preset: 'backend-essentials', target, sourceRoot: REPO_ROOT, logger });
     await remove({ target, sourceRoot: REPO_ROOT, all: true, logger });
-    assert.equal(fs.existsSync(path.join(target, 'skills', 'api-endpoint-design')), false);
-    assert.equal(fs.existsSync(path.join(target, 'agents', 'senior-architect')), false);
-    assert.equal(fs.existsSync(path.join(target, 'commands', 'summarize-diff.md')), false);
-    const lock = JSON.parse(fs.readFileSync(path.join(target, LOCKFILE_NAME), 'utf8'));
+    const dir = toolDir(target, 'claude-code');
+    assert.equal(fs.existsSync(path.join(dir, 'skills', 'api-endpoint-design')), false);
+    assert.equal(fs.existsSync(path.join(dir, 'agents', 'senior-architect.md')), false);
+    assert.equal(fs.existsSync(path.join(dir, 'commands', 'summarize-diff.md')), false);
+    const lock = JSON.parse(fs.readFileSync(path.join(dir, LOCKFILE_NAME), 'utf8'));
     for (const type of Object.keys(lock.assets)) {
       assert.deepEqual(Object.keys(lock.assets[type]), []);
     }
@@ -72,13 +75,13 @@ test('remove: non-installed asset warns, does not error', async () => {
   }
 });
 
-test('remove: throws when no lockfile exists', async () => {
+test('remove: throws when no installed tools exist under target', async () => {
   const target = createTmpProject();
   const { logger } = silentLogger();
   try {
     await assert.rejects(
       () => remove({ target, sourceRoot: REPO_ROOT, skills: ['x'], logger }),
-      /lockfile|not installed/i,
+      /no installed|installed tools found|lockfile/i,
     );
   } finally {
     cleanupTmpProject(target);

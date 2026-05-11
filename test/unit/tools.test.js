@@ -8,9 +8,10 @@ import {
   resolveTargetPath,
   getAssetDestination,
   supportsAsset,
+  findInstalledTools,
 } from '../../src/lib/tools.js';
 import { createFakeSource } from '../helpers/fake-source.js';
-import { cleanupTmpProject } from '../helpers/tmp-project.js';
+import { createTmpProject, cleanupTmpProject } from '../helpers/tmp-project.js';
 
 const validSchema = {
   $schema: 'http://json-schema.org/draft-07/schema#',
@@ -96,31 +97,33 @@ test('getTool() throws with helpful error listing available tools', () => {
   );
 });
 
-test('resolveTargetPath() prefers override', () => {
+test('resolveTargetPath() joins workspace subdir under the project root', () => {
   const tool = validConfig.tools['demo-tool'];
-  const resolved = resolveTargetPath(tool, 'workspace', '/custom/path');
-  assert.equal(resolved, '/custom/path');
+  const resolved = resolveTargetPath(tool, 'workspace', '/repos/project');
+  assert.equal(resolved, path.resolve('/repos/project', '.demo'));
 });
 
-test('resolveTargetPath() falls back to defaultTarget[scope]', () => {
+test('resolveTargetPath() defaults projectRoot to CWD when no override', () => {
   const tool = validConfig.tools['demo-tool'];
   const resolved = resolveTargetPath(tool, 'workspace', null);
-  assert.equal(resolved, '.demo');
+  assert.equal(resolved, path.resolve(process.cwd(), '.demo'));
 });
 
-test('resolveTargetPath() expands ~ to home dir', () => {
+test('resolveTargetPath() expands ~ for global scope and ignores projectRoot', () => {
   const tool = validConfig.tools['demo-tool'];
-  const resolved = resolveTargetPath(tool, 'global', null);
+  const resolved = resolveTargetPath(tool, 'global', '/repos/project');
   assert.ok(resolved.endsWith('.demo'));
   assert.ok(!resolved.startsWith('~'));
+  // global is absolute (~/.demo expanded) — project root must NOT prefix it
+  assert.ok(!resolved.startsWith('/repos/project'));
 });
 
-test('resolveTargetPath() throws when scope has null default and no override', () => {
+test('resolveTargetPath() throws when scope has null default', () => {
   const tool = {
     ...validConfig.tools['demo-tool'],
     defaultTarget: { global: null, workspace: '.demo' },
   };
-  assert.throws(() => resolveTargetPath(tool, 'global', null), /global|not supported|null/i);
+  assert.throws(() => resolveTargetPath(tool, 'global', null), /global|not support/i);
 });
 
 test('getAssetDestination() returns directory path for directory-type assets', () => {
@@ -153,4 +156,42 @@ test('supportsAsset() returns false for unsupported assets', () => {
   const tool = validConfig.tools['demo-tool'];
   assert.equal(supportsAsset(tool, 'agents'), false);
   assert.equal(supportsAsset(tool, 'hooks'), false);
+});
+
+test('findInstalledTools() returns tools whose workspace subdir has a lockfile', () => {
+  const dir = createTmpProject();
+  try {
+    // pretend project has a .demo subdir with a lockfile
+    fs.mkdirSync(path.join(dir, '.demo'), { recursive: true });
+    fs.writeFileSync(
+      path.join(dir, '.demo', '.ai-toolkit-lock.json'),
+      JSON.stringify({ version: '1.0', tool: 'demo-tool', assets: {} }),
+    );
+    const config = {
+      version: '1.0',
+      tools: {
+        'demo-tool': validConfig.tools['demo-tool'],
+        'other-tool': {
+          ...validConfig.tools['demo-tool'],
+          defaultTarget: { global: null, workspace: '.other' },
+        },
+      },
+    };
+    const found = findInstalledTools(config, dir);
+    assert.equal(found.length, 1);
+    assert.equal(found[0].tool, 'demo-tool');
+    assert.equal(found[0].dir, path.resolve(dir, '.demo'));
+  } finally {
+    cleanupTmpProject(dir);
+  }
+});
+
+test('findInstalledTools() returns empty when no tool dirs have lockfiles', () => {
+  const dir = createTmpProject();
+  try {
+    const config = { version: '1.0', tools: { 'demo-tool': validConfig.tools['demo-tool'] } };
+    assert.deepEqual(findInstalledTools(config, dir), []);
+  } finally {
+    cleanupTmpProject(dir);
+  }
 });

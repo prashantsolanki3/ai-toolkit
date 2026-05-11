@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { install } from '../../src/commands/install.js';
 import { remove } from '../../src/commands/remove.js';
 import { createTmpProject, cleanupTmpProject } from '../helpers/tmp-project.js';
+import { toolDir } from '../helpers/tool-paths.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
@@ -24,8 +25,9 @@ test('kiro: installing a hook generates the .sh AND a sibling .kiro.hook JSON', 
       sourceRoot: REPO_ROOT,
       logger: silentLogger(),
     });
-    const script = path.join(target, 'hooks', 'pre-commit-lint.sh');
-    const sidecar = path.join(target, 'hooks', 'pre-commit-lint.kiro.hook');
+    const dir = toolDir(target, 'kiro');
+    const script = path.join(dir, 'hooks', 'pre-commit-lint.sh');
+    const sidecar = path.join(dir, 'hooks', 'pre-commit-lint.kiro.hook');
     assert.ok(fs.existsSync(script), 'hook script must exist');
     assert.ok(fs.existsSync(sidecar), 'Kiro hook sidecar must be generated alongside the script');
     const meta = JSON.parse(fs.readFileSync(sidecar, 'utf8'));
@@ -54,8 +56,9 @@ test('kiro: removing a hook also tears down the sidecar', async () => {
       hooks: ['pre-commit-lint'],
       logger: silentLogger(),
     });
-    assert.equal(fs.existsSync(path.join(target, 'hooks', 'pre-commit-lint.sh')), false);
-    assert.equal(fs.existsSync(path.join(target, 'hooks', 'pre-commit-lint.kiro.hook')), false);
+    const dir = toolDir(target, 'kiro');
+    assert.equal(fs.existsSync(path.join(dir, 'hooks', 'pre-commit-lint.sh')), false);
+    assert.equal(fs.existsSync(path.join(dir, 'hooks', 'pre-commit-lint.kiro.hook')), false);
   } finally {
     cleanupTmpProject(target);
   }
@@ -71,9 +74,10 @@ test('claude-code: hooks do not generate a sidecar (no sidecar spec in config)',
       sourceRoot: REPO_ROOT,
       logger: silentLogger(),
     });
-    assert.ok(fs.existsSync(path.join(target, 'hooks', 'pre-commit-lint.sh')));
+    const dir = toolDir(target, 'claude-code');
+    assert.ok(fs.existsSync(path.join(dir, 'hooks', 'pre-commit-lint.sh')));
     assert.equal(
-      fs.existsSync(path.join(target, 'hooks', 'pre-commit-lint.kiro.hook')),
+      fs.existsSync(path.join(dir, 'hooks', 'pre-commit-lint.kiro.hook')),
       false,
       'sidecar must NOT be generated for tools that did not opt in',
     );

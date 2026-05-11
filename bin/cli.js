@@ -47,11 +47,11 @@ program
 
 const installCmd = program
   .command('install')
-  .description('Install assets into a target directory')
+  .description('Install assets into the tool-specific subdir under a project root')
   .requiredOption('--tool <name>', 'target tool (e.g. claude-code, cursor, antigravity)')
   .option('--preset <name>', 'preset to install')
   .addOption(new Option('--scope <scope>', 'install scope').choices(['global', 'workspace']).default('workspace'))
-  .option('--target <path>', 'override the default install target')
+  .option('--target <path>', 'project root (defaults to current directory). The tool decides which subdirectory to populate inside it (.claude, .cursor, .github, ...).')
   .option('--force', 'overwrite destinations that already exist or have local edits', false)
   .option('--link', 'symlink assets where format matches; copy where transformation is required', false)
   .option('--dry-run', 'plan only, write nothing', false)
@@ -80,29 +80,37 @@ commonAssetOptions(installCmd).action(async (opts) => {
 program
   .command('update')
   .description('Update installed assets from the source')
-  .option('--target <path>', 'target directory (default: .claude in cwd)')
+  .option('--target <path>', 'project root (defaults to current directory)')
+  .option('--tool <name>', 'specific tool to update; if omitted, autodiscover by scanning tool subdirs for lockfiles')
   .option('--force', 'overwrite local edits', false)
   .option('--dry-run', 'plan only, write nothing', false)
   .option('--verbose', 'verbose output', false)
   .action(async (opts) => {
     const logger = makeLogger(opts);
-    const target = opts.target || path.resolve(process.cwd(), '.claude');
-    await update({ target, sourceRoot: SOURCE_ROOT, force: opts.force, dryRun: opts.dryRun, logger });
+    await update({
+      target: opts.target,
+      tool: opts.tool,
+      sourceRoot: SOURCE_ROOT,
+      force: opts.force,
+      dryRun: opts.dryRun,
+      logger,
+    });
   });
 
 const removeCmd = program
   .command('remove')
   .description('Remove installed assets')
-  .option('--target <path>', 'target directory (default: .claude in cwd)')
+  .option('--target <path>', 'project root (defaults to current directory)')
+  .option('--tool <name>', 'specific tool to remove from; if omitted, autodiscover')
   .option('--all', 'remove every tracked asset', false)
   .option('--dry-run', 'plan only, write nothing', false)
   .option('--verbose', 'verbose output', false);
 
 commonAssetOptions(removeCmd).action(async (opts) => {
   const logger = makeLogger(opts);
-  const target = opts.target || path.resolve(process.cwd(), '.claude');
   await remove({
-    target,
+    target: opts.target,
+    tool: opts.tool,
     skills: opts.skills,
     agents: opts.agents,
     commands: opts.commands,
@@ -127,13 +135,13 @@ program
 
 program
   .command('installed')
-  .description('Show what is installed in the target directory')
-  .option('--target <path>', 'target directory (default: .claude in cwd)')
+  .description('Show what is installed in the project. Without --tool, scans every tool subdir for a lockfile.')
+  .option('--target <path>', 'project root (defaults to current directory)')
+  .option('--tool <name>', 'show only this tool')
   .option('--verbose', 'verbose output', false)
   .action(async (opts) => {
     const logger = makeLogger(opts);
-    const target = opts.target || path.resolve(process.cwd(), '.claude');
-    await installed({ target, logger });
+    await installed({ target: opts.target, tool: opts.tool, sourceRoot: SOURCE_ROOT, logger });
   });
 
 program.parseAsync(process.argv).catch((err) => {

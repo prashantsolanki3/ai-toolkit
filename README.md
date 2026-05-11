@@ -24,19 +24,30 @@ While the repo isn't on GitHub yet, point `npx` at the local path. From any othe
 # 1. create a scratch project
 mkdir -p ~/tmp/aitk-try && cd ~/tmp/aitk-try
 
-# 2. install via npx from the local path
+# 2. install — --target defaults to CWD; the tool decides the subdir
 npx --yes /Users/prashantsolanki/Playground/ai-toolkit install \
   --tool claude-code \
-  --preset backend-essentials \
-  --target .claude
+  --preset backend-essentials
+
+# Result: ~/tmp/aitk-try/.claude/{skills,agents,commands,...}
 
 # 3. confirm what landed
 ls -la .claude/
 
-# 4. run the rest of the lifecycle
-npx --yes /Users/prashantsolanki/Playground/ai-toolkit installed --target .claude
-npx --yes /Users/prashantsolanki/Playground/ai-toolkit update    --target .claude --dry-run
-npx --yes /Users/prashantsolanki/Playground/ai-toolkit remove    --target .claude --all
+# 4. run the rest of the lifecycle (no --target needed)
+npx --yes /Users/prashantsolanki/Playground/ai-toolkit installed
+npx --yes /Users/prashantsolanki/Playground/ai-toolkit update --dry-run
+npx --yes /Users/prashantsolanki/Playground/ai-toolkit remove --tool claude-code --all
+```
+
+For a different project root, pass `--target`:
+
+```bash
+npx --yes /Users/prashantsolanki/Playground/ai-toolkit install \
+  --tool cursor \
+  --skills code-review-checklist \
+  --target ~/repos/some-other-project
+# lands in ~/repos/some-other-project/.cursor/rules/
 ```
 
 `npx` caches resolved packages by name + version. The package is `private` and has no version-changing hooks, so the cache should re-resolve when the path's mtime changes, but you can force a fresh run with `npm cache clean --force` if the cache gets stuck. Direct `node /path/to/bin/cli.js …` always bypasses the cache.
@@ -64,22 +75,29 @@ npx git+ssh://...ai-toolkit.git install --skills code-review-checklist --tool an
 ```
 ai-toolkit install   --tool <name> [--preset <name>] [--skills a,b] [--agents c]
                      [--commands d] [--hooks e] [--rules f]
-                     [--scope global|workspace] [--target <path>]
+                     [--scope global|workspace] [--target <project-root>]
                      [--force]   # overwrite existing or locally-edited dests
                      [--link]    # symlink where possible (DRY self-hosting)
                      [--dry-run]
 
-ai-toolkit update    [--target <path>] [--force] [--dry-run]
-
-ai-toolkit remove    [--target <path>] [--skills a,b] [--agents c]
-                     [--commands d] [--hooks e] [--all] [--dry-run]
-
+ai-toolkit update    [--target <project-root>] [--tool <name>] [--force] [--dry-run]
+ai-toolkit remove    [--target <project-root>] [--tool <name>]
+                     [--skills a,b] [--agents c] [--commands d] [--hooks e]
+                     [--all] [--dry-run]
+ai-toolkit installed [--target <project-root>] [--tool <name>]
 ai-toolkit list      [--type skills|agents|commands|hooks|rules|presets|tools]
-
-ai-toolkit installed [--target <path>]
 ```
 
-A lockfile (`.ai-toolkit-lock.json`) is written into the target directory. It records the tool, scope, preset, and both source/destination SHAs per installed asset. `update` uses the source SHA to detect upstream changes and the destination SHA to detect local edits.
+### --target and --tool
+
+| Flag | Meaning | Default |
+| --- | --- | --- |
+| `--tool <name>` | Which AI coding tool (claude-code, cursor, vscode-copilot, …) | required for install; optional for the rest |
+| `--target <path>` | **The project root** — the directory you want to set up. The tool decides which subdir under it to populate (`.claude/`, `.cursor/`, `.github/`, …) via [`config/tools.json`](config/tools.json). | current working directory |
+
+For `update` / `remove` / `installed`: if `--tool` isn't passed, the toolkit scans every tool's subdir under `--target` and uses whichever one has a lockfile. Multiple matches require `--tool` to disambiguate (e.g. `.github/` is shared between vscode-copilot and copilot-cli).
+
+A lockfile (`.ai-toolkit-lock.json`) is written into the tool's subdirectory, recording the tool, scope, preset, and both source/destination SHAs per installed asset.
 
 ### Safety
 

@@ -5,6 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { install } from '../../src/commands/install.js';
 import { createTmpProject, cleanupTmpProject } from '../helpers/tmp-project.js';
+import { toolDir } from '../helpers/tool-paths.js';
 import { LOCKFILE_NAME } from '../../src/lib/lockfile.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -25,13 +26,18 @@ function recordingLogger() {
   };
 }
 
+function preExistingFile(projectRoot, toolName, relPath, content) {
+  const full = path.join(toolDir(projectRoot, toolName), relPath);
+  fs.mkdirSync(path.dirname(full), { recursive: true });
+  fs.writeFileSync(full, content);
+  return full;
+}
+
 test('install: destination already exists, no lockfile → skip + warn (do not overwrite)', async () => {
   const target = createTmpProject();
   const { logger, lines } = recordingLogger();
   try {
-    // Pre-create a destination file with unrelated content.
-    fs.mkdirSync(path.join(target, 'commands'), { recursive: true });
-    fs.writeFileSync(path.join(target, 'commands', 'summarize-diff.md'), 'PRE-EXISTING USER CONTENT');
+    const dest = preExistingFile(target, 'claude-code', 'commands/summarize-diff.md', 'PRE-EXISTING USER CONTENT');
 
     await install({
       tool: 'claude-code',
@@ -41,7 +47,7 @@ test('install: destination already exists, no lockfile → skip + warn (do not o
       logger,
     });
 
-    const after = fs.readFileSync(path.join(target, 'commands', 'summarize-diff.md'), 'utf8');
+    const after = fs.readFileSync(dest, 'utf8');
     assert.equal(after, 'PRE-EXISTING USER CONTENT', 'must not overwrite pre-existing user content');
     assert.ok(
       lines.some(([level, m]) => level === 'warn' && /summarize-diff/.test(m) && /(exist|force)/i.test(m)),
@@ -56,8 +62,7 @@ test('install: --force overwrites pre-existing destination', async () => {
   const target = createTmpProject();
   const { logger } = recordingLogger();
   try {
-    fs.mkdirSync(path.join(target, 'commands'), { recursive: true });
-    fs.writeFileSync(path.join(target, 'commands', 'summarize-diff.md'), 'PRE-EXISTING');
+    const dest = preExistingFile(target, 'claude-code', 'commands/summarize-diff.md', 'PRE-EXISTING');
 
     await install({
       tool: 'claude-code',
@@ -68,7 +73,7 @@ test('install: --force overwrites pre-existing destination', async () => {
       logger,
     });
 
-    const after = fs.readFileSync(path.join(target, 'commands', 'summarize-diff.md'), 'utf8');
+    const after = fs.readFileSync(dest, 'utf8');
     assert.notEqual(after, 'PRE-EXISTING');
     assert.match(after, /summarize/);
   } finally {
@@ -108,11 +113,10 @@ test('install: pre-existing dir destination with unexpected files → skip + war
   const target = createTmpProject();
   const { logger, lines } = recordingLogger();
   try {
-    // Pre-create a skill directory with random content (e.g. a user's own
-    // hand-crafted skill that happens to share the name).
-    fs.mkdirSync(path.join(target, 'skills', 'code-review-checklist'), { recursive: true });
+    const installDir = toolDir(target, 'claude-code');
+    fs.mkdirSync(path.join(installDir, 'skills', 'code-review-checklist'), { recursive: true });
     fs.writeFileSync(
-      path.join(target, 'skills', 'code-review-checklist', 'SKILL.md'),
+      path.join(installDir, 'skills', 'code-review-checklist', 'SKILL.md'),
       'MY HAND-CRAFTED SKILL',
     );
 
@@ -125,7 +129,7 @@ test('install: pre-existing dir destination with unexpected files → skip + war
     });
 
     const after = fs.readFileSync(
-      path.join(target, 'skills', 'code-review-checklist', 'SKILL.md'),
+      path.join(installDir, 'skills', 'code-review-checklist', 'SKILL.md'),
       'utf8',
     );
     assert.equal(after, 'MY HAND-CRAFTED SKILL');
@@ -139,8 +143,7 @@ test('install: skipped assets are NOT recorded in the lockfile', async () => {
   const target = createTmpProject();
   const { logger } = recordingLogger();
   try {
-    fs.mkdirSync(path.join(target, 'commands'), { recursive: true });
-    fs.writeFileSync(path.join(target, 'commands', 'summarize-diff.md'), 'PRE-EXISTING');
+    preExistingFile(target, 'claude-code', 'commands/summarize-diff.md', 'PRE-EXISTING');
 
     await install({
       tool: 'claude-code',
@@ -150,7 +153,8 @@ test('install: skipped assets are NOT recorded in the lockfile', async () => {
       logger,
     });
 
-    const lock = JSON.parse(fs.readFileSync(path.join(target, LOCKFILE_NAME), 'utf8'));
+    const installDir = toolDir(target, 'claude-code');
+    const lock = JSON.parse(fs.readFileSync(path.join(installDir, LOCKFILE_NAME), 'utf8'));
     assert.equal(
       lock.assets.commands && lock.assets.commands['summarize-diff'],
       undefined,
@@ -165,8 +169,7 @@ test('install: dryRun reports an "already exists" plan without writing or warnin
   const target = createTmpProject();
   const { logger, lines } = recordingLogger();
   try {
-    fs.mkdirSync(path.join(target, 'commands'), { recursive: true });
-    fs.writeFileSync(path.join(target, 'commands', 'summarize-diff.md'), 'PRE-EXISTING');
+    const dest = preExistingFile(target, 'claude-code', 'commands/summarize-diff.md', 'PRE-EXISTING');
 
     await install({
       tool: 'claude-code',
@@ -177,11 +180,10 @@ test('install: dryRun reports an "already exists" plan without writing or warnin
       logger,
     });
 
-    const after = fs.readFileSync(path.join(target, 'commands', 'summarize-diff.md'), 'utf8');
+    const after = fs.readFileSync(dest, 'utf8');
     assert.equal(after, 'PRE-EXISTING');
-    // No lockfile created
-    assert.equal(fs.existsSync(path.join(target, LOCKFILE_NAME)), false);
-    // The plan should mention that this destination would be skipped without --force
+    const installDir = toolDir(target, 'claude-code');
+    assert.equal(fs.existsSync(path.join(installDir, LOCKFILE_NAME)), false);
     assert.ok(
       lines.some(([level, m]) => level === 'dryRun' && /skip|force|exist/i.test(m)),
       `expected dry-run plan to flag the conflict; got: ${JSON.stringify(lines)}`,

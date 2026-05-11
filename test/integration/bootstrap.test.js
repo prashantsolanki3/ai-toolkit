@@ -4,6 +4,7 @@ import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { toolDir } from '../helpers/tool-paths.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
@@ -36,16 +37,17 @@ test('bootstrap script produces a working .claude/ tree with symlinked skills', 
     );
     assert.equal(result.status, 0, `install failed: ${result.stderr}`);
 
+    const dir = toolDir(target, 'claude-code');
     // Skills are symlinked (dir→dir, no transform)
-    const skill = path.join(target, 'skills', 'code-review-checklist');
+    const skill = path.join(dir, 'skills', 'code-review-checklist');
     assert.ok(fs.lstatSync(skill).isSymbolicLink(), 'skill should be a symlink');
 
     // Agent file is symlinked (dir→file via sourceFile, no transform)
-    const agent = path.join(target, 'agents', 'senior-architect.md');
+    const agent = path.join(dir, 'agents', 'senior-architect.md');
     assert.ok(fs.lstatSync(agent).isSymbolicLink(), 'agent should be a symlink');
 
     // Command file is symlinked (file→file, no transform)
-    const cmd = path.join(target, 'commands', 'summarize-diff.md');
+    const cmd = path.join(dir, 'commands', 'summarize-diff.md');
     assert.ok(fs.lstatSync(cmd).isSymbolicLink(), 'command should be a symlink');
   } finally {
     fs.rmSync(target, { recursive: true, force: true });
@@ -70,7 +72,11 @@ test('bootstrapping vscode-copilot falls back to copy for instructions (frontmat
     );
     assert.equal(result.status, 0, `install failed: ${result.stderr}`);
 
-    const inst = path.join(target, 'instructions', 'code-review-checklist.instructions.md');
+    const inst = path.join(
+      toolDir(target, 'vscode-copilot'),
+      'instructions',
+      'code-review-checklist.instructions.md',
+    );
     assert.ok(fs.existsSync(inst));
     assert.ok(
       !fs.lstatSync(inst).isSymbolicLink(),

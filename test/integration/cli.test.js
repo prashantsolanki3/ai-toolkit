@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createTmpProject, cleanupTmpProject } from '../helpers/tmp-project.js';
+import { toolDir } from '../helpers/tool-paths.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
@@ -41,7 +42,8 @@ test('cli: install / installed / remove flow via CLI', () => {
   try {
     const install = run(['install', '--tool', 'claude-code', '--preset', 'backend-essentials', '--target', target]);
     assert.equal(install.status, 0, `install failed: ${install.stderr}`);
-    assert.ok(fs.existsSync(path.join(target, 'skills', 'api-endpoint-design', 'SKILL.md')));
+    const dir = toolDir(target, 'claude-code');
+    assert.ok(fs.existsSync(path.join(dir, 'skills', 'api-endpoint-design', 'SKILL.md')));
 
     const inst = run(['installed', '--target', target]);
     assert.equal(inst.status, 0);
@@ -50,7 +52,7 @@ test('cli: install / installed / remove flow via CLI', () => {
 
     const rem = run(['remove', '--target', target, '--skills', 'api-endpoint-design']);
     assert.equal(rem.status, 0);
-    assert.equal(fs.existsSync(path.join(target, 'skills', 'api-endpoint-design')), false);
+    assert.equal(fs.existsSync(path.join(dir, 'skills', 'api-endpoint-design')), false);
   } finally {
     cleanupTmpProject(target);
   }
@@ -66,7 +68,7 @@ test('cli: install --dry-run does not write files', () => {
   try {
     const r = run(['install', '--tool', 'claude-code', '--preset', 'backend-essentials', '--target', target, '--dry-run']);
     assert.equal(r.status, 0);
-    assert.equal(fs.existsSync(path.join(target, 'skills')), false);
+    assert.equal(fs.existsSync(path.join(toolDir(target, 'claude-code'), 'skills')), false);
     assert.match(r.stdout, /dry|would/i);
   } finally {
     cleanupTmpProject(target);

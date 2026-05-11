@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { install } from '../../src/commands/install.js';
 import { parseFrontmatter } from '../../src/lib/frontmatter.js';
 import { createTmpProject, cleanupTmpProject } from '../helpers/tmp-project.js';
+import { toolDir } from '../helpers/tool-paths.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
@@ -29,7 +30,7 @@ test('cursor: written .mdc has Cursor-shape frontmatter (description + globs + a
       sourceRoot: REPO_ROOT,
       logger: silentLogger(),
     });
-    const file = fs.readFileSync(path.join(target, 'rules', 'code-review-checklist.mdc'), 'utf8');
+    const file = fs.readFileSync(path.join(toolDir(target, 'cursor'), 'rules', 'code-review-checklist.mdc'), 'utf8');
     const { data, body } = parseFrontmatter(file);
     assert.ok(typeof data.description === 'string' && data.description.length > 0);
     assert.ok('globs' in data, 'Cursor expects a globs key');
@@ -53,7 +54,7 @@ test('cursor: per-asset overrides set globs and alwaysApply', async () => {
       logger: silentLogger(),
     });
     // no-bare-todos doesn't declare overrides — assert defaults still apply.
-    const file = fs.readFileSync(path.join(target, 'rules', 'no-bare-todos.mdc'), 'utf8');
+    const file = fs.readFileSync(path.join(toolDir(target, 'cursor'), 'rules', 'no-bare-todos.mdc'), 'utf8');
     const { data } = parseFrontmatter(file);
     assert.equal(data.globs, '');
     assert.equal(data.alwaysApply, false);
@@ -73,7 +74,7 @@ test('vscode-copilot: instruction file has Copilot-shape frontmatter (descriptio
       logger: silentLogger(),
     });
     const file = fs.readFileSync(
-      path.join(target, 'instructions', 'error-handling-patterns.instructions.md'),
+      path.join(toolDir(target, 'vscode-copilot'), 'instructions', 'error-handling-patterns.instructions.md'),
       'utf8',
     );
     const { data, body } = parseFrontmatter(file);
@@ -97,7 +98,7 @@ test('vscode-copilot: prompt file has Copilot-shape frontmatter (description + m
       sourceRoot: REPO_ROOT,
       logger: silentLogger(),
     });
-    const file = fs.readFileSync(path.join(target, 'prompts', 'summarize-diff.prompt.md'), 'utf8');
+    const file = fs.readFileSync(path.join(toolDir(target, 'vscode-copilot'), 'prompts', 'summarize-diff.prompt.md'), 'utf8');
     const { data } = parseFrontmatter(file);
     assert.ok(typeof data.description === 'string');
     assert.equal(data.mode, 'agent');
@@ -117,7 +118,7 @@ test('claude-code (dir destination): source SKILL.md frontmatter is preserved un
       logger: silentLogger(),
     });
     const file = fs.readFileSync(
-      path.join(target, 'skills', 'code-review-checklist', 'SKILL.md'),
+      path.join(toolDir(target, 'claude-code'), 'skills', 'code-review-checklist', 'SKILL.md'),
       'utf8',
     );
     const sourceFile = fs.readFileSync(

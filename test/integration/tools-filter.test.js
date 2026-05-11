@@ -5,6 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { install } from '../../src/commands/install.js';
 import { createTmpProject, cleanupTmpProject } from '../helpers/tmp-project.js';
+import { toolDir } from '../helpers/tool-paths.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
@@ -40,7 +41,7 @@ test('tools-filter: rules with tools:[cursor,claude-code] install for cursor', a
       sourceRoot: REPO_ROOT,
       logger,
     });
-    assert.ok(fs.existsSync(path.join(target, 'rules', 'no-bare-todos.mdc')));
+    assert.ok(fs.existsSync(path.join(toolDir(target, 'cursor'), 'rules', 'no-bare-todos.mdc')));
   } finally {
     cleanupTmpProject(target);
   }
@@ -97,7 +98,7 @@ test('tools-filter: rule with tools allowlist installs only for allowed tools', 
     // step). The asset's tools allowlist includes claude-code, so it lands.
     // If this fails, the tool-config still hasn't been updated to support
     // rules for claude-code — see step "Wire rules destinations into tools".
-    const lockfile = path.join(target, '.ai-toolkit-lock.json');
+    const lockfile = path.join(toolDir(target, 'claude-code'), '.ai-toolkit-lock.json');
     assert.ok(fs.existsSync(lockfile));
   } finally {
     cleanupTmpProject(target);

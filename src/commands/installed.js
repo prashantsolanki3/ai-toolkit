@@ -1,3 +1,5 @@
+import path from 'node:path';
+import { loadTools, getTool, resolveTargetPath, findInstalledTools } from '../lib/tools.js';
 import { read as readLockfile } from '../lib/lockfile.js';
 import { createLogger } from '../lib/logger.js';
 
@@ -5,15 +7,41 @@ const ASSET_TYPES = ['skills', 'agents', 'commands', 'hooks', 'rules'];
 
 export async function installed(opts = {}) {
   const logger = opts.logger || createLogger();
-  const target = opts.target;
-  if (!target) throw new Error('installed: missing target');
+  const sourceRoot =
+    opts.sourceRoot || path.resolve(path.dirname(new URL(import.meta.url).pathname), '..', '..');
 
-  const lockfile = readLockfile(target);
-  if (!lockfile) {
-    logger.info(`Nothing installed at ${target} (no lockfile).`);
-    return { lockfile: null };
+  const projectRoot = opts.target || process.cwd();
+  const tools = loadTools(path.join(sourceRoot, 'config'));
+
+  // If a specific tool was requested, just show that one.
+  if (opts.tool) {
+    const tool = getTool(tools, opts.tool);
+    const dir = resolveTargetPath(tool, opts.scope || 'workspace', projectRoot);
+    reportLockfile({ logger, dir, projectRoot });
+    return;
   }
 
+  // Otherwise scan tool subdirs under the project root.
+  const found = findInstalledTools(tools, projectRoot);
+  if (found.length === 0) {
+    logger.info(`Nothing installed in ${projectRoot}.`);
+    logger.info(`Looked for a lockfile inside each tool's subdir (.claude/, .cursor/, .github/, .kiro/, ...).`);
+    return;
+  }
+  for (const entry of found) {
+    logger.info(`── ${entry.tool} ──`);
+    reportLockfile({ logger, dir: entry.dir, projectRoot });
+    logger.info('');
+  }
+}
+
+function reportLockfile({ logger, dir, projectRoot }) {
+  const lockfile = readLockfile(dir);
+  if (!lockfile) {
+    logger.info(`No lockfile at ${path.relative(projectRoot, dir) || '.'}/.ai-toolkit-lock.json`);
+    return;
+  }
+  logger.info(`Path:    ${dir}`);
   logger.info(`Tool:    ${lockfile.tool || '(unknown)'}`);
   logger.info(`Scope:   ${lockfile.scope || '(unknown)'}`);
   if (lockfile.preset) logger.info(`Preset:  ${lockfile.preset}`);
@@ -33,8 +61,5 @@ export async function installed(opts = {}) {
       total += 1;
     }
   }
-  if (total === 0) {
-    logger.info('Lockfile present but tracks no assets.');
-  }
-  return { lockfile };
+  if (total === 0) logger.info('Lockfile present but tracks no assets.');
 }
