@@ -1,362 +1,77 @@
 # ai-toolkit
 
-Tool-agnostic CLI that installs and updates skills, agents, commands, and hooks across AI coding tools. Currently ships configs for **Claude Code**, **Cursor**, **Antigravity**, **Gemini CLI**, **VS Code Copilot**, **GitHub Copilot CLI**, **Kiro**, and **Kiro CLI** — adding a new tool is one block in [`config/tools.json`](config/tools.json).
+Tool-agnostic CLI that installs and updates skills, agents, commands, hooks, and rules across AI coding tools. Currently ships configs for **Claude Code**, **Cursor**, **Antigravity**, **Gemini CLI**, **VS Code Copilot**, **GitHub Copilot CLI**, **Kiro**, and **Kiro CLI** — adding a new tool is one block in [`config/tools.json`](config/tools.json).
 
-Distributed as a **private GitHub repo**. Installed via `npx git+ssh://...` directly from the repo. Not published to npm.
+Distributed as a **private GitHub repo**, installed via `npx git+ssh://...` directly from the repo. Not published to npm.
 
-> **What's actually tested**
->
-> The automated suite verifies file placement, lockfile correctness, update conflict detection, and that each configured tool's destination paths/format match what's declared in `config/tools.json`. It does **not** verify that the receiving IDE/CLI actually ingests those files — that requires running each tool. See [`docs/verification-matrix.md`](docs/verification-matrix.md) for the per-tool manual check.
+> **What's actually tested.** The automated suite verifies file placement, lockfile correctness, update conflict detection, and that each configured tool's destination paths/format match what's declared in `config/tools.json`. It does **not** verify that the receiving IDE/CLI actually ingests those files — that requires running each tool. See [`docs/verification-matrix.md`](docs/verification-matrix.md) for the per-tool manual check.
 
 ## Quick start
 
 ```bash
-npx git+ssh://git@github.com:<you>/ai-toolkit.git install \
-  --preset backend-essentials \
-  --tool claude-code
+# From any project directory — installs for every supported tool at once.
+cd ~/my-project
+npx --yes git+ssh://git@github.com:<you>/ai-toolkit.git install --preset backend-essentials
+
+# Or stay surgical with one tool:
+npx --yes git+ssh://git@github.com:<you>/ai-toolkit.git install \
+  --tool claude-code --preset backend-essentials
 ```
 
-### Trying it from a local checkout (before pushing to GitHub)
+`--target` defaults to the current directory; the tool decides which subdirectory to populate (`.claude/`, `.cursor/`, `.github/`, `.kiro/`, …). Pass `--target ~/repos/other` to install into a different project.
 
-While the repo isn't on GitHub yet, point `npx` at the local path. From any other directory:
+Repo not on GitHub yet? Point `npx` at a local path — see [`docs/installation.md`](docs/installation.md#2-npx-from-a-local-checkout-before-the-repo-lands-on-github).
 
-```bash
-# 1. create a scratch project
-mkdir -p ~/tmp/aitk-try && cd ~/tmp/aitk-try
+## Documentation
 
-# 2. install — --target defaults to CWD; the tool decides the subdir
-npx --yes /Users/prashantsolanki/Playground/ai-toolkit install \
-  --tool claude-code \
-  --preset backend-essentials
+| Doc | Read this for |
+| --- | --- |
+| [docs/installation.md](docs/installation.md) | First-time setup, all four install methods. |
+| [docs/usage.md](docs/usage.md) | Every command, every flag, common workflows. |
+| [docs/architecture.md](docs/architecture.md) | Design — the `config/tools.json` abstraction, asset taxonomy, lockfile semantics, transformation pipeline. |
+| [docs/contributing.md](docs/contributing.md) | TDD workflow, Makefile reference, bootstrap, pre-share checklist. |
+| [docs/eval-format.md](docs/eval-format.md) | The `eval.json` schema for self-improving skills. |
+| [docs/verification-matrix.md](docs/verification-matrix.md) | Per-tool manual ingestion check. |
+| [docs/guides/adding-a-tool.md](docs/guides/adding-a-tool.md) | Add a new AI tool by editing one file. |
+| [docs/guides/adding-an-asset.md](docs/guides/adding-an-asset.md) | Add a new skill / agent / command / hook / rule. |
+| [docs/guides/frontmatter-reference.md](docs/guides/frontmatter-reference.md) | Universal and per-tool frontmatter fields. |
+| [docs/guides/evaluation-workflow.md](docs/guides/evaluation-workflow.md) | The `/eval-skill` and `/improve-skill` loop. |
 
-# Result: ~/tmp/aitk-try/.claude/{skills,agents,commands,...}
+Full index at [docs/README.md](docs/README.md).
 
-# 3. confirm what landed
-ls -la .claude/
-
-# 4. run the rest of the lifecycle (no --target needed)
-npx --yes /Users/prashantsolanki/Playground/ai-toolkit installed
-npx --yes /Users/prashantsolanki/Playground/ai-toolkit update --dry-run
-npx --yes /Users/prashantsolanki/Playground/ai-toolkit remove --tool claude-code --all
-```
-
-For a different project root, pass `--target`:
-
-```bash
-npx --yes /Users/prashantsolanki/Playground/ai-toolkit install \
-  --tool cursor \
-  --skills code-review-checklist \
-  --target ~/repos/some-other-project
-# lands in ~/repos/some-other-project/.cursor/rules/
-```
-
-`npx` caches resolved packages by name + version. The package is `private` and has no version-changing hooks, so the cache should re-resolve when the path's mtime changes, but you can force a fresh run with `npm cache clean --force` if the cache gets stuck. Direct `node /path/to/bin/cli.js …` always bypasses the cache.
-
-This drops the preset's skills, agents, and commands into `.claude/` in the current directory. To target your global config:
-
-```bash
-npx git+ssh://git@github.com:<you>/ai-toolkit.git install \
-  --preset backend-essentials \
-  --tool claude-code \
-  --scope global
-```
-
-For another tool, change `--tool`:
-
-```bash
-npx git+ssh://...ai-toolkit.git install --preset backend-essentials --tool cursor
-npx git+ssh://...ai-toolkit.git install --skills code-review-checklist --tool antigravity
-```
-
-> The machine running `npx` needs SSH access to the private repo (your SSH key on GitHub). No npm registry involvement.
-
-## Commands
+## Commands at a glance
 
 ```
 ai-toolkit install   [--tool <name>] [--preset <name>] [--skills a,b] [--agents c]
                      [--commands d] [--hooks e] [--rules f]
                      [--scope global|workspace] [--target <project-root>]
-                     [--force]   # overwrite existing or locally-edited dests
-                     [--link]    # symlink where possible (DRY self-hosting)
-                     [--dry-run]
-
+                     [--force] [--link] [--dry-run]
 ai-toolkit update    [--target <project-root>] [--tool <name>] [--force] [--dry-run]
 ai-toolkit remove    [--target <project-root>] [--tool <name>]
-                     [--skills a,b] [--agents c] [--commands d] [--hooks e]
-                     [--all] [--dry-run]
+                     [--skills a,b] [...] [--all] [--dry-run]
 ai-toolkit installed [--target <project-root>] [--tool <name>]
 ai-toolkit list      [--type skills|agents|commands|hooks|rules|presets|tools]
 ```
 
-### --target and --tool
+Without `--tool`, `install` runs for every tool in `config/tools.json` (tools sharing a workspace subdir are deduped); the other commands autodiscover the installed tool. Full reference in [docs/usage.md](docs/usage.md).
 
-| Flag | Meaning | Default |
-| --- | --- | --- |
-| `--tool <name>` | Which AI coding tool (claude-code, cursor, vscode-copilot, …) | optional — see below |
-| `--target <path>` | **The project root** — the directory you want to set up. The tool decides which subdir under it to populate (`.claude/`, `.cursor/`, `.github/`, …) via [`config/tools.json`](config/tools.json). | current working directory |
-
-**`--tool` is optional on every command:**
-
-- For `install`: when omitted, the toolkit installs for **every** tool in `config/tools.json`. Each tool gets its own subdir under `--target`. Tools that share a subdir (e.g. vscode-copilot and copilot-cli both write to `.github/`) are deduplicated — the first wins, the second is skipped with a clear message. Tools that don't support a requested asset type drop those assets with a warning, then carry on.
-- For `update` / `remove` / `installed`: when omitted, the toolkit scans every tool's subdir under `--target` and uses whichever one has a lockfile. Multiple matches require `--tool` to disambiguate.
+## For contributors
 
 ```bash
-# Set up every tool's integration in one go:
-cd ~/my-project
-ai-toolkit install --preset backend-essentials
-# → .claude/, .cursor/, .github/, .agent/skills/, .gemini/, .kiro/ all populated.
-
-# Or stay surgical:
-ai-toolkit install --tool cursor --skills code-review-checklist
-```
-
-A lockfile (`.ai-toolkit-lock.json`) is written into the tool's subdirectory, recording the tool, scope, preset, and both source/destination SHAs per installed asset.
-
-### Safety
-
-`install` is **non-destructive**: if a destination already exists and (a) the lockfile doesn't track it, or (b) the on-disk content has been edited since last install, it skips with a warning. Pass `--force` to overwrite.
-
-### Frontmatter transformation
-
-For tools whose destination format expects its own frontmatter contract (Cursor `.mdc`, VS Code Copilot `.instructions.md` / `.prompt.md` / `.chatmode.md`), each tool block in [`config/tools.json`](config/tools.json) declares a `frontmatter` template. The installer parses the source asset's frontmatter, strips it, builds the tool-specific frontmatter from the template (with `{description}` etc. substituted from source), and writes that to the destination above the body.
-
-Per-asset overrides via the source frontmatter. The `overrides.<tool>` block wins over the template's defaults at install time:
-
-```yaml
----
-name: ts-only-rule
-description: A rule scoped to TypeScript files.
-presets:
-  - quality-gates
-overrides:
-  cursor:
-    globs: "**/*.ts"
-    alwaysApply: true
-  vscode-copilot:
-    applyTo: "src/**/*.ts"
----
-```
-
-Concrete example shipped in the repo: [`rules/prefer-typed-errors.mdc`](rules/prefer-typed-errors.mdc) sets `overrides.cursor.alwaysApply: true` and a glob so Cursor enforces the rule on every code file. The two defaults from the tool config (`alwaysApply: false`, `globs: ""`) are overridden in the installed `.mdc`.
-
-To **toggle off** `alwaysApply` for a specific rule, set `overrides.cursor.alwaysApply: false` in source frontmatter, then re-run `make register && make bootstrap` (or your own install command).
-
-### Sidecars
-
-For tools that need a sibling metadata file (e.g. Kiro hooks need a `.kiro.hook` JSON descriptor), the tool config declares a `sidecar` block. Install generates it; remove tears it down.
-
-### Evals
-
-A skill (or agent) can ship a sibling `eval.json` declaring deterministic test cases:
-
-```jsonc
-{
-  "version": "1.0",
-  "target_pass_rate": 0.85,
-  "tests": [
-    {
-      "id": "rejects-bare-lgtm",
-      "input": "Review this PR: 'LGTM, nothing to add.'",
-      "assertions": [
-        { "type": "contains_any_of", "value": ["concrete", "specific", "line"] },
-        { "type": "not_exact_match", "value": "LGTM" }
-      ]
-    }
-  ]
-}
-```
-
-`eval.json` is **data, not code** — the toolkit doesn't ship a runtime. Evals run inside your IDE's agent loop via two commands shipped through ai-toolkit (preset `skill-development`):
-
-- `/eval-skill <name>` — runs the suite, reports per-test pass/fail and aggregate rate. Read-only.
-- `/improve-skill <name>` — runs the suite, and if the rate is below the target, the agent proposes edits to the skill body, asks for approval, and iterates.
-
-Because the runner is the IDE's existing agent, **no separate API key is needed** — you pay only for whatever your IDE already covers. See [`docs/eval-format.md`](docs/eval-format.md) for the full schema and the assertion catalog.
-
-### --link mode (DRY self-hosting)
-
-`--link` symlinks the destination back to the source asset rather than copying. Edits to a source file then propagate to consumers immediately. Used by `make bootstrap` so the toolkit self-hosts: contributors can edit `skills/foo/SKILL.md` and Claude Code picks up the change without re-running install.
-
-Symlinks are used where the destination format matches the source byte-for-byte (no frontmatter transform). For tools whose destination requires a transform (Cursor `.mdc`, Copilot `.instructions.md`), `--link` falls back to a copy with a warning.
-
-## Adding a new tool
-
-Append a block to [`config/tools.json`](config/tools.json), then validate it:
-
-```bash
-make verify-tools
-make test
-```
-
-No code changes required. The multi-tool integration matrix automatically exercises any tool in the config, so adding a new tool means adding tests for it for free.
-
-A tool block looks like this:
-
-```json
-"my-tool": {
-  "displayName": "My Tool",
-  "defaultTarget": { "global": "~/.mytool", "workspace": ".mytool" },
-  "assetPaths": { "skills": "skills", "rules": "rules" },
-  "assetFormats": {
-    "skills": { "filename": "SKILL.md", "type": "directory" },
-    "rules": { "filename": "{name}.mdc", "type": "file" }
-  },
-  "supportedAssets": ["skills", "rules"]
-}
-```
-
-- `defaultTarget.global` or `.workspace` can be `null` if the tool doesn't support that scope.
-- `assetPaths[type]` can be `""` if the tool wants assets at the target root.
-- `assetFormats[type].type` is `"directory"` (e.g. a SKILL.md inside a named dir) or `"file"` (one file per asset, with `{name}` substituted into `filename`).
-
-## Adding a new skill / agent / command / hook / rule
-
-The manifest is **derived** — you don't hand-edit `manifest.json`. Instead, each asset declares its own metadata in frontmatter, and `make register` regenerates the manifest by scanning every asset.
-
-1. Create the asset at the right location:
-   - **Skills:** `skills/<name>/SKILL.md` (markdown, directory)
-   - **Agents:** `agents/<name>/agent.md` (markdown, directory)
-   - **Commands:** `commands/<name>.md` (markdown, flat file)
-   - **Hooks:** `hooks/<name>.sh` (shell script, flat file)
-   - **Rules:** `rules/<name>.mdc` (markdown, flat file)
-2. Add frontmatter to the asset. For markdown:
-   ```yaml
-   ---
-   name: my-skill                       # optional — defaults to the file/dir name
-   description: One-line description.   # surfaced in `ai-toolkit list`
-   author: your-name                    # optional
-   presets:                             # presets this asset belongs to
-     - backend-essentials
-     - quality-gates
-   tools:                               # optional — restrict to specific tools
-     - claude-code
-     - cursor
-   ---
-   ```
-   For hooks (`.sh`), put the metadata in a shell comment block at the top:
-   ```bash
-   #!/usr/bin/env bash
-   # === ai-toolkit metadata ===
-   # name: my-hook
-   # description: ...
-   # presets: [quality-gates]
-   # === end metadata ===
-   ```
-3. Declare any new preset in [`config/presets.json`](config/presets.json). Referencing a preset that isn't declared there is a register-time error.
-4. Run `make register` to regenerate `manifest.json`. CI runs `make verify-manifest` and will fail if you forget.
-5. `make test` exercises everything.
-
-### Field reference
-
-| Field         | Type            | Required | Meaning                                                                                  |
-| ------------- | --------------- | -------- | ---------------------------------------------------------------------------------------- |
-| `name`        | string          | no       | Identifier used in CLI flags. Defaults to the directory/file name.                       |
-| `description` | string          | no       | Shown in `ai-toolkit list`.                                                              |
-| `author`      | string          | no       | Maintainer name (informational).                                                         |
-| `presets`     | string array    | no       | Presets this asset is bundled in. Every entry must exist in `config/presets.json`.       |
-| `tools`       | string array    | no       | Allowlist — if set, the resolver skips this asset when installing for any other tool. |
-
-Content guidelines:
-
-- Generic and reusable. No company names, project codenames, internal hostnames, or real domains.
-- Open with a "when to use" and a "when not to use" section.
-- Include an MIT license footer.
-
-## Development
-
-Everything routes through the Makefile:
-
-```bash
-make help              # list all available targets
-make dev               # install deps
-make bootstrap         # self-host: install toolkit's own assets into .claude/.cursor/.github/
-make unbootstrap       # remove the bootstrapped dirs
-make test-watch        # TDD inner loop
-make test              # all tests (unit + integration)
-make test-unit         # unit tests only
-make test-integration  # integration tests only
-make lint              # static checks (no stray console.log, JSON parses)
-make scan              # gitleaks secret scan
-make verify-tools      # validate config/tools.json against schema
-make register          # regenerate manifest.json from asset frontmatter
-make verify-manifest   # fail if manifest.json is out of date
-make smoke             # end-to-end smoke test in a temp directory
-make release-check     # lint + test + scan + verify-tools + verify-manifest
-make tag VERSION=x.y.z # tag a new release
-```
-
-### Pre-share checklist
-
-Before pushing the repo or sending the path to a teammate, run:
-
-```bash
-make release-check
-```
-
-That single target runs every gate in dependency order:
-
-| Step | What it covers |
-| --- | --- |
-| `lint` | No stray `console.log`, JSON config files parse |
-| `test` | All 218 unit + integration tests |
-| `scan` | gitleaks secret scan over every commit in history |
-| `verify-tools` | `config/tools.json` matches its JSON schema |
-| `verify-manifest` | `manifest.json` is in sync with asset frontmatter (catches a forgotten `make register`) |
-| `e2e` | Full lifecycle via the CLI on a fresh temp project: dry-run → install → installed → update → conflict-skip → `--force` → cursor frontmatter → remove |
-
-If all six pass, the repo is mechanically healthy. **Then** walk [`docs/verification-matrix.md`](docs/verification-matrix.md) to confirm each tool actually ingests the installed assets in its UI — that part is irreducibly manual.
-
-### Contributing workflow
-
-After cloning the repo:
-
-```bash
+git clone <repo>
+cd ai-toolkit
 make dev               # npm install
-make bootstrap         # set up the toolkit's own .claude/, .cursor/, .github/
-make test              # confirm everything's green before changes
+make bootstrap         # self-host: .claude/, .cursor/, .github/, .kiro/ all symlinked to source
+make test              # 225 tests, expect green
 ```
 
-The bootstrap step symlinks the source assets (`skills/`, `agents/`, `commands/`, `rules/`) into per-tool directories at the repo root. Your IDE picks them up immediately. Edit a source asset, and (for symlinked destinations) the consumer sees the change without re-running anything. Where format-transform is required (Cursor `.mdc`, Copilot `.instructions.md`), re-run `make bootstrap` to refresh.
+Before pushing or sharing:
 
-Generated bootstrap dirs (`.claude/`, `.cursor/`, `.github/`, `.kiro/`) are gitignored.
-
-This project is built strictly TDD — every behavior has a failing test before any production code. Test runner is Node's built-in `node --test`; no external test framework, no dev dependencies.
-
-## Manifest schema
-
-`manifest.json` is **generated** by `make register` from asset frontmatter — do not edit it by hand. Shape:
-
-```json
-{
-  "version": "1.0",
-  "skills":   { "<name>": { "description": "...", "presets": ["..."], "author": "...", "tools": ["..."] } },
-  "agents":   { "<name>": { "description": "..." } },
-  "commands": { "<name>": { "description": "..." } },
-  "hooks":    { "<name>": { "description": "..." } },
-  "rules":    { "<name>": { "description": "..." } },
-  "presets":  {
-    "<preset-name>": {
-      "description": "...",
-      "skills":   ["..."],
-      "agents":   ["..."],
-      "commands": ["..."],
-      "hooks":    ["..."],
-      "rules":    ["..."]
-    }
-  }
-}
+```bash
+make release-check     # lint + tests + scan + verify-tools + verify-manifest + e2e
 ```
 
-The list under each preset is computed from every asset that names that preset in its frontmatter — no duplication, no drift.
-
-## Distribution model
-
-This repo is **private** and **not published to npm**. `npm publish` is guarded by `"private": true` in `package.json`. Distribution is one of:
-
-1. **From the repo directly**: `npx git+ssh://git@github.com:<you>/ai-toolkit.git install ...`
-2. **Pinned to a commit**: `npx git+ssh://...#<sha> install ...`
-
-`npx` caches resolved packages — during active development, append `--yes` or pin to a SHA so you don't hit a stale cached copy.
+See [docs/contributing.md](docs/contributing.md) for the full contributor flow and [docs/architecture.md](docs/architecture.md) for the design.
 
 ## License
 

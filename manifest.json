@@ -55,6 +55,13 @@
     }
   },
   "agents": {
+    "docs-maintainer": {
+      "description": "Keeps the toolkit's documentation honest — surfaces drift between docs and code, proposes targeted edits, never silently rewrites prose.",
+      "presets": [
+        "skill-development"
+      ],
+      "author": "ai-toolkit"
+    },
     "refactoring-specialist": {
       "description": "Identifies and applies refactoring patterns without changing behavior.",
       "presets": [
@@ -215,7 +222,9 @@
       "skills": [
         "skill-evaluator"
       ],
-      "agents": [],
+      "agents": [
+        "docs-maintainer"
+      ],
       "commands": [
         "eval-skill",
         "improve-skill"
