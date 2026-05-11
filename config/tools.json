@@ -1,0 +1,70 @@
+{
+  "$schema": "./tools.schema.json",
+  "version": "1.0",
+  "tools": {
+    "claude-code": {
+      "displayName": "Claude Code",
+      "defaultTarget": {
+        "global": "~/.claude",
+        "workspace": ".claude"
+      },
+      "assetPaths": {
+        "skills": "skills",
+        "agents": "agents",
+        "commands": "commands",
+        "hooks": "hooks"
+      },
+      "assetFormats": {
+        "skills": { "filename": "SKILL.md", "type": "directory" },
+        "agents": { "filename": "agent.md", "type": "directory" },
+        "commands": { "filename": "{name}.md", "type": "file" },
+        "hooks": { "filename": "{name}.sh", "type": "file" }
+      },
+      "supportedAssets": ["skills", "agents", "commands", "hooks"]
+    },
+    "cursor": {
+      "displayName": "Cursor",
+      "defaultTarget": {
+        "global": null,
+        "workspace": ".cursor"
+      },
+      "assetPaths": {
+        "skills": "skills",
+        "rules": "rules"
+      },
+      "assetFormats": {
+        "skills": { "filename": "SKILL.md", "type": "directory" },
+        "rules": { "filename": "{name}.mdc", "type": "file" }
+      },
+      "supportedAssets": ["skills", "rules"]
+    },
+    "antigravity": {
+      "displayName": "Antigravity",
+      "defaultTarget": {
+        "global": "~/.gemini/antigravity/skills",
+        "workspace": ".agent/skills"
+      },
+      "assetPaths": {
+        "skills": ""
+      },
+      "assetFormats": {
+        "skills": { "filename": "SKILL.md", "type": "directory" }
+      },
+      "supportedAssets": ["skills"]
+    },
+    "gemini-cli": {
+      "displayName": "Gemini CLI",
+      "defaultTarget": {
+        "global": "~/.gemini",
+        "workspace": ".gemini"
+      },
+      "assetPaths": {
+        "skills": "skills"
+      },
+      "assetFormats": {
+        "skills": { "filename": "SKILL.md", "type": "directory" }
+      },
+      "supportedAssets": ["skills"]
+    }
+  }
+}

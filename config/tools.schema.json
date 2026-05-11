@@ -1,0 +1,53 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ai-toolkit tools config",
+  "type": "object",
+  "required": ["version", "tools"],
+  "properties": {
+    "version": { "type": "string" },
+    "tools": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "displayName",
+          "defaultTarget",
+          "assetPaths",
+          "assetFormats",
+          "supportedAssets"
+        ],
+        "properties": {
+          "displayName": { "type": "string" },
+          "defaultTarget": {
+            "type": "object",
+            "required": ["global", "workspace"],
+            "properties": {
+              "global": { "type": ["string", "null"] },
+              "workspace": { "type": ["string", "null"] }
+            }
+          },
+          "assetPaths": {
+            "type": "object",
+            "additionalProperties": { "type": "string" }
+          },
+          "assetFormats": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "required": ["filename", "type"],
+              "properties": {
+                "filename": { "type": "string" },
+                "type": { "enum": ["directory", "file"] }
+              }
+            }
+          },
+          "supportedAssets": {
+            "type": "array",
+            "items": { "type": "string" },
+            "minItems": 1
+          }
+        }
+      }
+    }
+  }
+}
