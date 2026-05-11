@@ -42,7 +42,8 @@ Full index at [docs/README.md](docs/README.md).
 ## Commands at a glance
 
 ```
-ai-toolkit install   [--tool <name>] [--preset <name>] [--skills a,b] [--agents c]
+ai-toolkit install   [--tool <name>] [--preset <name>] [--all]
+                     [--skills a,b] [--agents c]
                      [--commands d] [--hooks e] [--rules f] [--mcp g]
                      [--scope global|workspace] [--target <project-root>]
                      [--force] [--link] [--dry-run]

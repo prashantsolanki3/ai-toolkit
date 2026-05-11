@@ -51,6 +51,7 @@ const installCmd = program
   .description('Install assets into the tool-specific subdir under a project root. Without --tool, installs for every tool in config/tools.json (deduped by destination).')
   .option('--tool <name>', 'target tool (e.g. claude-code, cursor, antigravity). When omitted, installs for every configured tool.')
   .option('--preset <name>', 'preset to install')
+  .option('--all', 'install every shipped asset of every type the tool supports (cannot be combined with --preset)', false)
   .addOption(new Option('--scope <scope>', 'install scope').choices(['global', 'workspace']).default('workspace'))
   .option('--target <path>', 'project root (defaults to current directory). The tool decides which subdirectory to populate inside it (.claude, .cursor, .github, ...).')
   .option('--force', 'overwrite destinations that already exist or have local edits', false)
@@ -63,6 +64,7 @@ commonAssetOptions(installCmd).action(async (opts) => {
   await install({
     tool: opts.tool,
     preset: opts.preset,
+    all: opts.all,
     skills: opts.skills,
     agents: opts.agents,
     commands: opts.commands,

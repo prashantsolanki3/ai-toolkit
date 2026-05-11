@@ -8,6 +8,17 @@ export function resolveInstallTargets(opts, manifest, tool, ctx = {}) {
   const merged = Object.fromEntries(ASSET_TYPES.map((t) => [t, []]));
   const toolName = ctx.toolName;
 
+  if (opts.all) {
+    // Seed every asset of every type from the manifest. Tool-support and
+    // per-asset tools-allowlist filtering happens below, same as for preset.
+    for (const type of ASSET_TYPES) {
+      const bucket = manifest[type];
+      if (bucket && typeof bucket === 'object') {
+        merged[type].push(...Object.keys(bucket));
+      }
+    }
+  }
+
   if (opts.preset) {
     const preset = resolvePreset(manifest, opts.preset);
     for (const type of ASSET_TYPES) {

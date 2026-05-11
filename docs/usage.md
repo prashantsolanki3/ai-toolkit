@@ -5,7 +5,8 @@ This is the day-to-day reference. For first-time setup see [installation.md](ins
 ## Commands at a glance
 
 ```
-ai-toolkit install   [--tool <name>] [--preset <name>] [--skills a,b] [--agents c]
+ai-toolkit install   [--tool <name>] [--preset <name>] [--all]
+                     [--skills a,b] [--agents c]
                      [--commands d] [--hooks e] [--rules f] [--mcp g]
                      [--scope global|workspace] [--target <project-root>]
                      [--force] [--link] [--dry-run]
@@ -66,6 +67,12 @@ Tool does not support scope "global" (defaultTarget.global is null).
 # Install for every tool in one shot (workspace = CWD)
 ai-toolkit install --preset skill-development
 
+# Install EVERY shipped asset for every tool, no preset needed
+ai-toolkit install --all
+
+# Same idea, scoped to one tool
+ai-toolkit install --tool claude-code --all
+
 # Surgical: one tool, one skill
 ai-toolkit install --tool cursor --skills skill-evaluator
 
@@ -75,6 +82,8 @@ ai-toolkit install --tool claude-code \
   --agents docs-maintainer \
   --commands eval-skill
 ```
+
+`--all` and `--preset` are mutually exclusive — combining them errors out, since `--all` already selects every asset. Each tool still only receives the asset types its config supports, and assets carrying a `tools:` allowlist that excludes the tool are still skipped with a warning.
 
 ### Safety: non-destructive by default
 

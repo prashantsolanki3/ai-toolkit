@@ -209,3 +209,47 @@ test('resolveInstallTargets() applies the per-asset tools allowlist to mcp entri
   assert.ok(result.mcp.includes('everything'));
   assert.ok(result.warnings.some((w) => /claude-only-mcp/.test(w)));
 });
+
+// ── install --all ─────────────────────────────────────────────────────
+
+test('resolveInstallTargets({all: true}) returns every asset of every type the tool supports', () => {
+  const result = resolveInstallTargets({ all: true }, mcpManifest, mcpTool);
+  assert.deepEqual(result.skills.sort(), ['api-endpoint-design', 'code-review-checklist', 'database-migration-safety']);
+  assert.deepEqual(result.agents, ['senior-architect']);
+  assert.deepEqual(result.commands, ['summarize-diff']);
+  assert.deepEqual(result.hooks, ['pre-commit-lint']);
+  assert.deepEqual(result.mcp.sort(), ['claude-only-mcp', 'everything']);
+});
+
+test('resolveInstallTargets({all: true}) respects per-asset tools allowlist', () => {
+  const result = resolveInstallTargets(
+    { all: true },
+    mcpManifest,
+    mcpTool,
+    { toolName: 'cursor' },
+  );
+  // claude-only-mcp has tools: ['claude-code'] so it should drop with a warning
+  // when toolName is cursor.
+  assert.ok(!result.mcp.includes('claude-only-mcp'));
+  assert.ok(result.mcp.includes('everything'));
+  assert.ok(result.warnings.some((w) => /claude-only-mcp/.test(w)));
+});
+
+test('resolveInstallTargets({all: true}) drops asset types the tool does not support', () => {
+  // fullTool (no 'mcp' in supportedAssets) — mcp bucket should come back empty.
+  const result = resolveInstallTargets({ all: true }, mcpManifest, fullTool);
+  assert.deepEqual(result.mcp, []);
+  // Other types should still populate.
+  assert.ok(result.skills.length > 0);
+});
+
+test('resolveInstallTargets({all: true}) unions with explicit selectors (idempotent dedup)', () => {
+  // Passing --all with redundant --skills should not duplicate entries.
+  const result = resolveInstallTargets(
+    { all: true, skills: ['api-endpoint-design'] },
+    mcpManifest,
+    mcpTool,
+  );
+  const apiCount = result.skills.filter((s) => s === 'api-endpoint-design').length;
+  assert.equal(apiCount, 1);
+});

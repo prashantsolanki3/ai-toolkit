@@ -203,6 +203,80 @@ test('install: explicit skills flag without a preset works', async () => {
   }
 });
 
+test('install --all: installs every asset of every supported type for the named tool', async () => {
+  const target = createTmpProject();
+  const { logger } = silentLogger();
+  try {
+    await install({
+      tool: 'claude-code',
+      all: true,
+      target,
+      sourceRoot: REPO_ROOT,
+      logger,
+    });
+    const installDir = toolDir(target, 'claude-code');
+    // Every shipped skill, agent, command in the legacy fixture should land.
+    assert.ok(fs.existsSync(path.join(installDir, 'skills', 'api-endpoint-design', 'SKILL.md')));
+    assert.ok(fs.existsSync(path.join(installDir, 'skills', 'code-review-checklist', 'SKILL.md')));
+    assert.ok(fs.existsSync(path.join(installDir, 'skills', 'database-migration-safety', 'SKILL.md')));
+    assert.ok(fs.existsSync(path.join(installDir, 'skills', 'dependency-upgrade', 'SKILL.md')));
+    assert.ok(fs.existsSync(path.join(installDir, 'agents', 'senior-architect.md')));
+    assert.ok(fs.existsSync(path.join(installDir, 'agents', 'test-writer.md')));
+    assert.ok(fs.existsSync(path.join(installDir, 'commands', 'summarize-diff.md')));
+    assert.ok(fs.existsSync(path.join(installDir, 'hooks', 'pre-commit-lint.sh')));
+    assert.ok(fs.existsSync(path.join(target, '.mcp.json')));
+  } finally {
+    cleanupTmpProject(target);
+  }
+});
+
+test('install --all (no --tool): fans out and installs everything for every tool', async () => {
+  const target = createTmpProject();
+  const { logger } = silentLogger();
+  try {
+    await install({
+      all: true,
+      target,
+      sourceRoot: REPO_ROOT,
+      logger,
+    });
+    // claude-code got everything
+    assert.ok(fs.existsSync(path.join(target, '.claude', 'skills', 'api-endpoint-design', 'SKILL.md')));
+    assert.ok(fs.existsSync(path.join(target, '.claude', 'agents', 'senior-architect.md')));
+    // cursor got its (transformed) subset
+    assert.ok(fs.existsSync(path.join(target, '.cursor', 'rules', 'api-endpoint-design.mdc')));
+    assert.ok(fs.existsSync(path.join(target, '.cursor', 'agents', 'senior-architect.md')));
+    // antigravity got its skills-only subset
+    assert.ok(fs.existsSync(path.join(target, '.agent', 'skills', 'api-endpoint-design', 'SKILL.md')));
+    // MCP merged where supported
+    assert.ok(fs.existsSync(path.join(target, '.mcp.json')));
+    assert.ok(fs.existsSync(path.join(target, '.cursor', 'mcp.json')));
+  } finally {
+    cleanupTmpProject(target);
+  }
+});
+
+test('install --all + --preset is an error: pick one selection mode', async () => {
+  const target = createTmpProject();
+  const { logger } = silentLogger();
+  try {
+    await assert.rejects(
+      () =>
+        install({
+          tool: 'claude-code',
+          all: true,
+          preset: 'backend-essentials',
+          target,
+          sourceRoot: REPO_ROOT,
+          logger,
+        }),
+      /both|combine|--all/i,
+    );
+  } finally {
+    cleanupTmpProject(target);
+  }
+});
+
 test('install: unknown tool throws with helpful error', async () => {
   const target = createTmpProject();
   const { logger } = silentLogger();

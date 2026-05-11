@@ -68,6 +68,12 @@ async function installOne(opts) {
   const logger = opts.logger || createLogger();
   const sourceRoot = opts.sourceRoot || path.resolve(path.dirname(new URL(import.meta.url).pathname), '..', '..');
 
+  if (opts.all && opts.preset) {
+    throw new Error(
+      `--all and --preset cannot be combined: --all already selects every asset. Pick one.`,
+    );
+  }
+
   const tools = loadTools(path.join(sourceRoot, 'config'));
   const tool = getTool(tools, opts.tool);
   const manifest = loadManifest(sourceRoot);
@@ -235,6 +241,7 @@ function detectConflict({ dest, destFormat, tracked }) {
 
 function pickAssetSelectors(opts) {
   return {
+    all: opts.all,
     preset: opts.preset,
     skills: opts.skills,
     agents: opts.agents,

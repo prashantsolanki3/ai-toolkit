@@ -93,6 +93,22 @@ test('cli: list --type mcp prints MCP assets', () => {
   assert.match(r.stdout, /everything/);
 });
 
+test('cli: install --all without --preset installs every shipped asset', () => {
+  const target = createTmpProject();
+  try {
+    const r = run(['install', '--tool', 'claude-code', '--all', '--target', target]);
+    assert.equal(r.status, 0, `install --all failed: ${r.stderr}`);
+    const dir = toolDir(target, 'claude-code');
+    assert.ok(fs.existsSync(path.join(dir, 'skills', 'skill-evaluator', 'SKILL.md')));
+    assert.ok(fs.existsSync(path.join(dir, 'agents', 'docs-maintainer.md')));
+    assert.ok(fs.existsSync(path.join(dir, 'commands', 'eval-skill.md')));
+    assert.ok(fs.existsSync(path.join(dir, 'commands', 'improve-skill.md')));
+    assert.ok(fs.existsSync(path.join(target, '.mcp.json')));
+  } finally {
+    cleanupTmpProject(target);
+  }
+});
+
 test('cli: install --dry-run does not write files', () => {
   const target = createTmpProject();
   try {
