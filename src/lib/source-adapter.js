@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { copyAsset, pathExists } from './fs-ops.js';
+import { writeAdaptedFile } from './frontmatter-transform.js';
 
 // The source repo's own asset layout — this is the canonical shape the
 // toolkit ships, independent of any tool's destination format. Tools then
@@ -59,12 +60,21 @@ export function resolveSourcePath({ sourceRoot, assetType, name, destFormat }) {
   return { path: filePath, kind: 'file' };
 }
 
-export function copyAssetAdaptive({ sourcePath, sourceKind, destPath, destFormat }) {
+export function copyAssetAdaptive({ sourcePath, sourceKind, destPath, destFormat, toolName }) {
   if (sourceKind === 'directory' && destFormat.type === 'directory') {
     copyAsset(sourcePath, destPath, { type: 'directory' });
     return;
   }
   if (sourceKind === 'file' && destFormat.type === 'file') {
+    if (destFormat.frontmatter) {
+      writeAdaptedFile({
+        sourcePath,
+        destPath,
+        frontmatterTemplate: destFormat.frontmatter,
+        toolName,
+      });
+      return;
+    }
     copyAsset(sourcePath, destPath, { type: 'file' });
     return;
   }
@@ -73,6 +83,15 @@ export function copyAssetAdaptive({ sourcePath, sourceKind, destPath, destFormat
       throw new Error('copyAssetAdaptive: directory→file copy requires destFormat.sourceFile');
     }
     const innerFile = path.join(sourcePath, destFormat.sourceFile);
+    if (destFormat.frontmatter) {
+      writeAdaptedFile({
+        sourcePath: innerFile,
+        destPath,
+        frontmatterTemplate: destFormat.frontmatter,
+        toolName,
+      });
+      return;
+    }
     copyAsset(innerFile, destPath, { type: 'file' });
     return;
   }

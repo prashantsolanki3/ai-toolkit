@@ -212,9 +212,10 @@ test('kiro-cli: skills→steering/<name>.md', async () => {
   }
 });
 
-test('vscode-copilot: skill body is the SKILL.md content, not the directory', async () => {
+test('vscode-copilot: body after frontmatter matches the source SKILL.md body', async () => {
   const target = createTmpProject();
   try {
+    const { parseFrontmatter } = await import('../../src/lib/frontmatter.js');
     await install({
       tool: 'vscode-copilot',
       skills: ['code-review-checklist'],
@@ -222,21 +223,28 @@ test('vscode-copilot: skill body is the SKILL.md content, not the directory', as
       sourceRoot: REPO_ROOT,
       logger: silentLogger(),
     });
-    const file = path.join(target, 'instructions', 'code-review-checklist.instructions.md');
-    const body = fs.readFileSync(file, 'utf8');
-    const sourceBody = fs.readFileSync(
+    const written = fs.readFileSync(
+      path.join(target, 'instructions', 'code-review-checklist.instructions.md'),
+      'utf8',
+    );
+    const source = fs.readFileSync(
       path.join(REPO_ROOT, 'skills', 'code-review-checklist', 'SKILL.md'),
       'utf8',
     );
-    assert.equal(body, sourceBody, 'instruction file content must match the source SKILL.md');
+    // The frontmatter shape is tool-specific (see tool-frontmatter.test.js);
+    // here we only assert the body content survived the transform.
+    const writtenBody = parseFrontmatter(written).body;
+    const sourceBody = parseFrontmatter(source).body;
+    assert.equal(writtenBody.trim(), sourceBody.trim());
   } finally {
     cleanupTmpProject(target);
   }
 });
 
-test('cursor: skill body is the SKILL.md content extracted into a .mdc file', async () => {
+test('cursor: body after frontmatter matches the source SKILL.md body', async () => {
   const target = createTmpProject();
   try {
+    const { parseFrontmatter } = await import('../../src/lib/frontmatter.js');
     await install({
       tool: 'cursor',
       skills: ['code-review-checklist'],
@@ -244,13 +252,17 @@ test('cursor: skill body is the SKILL.md content extracted into a .mdc file', as
       sourceRoot: REPO_ROOT,
       logger: silentLogger(),
     });
-    const file = path.join(target, 'rules', 'code-review-checklist.mdc');
-    const body = fs.readFileSync(file, 'utf8');
-    const sourceBody = fs.readFileSync(
+    const written = fs.readFileSync(
+      path.join(target, 'rules', 'code-review-checklist.mdc'),
+      'utf8',
+    );
+    const source = fs.readFileSync(
       path.join(REPO_ROOT, 'skills', 'code-review-checklist', 'SKILL.md'),
       'utf8',
     );
-    assert.equal(body, sourceBody);
+    const writtenBody = parseFrontmatter(written).body;
+    const sourceBody = parseFrontmatter(source).body;
+    assert.equal(writtenBody.trim(), sourceBody.trim());
   } finally {
     cleanupTmpProject(target);
   }

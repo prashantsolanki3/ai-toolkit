@@ -40,28 +40,31 @@ export async function update(opts) {
       }
 
       const dest = getAssetDestination(tool, target, type, name);
-      const sourceSha =
+      const currentSourceSha =
         source.kind === 'directory' ? hashDir(source.path) : hashFile(source.path);
-      const lockSha = tracked[name].sha;
-      const installedSha = pathExists(dest)
+      const trackedSourceSha = tracked[name].sourceSha || tracked[name].sha;
+      const currentDestSha = pathExists(dest)
         ? destFormat.type === 'directory'
           ? hashDir(dest)
           : hashFile(dest)
         : null;
+      const trackedDestSha = tracked[name].destSha || tracked[name].sha;
 
-      if (sourceSha === lockSha && installedSha === lockSha) {
+      const sourceChanged = currentSourceSha !== trackedSourceSha;
+      const destEdited = currentDestSha !== null && currentDestSha !== trackedDestSha;
+
+      if (!sourceChanged && !destEdited) {
         result.unchanged.push({ type, name });
         continue;
       }
 
-      if (sourceSha === lockSha && installedSha !== lockSha) {
+      if (!sourceChanged && destEdited) {
         result.skipped.push({ type, name, reason: 'local edits and no upstream change' });
         logger.warn(`${type}/${name}: locally edited; nothing new upstream — leaving as-is`);
         continue;
       }
 
-      const hasLocalEdits = installedSha !== null && installedSha !== lockSha;
-      if (hasLocalEdits && !opts.force) {
+      if (destEdited && !opts.force) {
         logger.warn(`${type}/${name}: local edits detected — skipping. Re-run with --force to overwrite.`);
         result.skipped.push({ type, name, reason: 'local edits; use --force to overwrite' });
         continue;
@@ -78,11 +81,15 @@ export async function update(opts) {
         sourceKind: source.kind,
         destPath: dest,
         destFormat,
+        toolName: lockfile.tool,
       });
-      const newSha = destFormat.type === 'directory' ? hashDir(dest) : hashFile(dest);
+      const newSourceSha = currentSourceSha;
+      const newDestSha = destFormat.type === 'directory' ? hashDir(dest) : hashFile(dest);
       lockfile.assets[type][name] = {
         ...tracked[name],
-        sha: newSha,
+        sourceSha: newSourceSha,
+        destSha: newDestSha,
+        sha: newDestSha,
         installedAt: new Date().toISOString(),
       };
       result.updated.push({ type, name });

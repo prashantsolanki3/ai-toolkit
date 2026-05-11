@@ -41,6 +41,21 @@
                 "sourceFile": {
                   "type": "string",
                   "description": "When converting a directory-format source to a file-format destination, the relative path inside the source dir to copy."
+                },
+                "frontmatter": {
+                  "type": "object",
+                  "description": "Optional frontmatter template written to the destination. Values may be literals or {sourceKey} template strings. When set, the source frontmatter is parsed, this template is built (with substitutions and per-asset overrides), and the result is prepended to the body. Use this for tools like Cursor (.mdc) and VS Code Copilot (.instructions.md) that expect their own frontmatter contract.",
+                  "additionalProperties": true
+                },
+                "sidecar": {
+                  "type": "object",
+                  "description": "Optional sibling file generated alongside the asset (e.g. .kiro.hook JSON for a Kiro hook script).",
+                  "required": ["filename", "format", "content"],
+                  "properties": {
+                    "filename": { "type": "string" },
+                    "format": { "enum": ["json"] },
+                    "content": { "type": "object" }
+                  }
                 }
               }
             }

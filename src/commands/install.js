@@ -98,10 +98,15 @@ export async function install(opts) {
         sourceKind: source.kind,
         destPath: dest,
         destFormat,
+        toolName: opts.tool,
       });
-      const sha = destFormat.type === 'directory' ? hashDir(dest) : hashFile(dest);
+      const sourceSha = source.kind === 'directory' ? hashDir(source.path) : hashFile(source.path);
+      const destSha = destFormat.type === 'directory' ? hashDir(dest) : hashFile(dest);
       lockfile = addAsset(lockfile, type, name, {
-        sha,
+        sourceSha,
+        destSha,
+        // legacy alias — older lockfiles used `sha` for the dest hash
+        sha: destSha,
         sourcePath: path.posix.join(type, name + (destFormat.type === 'file' && source.kind === 'file' && !destFormat.sourceFile ? extFromFilename(destFormat.filename, name) : '')),
       });
       installedSummary[type].push(name);
@@ -118,7 +123,8 @@ function detectConflict({ dest, destFormat, tracked }) {
   if (!pathExists(dest)) return null;
   if (!tracked) return 'untracked file at destination';
   const currentSha = destFormat.type === 'directory' ? hashDir(dest) : hashFile(dest);
-  if (currentSha !== tracked.sha) return 'destination differs from lockfile sha (local edits)';
+  const trackedDest = tracked.destSha || tracked.sha;
+  if (currentSha !== trackedDest) return 'destination differs from lockfile sha (local edits)';
   return null;
 }
 

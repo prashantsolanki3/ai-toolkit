@@ -36,11 +36,28 @@
         "rules": "rules"
       },
       "assetFormats": {
-        "skills": { "filename": "{name}.mdc", "type": "file", "sourceFile": "SKILL.md" },
-        "rules": { "filename": "{name}.mdc", "type": "file" }
+        "skills": {
+          "filename": "{name}.mdc",
+          "type": "file",
+          "sourceFile": "SKILL.md",
+          "frontmatter": {
+            "description": "{description}",
+            "globs": "",
+            "alwaysApply": false
+          }
+        },
+        "rules": {
+          "filename": "{name}.mdc",
+          "type": "file",
+          "frontmatter": {
+            "description": "{description}",
+            "globs": "",
+            "alwaysApply": false
+          }
+        }
       },
       "supportedAssets": ["skills", "rules"],
-      "notes": "Cursor's only persistent customization is project rules at .cursor/rules/<name>.mdc. Our skills land there as .mdc files with a Cursor-compatible frontmatter (description, globs, alwaysApply). No global scope: Cursor reads rules per-workspace."
+      "notes": "Cursor's only persistent customization is project rules at .cursor/rules/<name>.mdc. Each rule's frontmatter is generated to match Cursor's contract (description, globs, alwaysApply). Override per-asset by adding overrides.cursor.{globs, alwaysApply} to the source frontmatter."
     },
     "antigravity": {
       "displayName": "Antigravity",
@@ -87,17 +104,31 @@
         "skills": {
           "filename": "{name}.instructions.md",
           "type": "file",
-          "sourceFile": "SKILL.md"
+          "sourceFile": "SKILL.md",
+          "frontmatter": {
+            "description": "{description}",
+            "applyTo": "**"
+          }
         },
-        "commands": { "filename": "{name}.prompt.md", "type": "file" },
+        "commands": {
+          "filename": "{name}.prompt.md",
+          "type": "file",
+          "frontmatter": {
+            "description": "{description}",
+            "mode": "agent"
+          }
+        },
         "agents": {
           "filename": "{name}.chatmode.md",
           "type": "file",
-          "sourceFile": "agent.md"
+          "sourceFile": "agent.md",
+          "frontmatter": {
+            "description": "{description}"
+          }
         }
       },
       "supportedAssets": ["skills", "commands", "agents"],
-      "notes": "VS Code Copilot reads .github/instructions/<name>.instructions.md (custom instructions with applyTo frontmatter), .github/prompts/<name>.prompt.md (reusable prompts), and .github/chatmodes/<name>.chatmode.md (custom chat modes). For Copilot to pick the files up, the workspace setting chat.promptFiles must be enabled. No global scope: Copilot reads from the workspace .github/."
+      "notes": "Generates VS Code Copilot's expected frontmatter on the destination: applyTo for instructions, mode for prompts, description for chat modes. Per-asset overrides via overrides.vscode-copilot.{applyTo,mode,tools,model}. For Copilot to load the files, enable the workspace setting chat.promptFiles."
     },
     "copilot-cli": {
       "displayName": "GitHub Copilot CLI",
@@ -113,12 +144,23 @@
         "skills": {
           "filename": "{name}.instructions.md",
           "type": "file",
-          "sourceFile": "SKILL.md"
+          "sourceFile": "SKILL.md",
+          "frontmatter": {
+            "description": "{description}",
+            "applyTo": "**"
+          }
         },
-        "commands": { "filename": "{name}.prompt.md", "type": "file" }
+        "commands": {
+          "filename": "{name}.prompt.md",
+          "type": "file",
+          "frontmatter": {
+            "description": "{description}",
+            "mode": "agent"
+          }
+        }
       },
       "supportedAssets": ["skills", "commands"],
-      "notes": "GitHub Copilot CLI (the newer agentic `copilot` command) reads .github/copilot-instructions.md plus the same .github/instructions/ and .github/prompts/ tree that VS Code Copilot uses. Global ~/.copilot/ supports user-wide instructions. Note: gh copilot (the older gh extension) does NOT consume these files — use this config for the new agentic CLI only."
+      "notes": "Shares destination conventions with vscode-copilot. The newer agentic Copilot CLI (the `copilot` command) reads .github/copilot-instructions.md plus .github/instructions/ and .github/prompts/. Global ~/.copilot/ holds user-wide instructions. The legacy `gh copilot` extension does NOT consume these files."
     },
     "kiro": {
       "displayName": "Kiro",
