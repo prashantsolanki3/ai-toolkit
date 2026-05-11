@@ -46,11 +46,16 @@ ai-toolkit install   [--tool <name>] [--preset <name>] [--skills a,b] [--agents 
                      [--commands d] [--hooks e] [--rules f]
                      [--scope global|workspace] [--target <project-root>]
                      [--force] [--link] [--dry-run]
-ai-toolkit update    [--target <project-root>] [--tool <name>] [--force] [--dry-run]
+ai-toolkit update    [--target <project-root>] [--tool <name>]
+                     [--preset <name>] [--skills a,b] [...]
+                     [--force] [--dry-run]
 ai-toolkit remove    [--target <project-root>] [--tool <name>]
-                     [--skills a,b] [...] [--all] [--dry-run]
+                     [--preset <name>] [--skills a,b] [...]
+                     [--all] [--dry-run]
 ai-toolkit installed [--target <project-root>] [--tool <name>]
+                     [--type <type>] [--preset <name>]
 ai-toolkit list      [--type skills|agents|commands|hooks|rules|presets|tools]
+                     [--tool <name>]
 ```
 
 Without `--tool`, `install` runs for every tool in `config/tools.json` (tools sharing a workspace subdir are deduped); the other commands autodiscover the installed tool. Full reference in [docs/usage.md](docs/usage.md).

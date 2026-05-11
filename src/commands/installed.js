@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { loadTools, getTool, resolveTargetPath, findInstalledTools } from '../lib/tools.js';
+import { loadManifest, resolvePreset } from '../lib/manifest.js';
 import { read as readLockfile } from '../lib/lockfile.js';
 import { createLogger } from '../lib/logger.js';
 
@@ -12,12 +13,13 @@ export async function installed(opts = {}) {
 
   const projectRoot = opts.target || process.cwd();
   const tools = loadTools(path.join(sourceRoot, 'config'));
+  const filter = buildFilter(opts, sourceRoot);
 
   // If a specific tool was requested, just show that one.
   if (opts.tool) {
     const tool = getTool(tools, opts.tool);
     const dir = resolveTargetPath(tool, opts.scope || 'workspace', projectRoot);
-    reportLockfile({ logger, dir, projectRoot });
+    reportLockfile({ logger, dir, projectRoot, filter });
     return;
   }
 
@@ -30,12 +32,26 @@ export async function installed(opts = {}) {
   }
   for (const entry of found) {
     logger.info(`── ${entry.tool} ──`);
-    reportLockfile({ logger, dir: entry.dir, projectRoot });
+    reportLockfile({ logger, dir: entry.dir, projectRoot, filter });
     logger.info('');
   }
 }
 
-function reportLockfile({ logger, dir, projectRoot }) {
+function buildFilter(opts, sourceRoot) {
+  const types = opts.type ? new Set([opts.type]) : null;
+  let presetAllowlist = null;
+  if (opts.preset) {
+    const manifest = loadManifest(sourceRoot);
+    const preset = resolvePreset(manifest, opts.preset);
+    presetAllowlist = Object.fromEntries(ASSET_TYPES.map((t) => [t, new Set(preset[t] || [])]));
+  }
+  return {
+    includesType: (t) => (types ? types.has(t) : true),
+    includesAsset: (t, name) => (presetAllowlist ? presetAllowlist[t]?.has(name) : true),
+  };
+}
+
+function reportLockfile({ logger, dir, projectRoot, filter }) {
   const lockfile = readLockfile(dir);
   if (!lockfile) {
     logger.info(`No lockfile at ${path.relative(projectRoot, dir) || '.'}/.ai-toolkit-lock.json`);
@@ -51,8 +67,9 @@ function reportLockfile({ logger, dir, projectRoot }) {
 
   let total = 0;
   for (const type of ASSET_TYPES) {
+    if (!filter.includesType(type)) continue;
     const tracked = (lockfile.assets && lockfile.assets[type]) || {};
-    const names = Object.keys(tracked);
+    const names = Object.keys(tracked).filter((n) => filter.includesAsset(type, n));
     if (names.length === 0) continue;
     logger.info(`${type} (${names.length}):`);
     for (const name of names) {
@@ -61,5 +78,5 @@ function reportLockfile({ logger, dir, projectRoot }) {
       total += 1;
     }
   }
-  if (total === 0) logger.info('Lockfile present but tracks no assets.');
+  if (total === 0) logger.info('Lockfile present but tracks no assets matching the filter.');
 }

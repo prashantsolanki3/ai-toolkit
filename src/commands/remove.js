@@ -7,6 +7,7 @@ import {
   supportsAsset,
   findInstalledTools,
 } from '../lib/tools.js';
+import { loadManifest, resolvePreset } from '../lib/manifest.js';
 import { removePath, pathExists } from '../lib/fs-ops.js';
 import {
   read as readLockfile,
@@ -35,15 +36,27 @@ export async function remove(opts) {
 
   const tool = getTool(tools, lockfile.tool);
 
-  let toRemove = {};
+  let toRemove = Object.fromEntries(ASSET_TYPES.map((t) => [t, []]));
+
   if (opts.all) {
     for (const type of ASSET_TYPES) {
       const tracked = (lockfile.assets && lockfile.assets[type]) || {};
       toRemove[type] = Object.keys(tracked);
     }
   } else {
+    if (opts.preset) {
+      const manifest = loadManifest(sourceRoot);
+      const preset = resolvePreset(manifest, opts.preset);
+      for (const type of ASSET_TYPES) {
+        for (const name of preset[type] || []) toRemove[type].push(name);
+      }
+    }
     for (const type of ASSET_TYPES) {
-      toRemove[type] = Array.isArray(opts[type]) ? [...opts[type]] : [];
+      if (Array.isArray(opts[type])) toRemove[type].push(...opts[type]);
+    }
+    // Deduplicate after preset + explicit union.
+    for (const type of ASSET_TYPES) {
+      toRemove[type] = Array.from(new Set(toRemove[type]));
     }
   }
 

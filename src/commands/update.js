@@ -7,6 +7,7 @@ import {
   supportsAsset,
   findInstalledTools,
 } from '../lib/tools.js';
+import { loadManifest, resolvePreset } from '../lib/manifest.js';
 import { hashDir, hashFile, pathExists } from '../lib/fs-ops.js';
 import { resolveSourcePath, copyAssetAdaptive } from '../lib/source-adapter.js';
 import { read as readLockfile, write as writeLockfile, LOCKFILE_NAME } from '../lib/lockfile.js';
@@ -29,6 +30,9 @@ export async function update(opts) {
   }
 
   const tool = getTool(tools, lockfile.tool);
+  const manifest = loadManifest(sourceRoot);
+
+  const filter = buildAssetFilter(opts, lockfile, manifest, logger);
 
   const result = { updated: [], skipped: [], missing: [], unchanged: [] };
 
@@ -36,6 +40,7 @@ export async function update(opts) {
     if (!supportsAsset(tool, type)) continue;
     const tracked = (lockfile.assets && lockfile.assets[type]) || {};
     for (const name of Object.keys(tracked)) {
+      if (!filter.includes(type, name)) continue;
       const destFormat = tool.assetFormats[type];
 
       let source;
@@ -111,6 +116,53 @@ export async function update(opts) {
   }
 
   return result;
+}
+
+// Filter the set of assets the update command will iterate.
+//
+// - No --preset and no per-type lists  => no filter (update everything tracked).
+// - --preset <name>                    => union of preset's per-type lists.
+// - --skills a,b / --agents c / ...    => union with the above.
+//
+// Any explicitly-named asset that isn't actually tracked in the lockfile
+// surfaces a warning so the user knows the filter excluded everything.
+function buildAssetFilter(opts, lockfile, manifest, logger) {
+  const hasPreset = Boolean(opts.preset);
+  const hasExplicit = ASSET_TYPES.some(
+    (t) => Array.isArray(opts[t]) && opts[t].length > 0,
+  );
+  if (!hasPreset && !hasExplicit) {
+    return { includes: () => true };
+  }
+
+  const allowed = Object.fromEntries(ASSET_TYPES.map((t) => [t, new Set()]));
+
+  if (hasPreset) {
+    const preset = resolvePreset(manifest, opts.preset);
+    for (const t of ASSET_TYPES) {
+      for (const name of preset[t] || []) allowed[t].add(name);
+    }
+  }
+  for (const t of ASSET_TYPES) {
+    if (Array.isArray(opts[t])) {
+      for (const name of opts[t]) allowed[t].add(name);
+    }
+  }
+
+  // Warn about names that won't match anything tracked.
+  for (const t of ASSET_TYPES) {
+    if (!Array.isArray(opts[t])) continue;
+    const tracked = lockfile.assets?.[t] || {};
+    for (const name of opts[t]) {
+      if (!(name in tracked)) {
+        logger.warn(`${t}/${name}: not tracked in the lockfile — skipping.`);
+      }
+    }
+  }
+
+  return {
+    includes: (type, name) => allowed[type]?.has(name),
+  };
 }
 
 function resolveUpdateTarget({ tools, projectRoot, toolName }) {

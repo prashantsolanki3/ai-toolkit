@@ -10,12 +10,22 @@ ai-toolkit install   [--tool <name>] [--preset <name>] [--skills a,b] [--agents 
                      [--scope global|workspace] [--target <project-root>]
                      [--force] [--link] [--dry-run]
 
-ai-toolkit update    [--target <project-root>] [--tool <name>] [--force] [--dry-run]
+ai-toolkit update    [--target <project-root>] [--tool <name>]
+                     [--preset <name>] [--skills a,b] [--agents c]
+                     [--commands d] [--hooks e] [--rules f]
+                     [--force] [--dry-run]
+
 ai-toolkit remove    [--target <project-root>] [--tool <name>]
-                     [--skills a,b] [--agents c] [--commands d] [--hooks e]
+                     [--preset <name>] [--skills a,b] [--agents c]
+                     [--commands d] [--hooks e] [--rules f]
                      [--all] [--dry-run]
+
 ai-toolkit installed [--target <project-root>] [--tool <name>]
+                     [--type skills|agents|commands|hooks|rules]
+                     [--preset <name>]
+
 ai-toolkit list      [--type skills|agents|commands|hooks|rules|presets|tools]
+                     [--tool <name>]
 ```
 
 ## --tool and --target
@@ -118,21 +128,49 @@ ai-toolkit update --tool claude-code --force       # overwrite local edits
 ai-toolkit update --tool claude-code --dry-run     # plan only
 ```
 
+### Granular updates
+
+When you only want to refresh a subset of what's tracked, pass `--preset` and/or per-type asset lists. The selectors union together; anything else is left alone.
+
+```bash
+# Just the skills section
+ai-toolkit update --skills code-review-checklist,api-endpoint-design
+
+# Everything in a preset
+ai-toolkit update --preset backend-essentials
+
+# Preset PLUS one off-preset extra
+ai-toolkit update --preset backend-essentials --agents test-writer
+```
+
+Naming an asset that isn't tracked surfaces a `not tracked in the lockfile` warning and moves on.
+
 If the source asset was removed upstream, `update` flags it but never auto-deletes — use `remove` if you want it gone.
 
 ## Remove
 
 ```bash
 ai-toolkit remove --tool claude-code --skills api-endpoint-design
+ai-toolkit remove --tool claude-code --preset backend-essentials   # tear down a whole preset
 ai-toolkit remove --tool claude-code --all
-ai-toolkit remove --all   # only works if exactly one tool has a lockfile under --target
+ai-toolkit remove --all                                            # autodiscover, then remove everything
 ```
+
+Selectors union together. `--preset backend-essentials --skills dependency-upgrade` tears down the preset's assets plus that one extra skill. `--all` overrides everything.
 
 Removes the destination files and clears the matching entries from the lockfile. Tools that declared a sidecar (Kiro hooks) get the sidecar torn down too.
 
 ## Installed
 
-`installed` reports what's currently installed under `--target`. Without `--tool`, it scans every tool's subdir and reports each one with its own block.
+`installed` reports what's currently installed under `--target`. Without `--tool`, it scans every tool's subdir and reports each one with its own block. `--type` and `--preset` narrow the report.
+
+```bash
+ai-toolkit installed                              # everything, every tool
+ai-toolkit installed --tool claude-code           # just claude-code
+ai-toolkit installed --type skills                # skills section only
+ai-toolkit installed --preset backend-essentials  # only assets in this preset
+ai-toolkit installed --type skills --preset backend-essentials   # intersection
+```
 
 ```bash
 $ cd ~/my-project && ai-toolkit installed
@@ -167,6 +205,18 @@ ai-toolkit list --type skills         # skills only
 ai-toolkit list --type presets        # presets with their contents
 ai-toolkit list --type tools          # supported tools with their supportedAssets
 ```
+
+### --tool filter
+
+Restrict the listing to what a specific tool would install. The filter applies on two axes — only asset types the tool's `supportedAssets` covers, and only individual assets whose `tools:` allowlist (if any) includes the named tool.
+
+```bash
+ai-toolkit list --tool cursor          # only skills, rules, agents — no commands or hooks
+ai-toolkit list --tool antigravity     # skills only
+ai-toolkit list --tool cursor --type rules    # rules cursor would install
+```
+
+An unknown tool name errors out clearly.
 
 ## Lockfile
 

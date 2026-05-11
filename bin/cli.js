@@ -77,31 +77,40 @@ commonAssetOptions(installCmd).action(async (opts) => {
   });
 });
 
-program
+const updateCmd = program
   .command('update')
-  .description('Update installed assets from the source')
+  .description('Update installed assets from the source. Without filters, updates every tracked asset; with --preset / --skills / --agents / --commands / --hooks / --rules, restrict the update to those.')
   .option('--target <path>', 'project root (defaults to current directory)')
   .option('--tool <name>', 'specific tool to update; if omitted, autodiscover by scanning tool subdirs for lockfiles')
+  .option('--preset <name>', 'restrict the update to assets in this preset')
   .option('--force', 'overwrite local edits', false)
   .option('--dry-run', 'plan only, write nothing', false)
-  .option('--verbose', 'verbose output', false)
-  .action(async (opts) => {
-    const logger = makeLogger(opts);
-    await update({
-      target: opts.target,
-      tool: opts.tool,
-      sourceRoot: SOURCE_ROOT,
-      force: opts.force,
-      dryRun: opts.dryRun,
-      logger,
-    });
+  .option('--verbose', 'verbose output', false);
+
+commonAssetOptions(updateCmd).action(async (opts) => {
+  const logger = makeLogger(opts);
+  await update({
+    target: opts.target,
+    tool: opts.tool,
+    preset: opts.preset,
+    skills: opts.skills,
+    agents: opts.agents,
+    commands: opts.commands,
+    hooks: opts.hooks,
+    rules: opts.rules,
+    sourceRoot: SOURCE_ROOT,
+    force: opts.force,
+    dryRun: opts.dryRun,
+    logger,
   });
+});
 
 const removeCmd = program
   .command('remove')
-  .description('Remove installed assets')
+  .description('Remove installed assets. Use --all, --preset, or per-type asset lists; combinations are unioned.')
   .option('--target <path>', 'project root (defaults to current directory)')
   .option('--tool <name>', 'specific tool to remove from; if omitted, autodiscover')
+  .option('--preset <name>', 'remove every tracked asset that belongs to this preset')
   .option('--all', 'remove every tracked asset', false)
   .option('--dry-run', 'plan only, write nothing', false)
   .option('--verbose', 'verbose output', false);
@@ -111,6 +120,7 @@ commonAssetOptions(removeCmd).action(async (opts) => {
   await remove({
     target: opts.target,
     tool: opts.tool,
+    preset: opts.preset,
     skills: opts.skills,
     agents: opts.agents,
     commands: opts.commands,
@@ -125,23 +135,38 @@ commonAssetOptions(removeCmd).action(async (opts) => {
 
 program
   .command('list')
-  .description('List available assets, presets, or tools')
-  .option('--type <type>', 'one of: skills, agents, commands, hooks, presets, tools')
+  .description('List available assets, presets, or tools. With --tool, restrict the listing to what that tool supports (and honour each asset\'s tools: allowlist).')
+  .option('--type <type>', 'one of: skills, agents, commands, hooks, rules, presets, tools')
+  .option('--tool <name>', 'restrict the listing to assets supported by this tool')
   .option('--verbose', 'verbose output', false)
   .action(async (opts) => {
     const logger = makeLogger(opts);
-    await list({ type: opts.type, sourceRoot: SOURCE_ROOT, logger });
+    await list({
+      type: opts.type,
+      tool: opts.tool,
+      sourceRoot: SOURCE_ROOT,
+      logger,
+    });
   });
 
 program
   .command('installed')
-  .description('Show what is installed in the project. Without --tool, scans every tool subdir for a lockfile.')
+  .description('Show what is installed in the project. Without --tool, scans every tool subdir for a lockfile. --type and --preset filter the report.')
   .option('--target <path>', 'project root (defaults to current directory)')
   .option('--tool <name>', 'show only this tool')
+  .option('--type <type>', 'filter the report to a single asset type (skills, agents, commands, hooks, rules)')
+  .option('--preset <name>', 'filter the report to assets in this preset')
   .option('--verbose', 'verbose output', false)
   .action(async (opts) => {
     const logger = makeLogger(opts);
-    await installed({ target: opts.target, tool: opts.tool, sourceRoot: SOURCE_ROOT, logger });
+    await installed({
+      target: opts.target,
+      tool: opts.tool,
+      type: opts.type,
+      preset: opts.preset,
+      sourceRoot: SOURCE_ROOT,
+      logger,
+    });
   });
 
 program.parseAsync(process.argv).catch((err) => {
