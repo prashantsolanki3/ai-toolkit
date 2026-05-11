@@ -524,6 +524,110 @@ test('update --scope global: warns and skips a tool whose defaultTarget.global i
   }
 });
 
+test('remove: deletes the MCP config file when its only content is our (now empty) wrapper', async () => {
+  // For dedicated MCP files (.mcp.json, .cursor/mcp.json, .vscode/mcp.json),
+  // removing our last entry should also remove the now-pointless wrapper
+  // file — otherwise `cleanupEmptyDirs` can never reach the tool root.
+  const target = createTmpProject();
+  const { logger } = silentLogger();
+  try {
+    await install({
+      tool: 'claude-code',
+      mcp: ['everything'],
+      target,
+      sourceRoot: REPO_ROOT,
+      logger,
+    });
+    assert.ok(fs.existsSync(path.join(target, '.mcp.json')));
+
+    await remove({
+      tool: 'claude-code',
+      mcp: ['everything'],
+      target,
+      sourceRoot: REPO_ROOT,
+      logger,
+    });
+    assert.equal(
+      fs.existsSync(path.join(target, '.mcp.json')),
+      false,
+      '.mcp.json should be deleted when only our (now empty) wrapper would remain',
+    );
+  } finally {
+    cleanupTmpProject(target);
+  }
+});
+
+test('remove: leaves the MCP config file alone when other keys remain (user data preserved)', async () => {
+  const target = createTmpProject();
+  const { logger } = silentLogger();
+  try {
+    // User has another setting in the same file (gemini-cli's settings.json
+    // is the realistic case — a shared file that also holds non-MCP keys).
+    const settingsPath = path.join(target, '.gemini', 'settings.json');
+    writeJsonFile(settingsPath, {
+      theme: 'dark',
+      mcpServers: { user_one: { command: 'echo' } },
+    });
+    await install({
+      tool: 'gemini-cli',
+      mcp: ['everything'],
+      target,
+      sourceRoot: REPO_ROOT,
+      logger,
+    });
+    await remove({
+      tool: 'gemini-cli',
+      mcp: ['everything'],
+      target,
+      sourceRoot: REPO_ROOT,
+      logger,
+    });
+    const data = readJsonFile(settingsPath);
+    // The user's unrelated key survives, and their MCP entry survives.
+    assert.equal(data.theme, 'dark');
+    assert.deepEqual(data.mcpServers.user_one, { command: 'echo' });
+    // Our key is gone.
+    assert.equal(data.mcpServers.everything, undefined);
+  } finally {
+    cleanupTmpProject(target);
+  }
+});
+
+test('remove: cleans up an empty MCP-only directory when it sits outside the tool target (vscode .vscode/)', async () => {
+  // VS Code Copilot has tool target .github/ but its MCP file is at
+  // .vscode/mcp.json. If we delete the file but leave the dir behind,
+  // the project root keeps an empty .vscode/ as litter. This test pins
+  // that the dir gets cleaned up too.
+  const target = createTmpProject();
+  const { logger } = silentLogger();
+  try {
+    await install({
+      tool: 'vscode-copilot',
+      mcp: ['everything'],
+      target,
+      sourceRoot: REPO_ROOT,
+      logger,
+    });
+    assert.ok(fs.existsSync(path.join(target, '.vscode', 'mcp.json')));
+
+    await remove({
+      tool: 'vscode-copilot',
+      mcp: ['everything'],
+      target,
+      sourceRoot: REPO_ROOT,
+      logger,
+    });
+
+    assert.equal(
+      fs.existsSync(path.join(target, '.vscode')),
+      false,
+      '.vscode/ should be cleaned up after MCP file deletion',
+    );
+  } finally {
+    cleanupTmpProject(target);
+  }
+});
+
 test('install: tools whose mcpConfig.workspace is null (antigravity, copilot-cli) skip with a warning', async () => {
   const target = createTmpProject();
   const { logger, lines } = silentLogger();

@@ -8,7 +8,7 @@ import {
   findInstalledTools,
 } from '../lib/tools.js';
 import { loadManifest, resolvePreset } from '../lib/manifest.js';
-import { removePath, pathExists } from '../lib/fs-ops.js';
+import { removePath, pathExists, cleanupEmptyDirs } from '../lib/fs-ops.js';
 import {
   read as readLockfile,
   write as writeLockfile,
@@ -28,8 +28,33 @@ export async function remove(opts) {
   const projectRoot = opts.target || process.cwd();
   const tools = loadTools(path.join(sourceRoot, 'config'));
 
-  const target = resolveRemoveTarget({ tools, projectRoot, toolName: opts.tool });
+  // When --all is passed and no --tool specified, remove from all installed tools.
+  // Sibling tools that share a workspace dir (vscode-copilot + copilot-cli at
+  // .github/, kiro + kiro-cli at .kiro/) come back as separate entries from
+  // findInstalledTools; dedupe by directory so we only tear each one down once.
+  if (opts.all && !opts.tool) {
+    const found = findInstalledTools(tools, projectRoot);
+    if (found.length === 0) {
+      throw new Error(
+        `No installed tools found under ${projectRoot}. Pass --tool <name> or --target <project-root>.`,
+      );
+    }
+    const seenDirs = new Set();
+    const results = [];
+    for (const toolInfo of found) {
+      if (seenDirs.has(toolInfo.dir)) continue;
+      seenDirs.add(toolInfo.dir);
+      const result = await removeFromTool(toolInfo.dir, tools, sourceRoot, projectRoot, opts, logger);
+      results.push(result);
+    }
+    return { removed: results.flatMap((r) => r.removed), notFound: results.flatMap((r) => r.notFound) };
+  }
 
+  const target = resolveRemoveTarget({ tools, projectRoot, toolName: opts.tool });
+  return removeFromTool(target, tools, sourceRoot, projectRoot, opts, logger);
+}
+
+async function removeFromTool(target, tools, sourceRoot, projectRoot, opts, logger) {
   let lockfile = readLockfile(target);
   if (!lockfile) {
     throw new Error(`No lockfile at ${path.join(target, LOCKFILE_NAME)}; nothing to remove (not installed).`);
@@ -113,7 +138,26 @@ export async function remove(opts) {
 
   if (!opts.dryRun) {
     lockfile.lastUpdatedAt = new Date().toISOString();
-    writeLockfile(target, lockfile);
+    
+    // Check if all assets have been removed
+    const hasAnyAssets = ASSET_TYPES.some(type => 
+      lockfile.assets && lockfile.assets[type] && Object.keys(lockfile.assets[type]).length > 0
+    );
+    
+    if (!hasAnyAssets) {
+      // All assets removed, delete the lockfile
+      const lockfilePath = path.join(target, LOCKFILE_NAME);
+      if (pathExists(lockfilePath)) {
+        removePath(lockfilePath);
+        logger.success(`removed ${LOCKFILE_NAME}`);
+      }
+      
+      // Clean up empty directories starting from tool root, stopping at project root
+      cleanupEmptyDirs(target, projectRoot);
+    } else {
+      // Still have assets, just update the lockfile
+      writeLockfile(target, lockfile);
+    }
   }
 
   return result;

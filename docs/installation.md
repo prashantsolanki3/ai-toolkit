@@ -32,7 +32,13 @@ npx --yes /absolute/path/to/ai-toolkit install \
 Two things to know:
 
 - **`--yes`** skips the "install this package?" prompt.
-- **The npx cache** can get sticky — npx caches resolved packages by name and version. If you edit the source and re-run, you may see stale behaviour. Force a fresh resolve with `npm cache clean --force`.
+- **The npx cache** can get sticky — npx caches resolved packages by name and version. If you edit the source and re-run, you may see stale behaviour. Pass `--no-cache` to bypass it:
+
+```bash
+npx --no-cache --yes /absolute/path/to/ai-toolkit install \
+  --tool claude-code \
+  --preset skill-development
+```
 
 ## 3. Direct `node` invocation (fastest during dev)
 
@@ -92,7 +98,7 @@ There's no global install state to clean up — every install only touches the p
 
 ```bash
 ai-toolkit remove --tool claude-code --all   # tear down one tool
-ai-toolkit remove --all                       # tear down whichever tool is autodiscovered
+ai-toolkit remove --all                       # tear down all installed tools
 ```
 
 If you used `npm link`, also run `npm unlink -g ai-toolkit`.

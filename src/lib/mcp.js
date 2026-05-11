@@ -5,12 +5,14 @@ import {
   getMcpWrapperPath,
   supportsAsset,
 } from './tools.js';
+import { cleanupEmptyDirs } from './fs-ops.js';
 import {
   readJsonFile,
   mergeMcpEntry,
   removeMcpEntry,
   getAtPath,
   hashJsonValue,
+  isFileSolelyEmptyWrapper,
 } from './json-merge.js';
 
 // Everything install/update/remove need to know about MCP lives here so the
@@ -314,6 +316,28 @@ export function removeMcpEntryForCommand({
     return { status: 'removed' };
   }
   removeMcpEntry({ filePath, wrapperPath, key: name });
+
+  // If the MCP file is now nothing but our (empty) wrapper, the file is
+  // toolkit-only scratch data — delete it. This lets `cleanupEmptyDirs`
+  // reach the surrounding tool dir (e.g. .cursor/mcp.json was the only
+  // reason .cursor/ was non-empty). User-added siblings in the same file
+  // — e.g. a hand-edited gemini-cli settings.json with `theme: "dark"` —
+  // are detected by isFileSolelyEmptyWrapper and the file is left in place.
+  if (isFileSolelyEmptyWrapper(filePath, wrapperPath)) {
+    fs.unlinkSync(filePath);
+    // If the MCP file's *parent dir* is a strict descendant of projectRoot
+    // (e.g. .vscode/mcp.json -> .vscode/), walk that dir up to projectRoot,
+    // cleaning empty intermediates. Skip when the file lives AT projectRoot
+    // (.mcp.json -> parent = projectRoot) so we never descend into other
+    // tool dirs we don't own, and skip when the file lives outside
+    // projectRoot entirely (global scope: ~/.claude.json) so we never
+    // touch the user's home tree.
+    const parentDir = path.dirname(filePath);
+    if (parentDir !== projectRoot && isInside(parentDir, projectRoot)) {
+      cleanupEmptyDirs(parentDir, projectRoot);
+    }
+  }
+
   if (logger) logger.success(`removed mcp/${name}`);
   return { status: 'removed' };
 }
@@ -324,6 +348,14 @@ function clone(v) {
 
 function isPlainObject(v) {
   return v !== null && typeof v === 'object' && !Array.isArray(v);
+}
+
+// True if `child` resolves to a path strictly under `parent`. Used to gate
+// the "clean up empty parent dirs after deleting an MCP file" behaviour so
+// it only ever fires inside the project tree, never inside the user's home.
+function isInside(child, parent) {
+  const rel = path.relative(parent, path.resolve(child));
+  return rel !== '' && !rel.startsWith('..') && !path.isAbsolute(rel);
 }
 
 // Emit a single non-fatal warning per asset listing any env keys whose

@@ -154,10 +154,10 @@ If the source asset was removed upstream, `update` flags it but never auto-delet
 ai-toolkit remove --tool claude-code --skills skill-evaluator
 ai-toolkit remove --tool claude-code --preset skill-development   # tear down a whole preset
 ai-toolkit remove --tool claude-code --all
-ai-toolkit remove --all                                            # autodiscover, then remove everything
+ai-toolkit remove --all                                            # removes all installed tools
 ```
 
-Selectors union together. `--preset skill-development --skills my-custom-skill` would tear down the preset's assets plus that one extra skill. `--all` overrides everything.
+Selectors union together. `--preset skill-development --skills my-custom-skill` would tear down the preset's assets plus that one extra skill. `--all` without `--tool` removes all assets from all installed tools in the target directory.
 
 Removes the destination files and clears the matching entries from the lockfile. Tools that declared a sidecar (Kiro hooks) get the sidecar torn down too.
 

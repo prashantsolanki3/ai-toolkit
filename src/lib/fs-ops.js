@@ -48,6 +48,65 @@ export function removePath(p) {
   fs.rmSync(p, { recursive: true, force: true });
 }
 
+export function cleanupEmptyDirs(dirPath, stopAt) {
+  /**
+   * Remove empty directories starting from dirPath and moving up the tree,
+   * stopping when we hit a non-empty directory or reach the stopAt path.
+   * Also recursively cleans empty subdirectories within dirPath.
+   * Returns the highest directory that was deleted, or null if none were deleted.
+   */
+  
+  // First, recursively clean all empty subdirectories
+  function cleanSubdirs(dir) {
+    if (!pathExists(dir)) return;
+    
+    try {
+      const entries = fs.readdirSync(dir);
+      for (const entry of entries) {
+        const fullPath = path.join(dir, entry);
+        const stat = fs.statSync(fullPath);
+        if (stat.isDirectory()) {
+          cleanSubdirs(fullPath); // Recurse first
+        }
+      }
+      
+      // After cleaning subdirs, try to remove this dir if it's empty
+      const remaining = fs.readdirSync(dir);
+      if (remaining.length === 0) {
+        fs.rmdirSync(dir);
+      }
+    } catch {
+      // Silently ignore errors
+    }
+  }
+  
+  cleanSubdirs(dirPath);
+  
+  // Then move up the tree
+  let current = path.dirname(dirPath);
+  let lastDeleted = dirPath;
+
+  while (current && current !== stopAt && pathExists(current)) {
+    try {
+      const entries = fs.readdirSync(current);
+      if (entries.length === 0) {
+        // Directory is empty, delete it
+        fs.rmdirSync(current);
+        lastDeleted = current;
+        current = path.dirname(current);
+      } else {
+        // Directory is not empty, stop
+        break;
+      }
+    } catch {
+      // If we can't read or delete, stop
+      break;
+    }
+  }
+
+  return lastDeleted;
+}
+
 function copyDir(src, dest) {
   fs.mkdirSync(dest, { recursive: true });
   for (const entry of fs.readdirSync(src, { withFileTypes: true })) {

@@ -113,6 +113,24 @@ export function removeMcpEntry({ filePath, wrapperPath, key }) {
   return next;
 }
 
+// True if the JSON document at `filePath` reduces to nothing more than our
+// (now empty) wrapper — i.e. `{ <wrapperPath[0]>: { <wrapperPath[1]>: { ... {} } } }`
+// with no other keys at any level along the path. Caller uses this to
+// decide whether deleting the file is safe (no user-added siblings).
+export function isFileSolelyEmptyWrapper(filePath, wrapperPath) {
+  if (!fs.existsSync(filePath)) return false;
+  const data = readJsonFile(filePath);
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return false;
+  let cur = data;
+  for (const segment of wrapperPath) {
+    const keys = Object.keys(cur);
+    if (keys.length !== 1 || keys[0] !== segment) return false;
+    cur = cur[segment];
+    if (!cur || typeof cur !== 'object' || Array.isArray(cur)) return false;
+  }
+  return Object.keys(cur).length === 0;
+}
+
 function isPlainObject(v) {
   return v !== null && typeof v === 'object' && !Array.isArray(v);
 }
