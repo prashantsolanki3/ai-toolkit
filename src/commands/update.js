@@ -23,7 +23,32 @@ export async function update(opts) {
   const projectRoot = opts.target || process.cwd();
   const tools = loadTools(path.join(sourceRoot, 'config'));
 
-  const target = resolveUpdateTarget({ tools, projectRoot, toolName: opts.tool });
+  // --scope is honoured here the same way it is by install: default
+  // "workspace" with explicit "global" as the only other value. The lockfile
+  // also records its own scope; we fall back to that when the caller didn't
+  // pass --scope, so the common case (update what you installed) just works.
+  const requestedScope = opts.scope || null;
+  const result = { updated: [], skipped: [], missing: [], unchanged: [] };
+
+  let target;
+  try {
+    target = resolveUpdateTarget({
+      tools,
+      projectRoot,
+      toolName: opts.tool,
+      scope: requestedScope || 'workspace',
+    });
+  } catch (err) {
+    // If the user explicitly asked for a scope this tool doesn't support
+    // (most commonly --scope global on a workspace-only tool like vscode-
+    // copilot or kiro), treat that as a soft skip: warn, return empty,
+    // don't throw. Matches install's multi-tool behaviour.
+    if (requestedScope && /not support|scope/.test(err.message)) {
+      logger.warn(`Skipping update for ${opts.tool || '(autodiscovered)'}: ${err.message}`);
+      return result;
+    }
+    throw err;
+  }
 
   const lockfile = readLockfile(target);
   if (!lockfile) {
@@ -34,8 +59,7 @@ export async function update(opts) {
   const manifest = loadManifest(sourceRoot);
 
   const filter = buildAssetFilter(opts, lockfile, manifest, logger);
-
-  const result = { updated: [], skipped: [], missing: [], unchanged: [] };
+  const scope = requestedScope || lockfile.scope || 'workspace';
 
   for (const type of ASSET_TYPES) {
     if (!supportsAsset(tool, type)) continue;
@@ -47,7 +71,7 @@ export async function update(opts) {
         const r = updateMcpEntry({
           tool,
           toolName: lockfile.tool,
-          scope: lockfile.scope || 'workspace',
+          scope,
           projectRoot,
           name,
           manifest,
@@ -62,7 +86,7 @@ export async function update(opts) {
           result.updated.push({ type, name });
         } else if (r.status === 'unchanged') {
           result.unchanged.push({ type, name });
-        } else if (r.status === 'skipped-edited') {
+        } else if (r.status === 'skipped-edited' || r.status === 'skipped-scope') {
           result.skipped.push({ type, name, reason: r.reason });
         } else if (r.status === 'missing') {
           result.missing.push({ type, name });
@@ -194,10 +218,16 @@ function buildAssetFilter(opts, lockfile, manifest, logger) {
   };
 }
 
-function resolveUpdateTarget({ tools, projectRoot, toolName }) {
+function resolveUpdateTarget({ tools, projectRoot, toolName, scope = 'workspace' }) {
   if (toolName) {
     const tool = getTool(tools, toolName);
-    return resolveTargetPath(tool, 'workspace', projectRoot);
+    return resolveTargetPath(tool, scope, projectRoot);
+  }
+  // Autodiscovery only scans workspace subdirs for lockfiles. --scope global
+  // without --tool would need a different discovery story (which global dir
+  // to look in?), so we require --tool in that case.
+  if (scope === 'global') {
+    throw new Error(`--scope global requires --tool <name> (no autodiscovery for global scope).`);
   }
   const found = findInstalledTools(tools, projectRoot);
   if (found.length === 0) {

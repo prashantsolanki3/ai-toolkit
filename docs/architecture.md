@@ -84,7 +84,7 @@ Two pieces of the architecture make this work without bleeding tool-specific cod
    }
    ```
 
-2. **`src/lib/json-merge.js` is the only thing that touches these files.** It provides `setAtPath` / `unsetAtPath` / `mergeMcpEntry` / `removeMcpEntry`, all immutable, all atomic (scratch-file rename). Crucially, `removeMcpEntry` deletes *only the key we own* — sibling entries the user added by hand survive. `src/lib/mcp.js` wraps these primitives into `installMcpEntry` / `updateMcpEntry` / `removeMcpEntryForCommand` so the install/update/remove commands branch on `type === 'mcp'` and delegate.
+2. **`src/lib/json-merge.js` is the only thing that touches these files.** It provides `setAtPath` / `unsetAtPath` / `mergeMcpEntry` / `removeMcpEntry`, all immutable, all atomic (scratch-file rename). Crucially, `removeMcpEntry` deletes *only the key we own* — sibling entries the user added by hand survive. `src/lib/mcp.js` wraps these primitives into `installMcpEntry` / `updateMcpEntry` / `removeMcpEntryForCommand` so the install/update/remove commands branch on `type === 'mcp'` and delegate. `mcp.js` also exports `deepMerge` (used for `overrides.<tool>` overlays) and `collectEmptyEnvKeys` (used to warn at install time when an env reference like `${API_KEY}` won't have a value in the running shell).
 
 The source file shape is intentionally JSON, not Markdown with frontmatter, since the body *is* a structured object:
 

@@ -13,6 +13,7 @@ ai-toolkit install   [--tool <name>] [--preset <name>] [--skills a,b] [--agents 
 ai-toolkit update    [--target <project-root>] [--tool <name>]
                      [--preset <name>] [--skills a,b] [--agents c]
                      [--commands d] [--hooks e] [--rules f] [--mcp g]
+                     [--scope global|workspace]
                      [--force] [--dry-run]
 
 ai-toolkit remove    [--target <project-root>] [--tool <name>]

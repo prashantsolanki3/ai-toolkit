@@ -381,6 +381,149 @@ test('remove --all: tears down both file-copy assets and MCP entries', async () 
   }
 });
 
+// ── env-var warnings ───────────────────────────────────────────────────
+
+test('install: warns when an MCP entry references env vars that resolve to empty', async () => {
+  // Add a one-off MCP entry with an env value that points at a guaranteed-unset variable.
+  const tmpName = 'env-test-entry';
+  const sourceFile = path.join(REPO_ROOT, 'mcp', `${tmpName}.json`);
+  fs.writeFileSync(
+    sourceFile,
+    JSON.stringify(
+      {
+        description: 'env warning fixture',
+        config: {
+          command: 'node',
+          env: {
+            EMPTY_LITERAL: '',
+            UNSET_REF: '${AI_TOOLKIT_TEST_DEFINITELY_UNSET_XYZZY}',
+            HAS_DEFAULT: '${AI_TOOLKIT_TEST_DEFINITELY_UNSET_XYZZY:-fine}',
+            OK: 'plain value',
+          },
+        },
+      },
+      null,
+      2,
+    ),
+  );
+  const { generateManifest } = await import('../../src/lib/manifest-generator.js');
+  fs.writeFileSync(
+    path.join(REPO_ROOT, 'manifest.json'),
+    JSON.stringify(generateManifest(REPO_ROOT), null, 2) + '\n',
+  );
+
+  const target = createTmpProject();
+  const { logger, lines } = silentLogger();
+  delete process.env.AI_TOOLKIT_TEST_DEFINITELY_UNSET_XYZZY;
+  try {
+    await install({
+      tool: 'claude-code',
+      mcp: [tmpName],
+      target,
+      sourceRoot: REPO_ROOT,
+      logger,
+    });
+
+    const warned = lines.filter(([l]) => l === 'warn').map(([, m]) => m).join('\n');
+    assert.match(warned, new RegExp(tmpName), 'expected a warning naming the MCP entry');
+    assert.match(warned, /EMPTY_LITERAL/, 'expected EMPTY_LITERAL to be flagged');
+    assert.match(warned, /UNSET_REF/, 'expected UNSET_REF to be flagged');
+    assert.doesNotMatch(warned, /\bOK\b/, 'OK should not be flagged');
+    assert.doesNotMatch(warned, /HAS_DEFAULT/, '${VAR:-default} pattern should not be flagged');
+
+    // Install still succeeds — the warning is informational, not fatal.
+    const data = readJsonFile(path.join(target, '.mcp.json'));
+    assert.ok(data.mcpServers[tmpName], 'install should still write the entry');
+  } finally {
+    fs.unlinkSync(sourceFile);
+    fs.writeFileSync(
+      path.join(REPO_ROOT, 'manifest.json'),
+      JSON.stringify(generateManifest(REPO_ROOT), null, 2) + '\n',
+    );
+    cleanupTmpProject(target);
+  }
+});
+
+// ── update --scope ─────────────────────────────────────────────────────
+
+test('update --scope: defaults to workspace, matching install', async () => {
+  // Install with the default workspace scope, then update without --scope
+  // and verify it operates on the workspace-scoped destination.
+  const target = createTmpProject();
+  const { logger } = silentLogger();
+  try {
+    await install({
+      tool: 'claude-code',
+      mcp: ['everything'],
+      target,
+      sourceRoot: REPO_ROOT,
+      logger,
+    });
+
+    // Bump the source so update has a reason to run.
+    const sourceFile = path.join(REPO_ROOT, 'mcp', 'everything.json');
+    const original = JSON.parse(fs.readFileSync(sourceFile, 'utf8'));
+    const mutated = { ...original, config: { command: 'workspace-updated', args: [] } };
+    fs.writeFileSync(sourceFile, JSON.stringify(mutated, null, 2));
+    const { generateManifest } = await import('../../src/lib/manifest-generator.js');
+    fs.writeFileSync(
+      path.join(REPO_ROOT, 'manifest.json'),
+      JSON.stringify(generateManifest(REPO_ROOT), null, 2) + '\n',
+    );
+
+    try {
+      await update({
+        tool: 'claude-code',
+        target,
+        sourceRoot: REPO_ROOT,
+        logger,
+      });
+      const data = readJsonFile(path.join(target, '.mcp.json'));
+      assert.equal(data.mcpServers.everything.command, 'workspace-updated');
+    } finally {
+      fs.writeFileSync(sourceFile, JSON.stringify(original, null, 2));
+      fs.writeFileSync(
+        path.join(REPO_ROOT, 'manifest.json'),
+        JSON.stringify(generateManifest(REPO_ROOT), null, 2) + '\n',
+      );
+    }
+  } finally {
+    cleanupTmpProject(target);
+  }
+});
+
+test('update --scope global: warns and skips a tool whose defaultTarget.global is null', async () => {
+  // vscode-copilot has defaultTarget.global = null (workspace-only).
+  // Install workspace-scoped first to land a lockfile, then ask update to
+  // run at global scope. We expect a warning, no throw, and no work done.
+  const target = createTmpProject();
+  const { logger, lines } = silentLogger();
+  try {
+    await install({
+      tool: 'vscode-copilot',
+      mcp: ['everything'],
+      target,
+      sourceRoot: REPO_ROOT,
+      logger,
+    });
+
+    await update({
+      tool: 'vscode-copilot',
+      scope: 'global',
+      target,
+      sourceRoot: REPO_ROOT,
+      logger,
+    });
+
+    assert.ok(
+      lines.some(([level, m]) => level === 'warn' && /global/.test(m) && /(skip|not support)/i.test(m)),
+      'expected a warning explaining global scope is not supported for this tool',
+    );
+  } finally {
+    cleanupTmpProject(target);
+  }
+});
+
 test('install: tools whose mcpConfig.workspace is null (antigravity, copilot-cli) skip with a warning', async () => {
   const target = createTmpProject();
   const { logger, lines } = silentLogger();

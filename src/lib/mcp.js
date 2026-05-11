@@ -45,13 +45,66 @@ export function loadMcpSource(sourceRoot, name) {
 // Resolve the final value to merge under wrapperPath[name]. We start from
 // the source's `config` and overlay per-tool `overrides` from the manifest
 // entry (same model that frontmatter overrides use elsewhere).
+//
+// The merge is deep so an overlay can tweak a single env var without
+// having to redeclare the whole env object. Arrays are still treated as
+// leaves and replaced wholesale — concatenating args would silently
+// double-add flags, which is rarely what an override wants.
 export function resolveMcpValue({ source, manifestEntry, toolName }) {
   const base = clone(source.config);
   const overrides = manifestEntry?.overrides?.[toolName];
-  if (overrides && typeof overrides === 'object') {
-    return { ...base, ...overrides };
+  if (overrides && isPlainObject(overrides)) {
+    return deepMerge(base, overrides);
   }
   return base;
+}
+
+// Generic deep merge: nested plain-object keys merge recursively; arrays
+// and primitives in the overlay replace the base. Explicit null in the
+// overlay wins (so `{ env: null }` clears an inherited env block).
+export function deepMerge(base, overlay) {
+  if (!isPlainObject(base)) return clone(overlay);
+  if (!isPlainObject(overlay)) return clone(overlay);
+  const out = {};
+  for (const k of Object.keys(base)) out[k] = clone(base[k]);
+  for (const [k, v] of Object.entries(overlay)) {
+    if (isPlainObject(out[k]) && isPlainObject(v)) {
+      out[k] = deepMerge(out[k], v);
+    } else {
+      out[k] = clone(v);
+    }
+  }
+  return out;
+}
+
+// Inspect a resolved MCP value and return the env keys whose value is
+// effectively empty — either literally an empty/whitespace string, null,
+// or a `${VAR}` reference whose variable isn't set in process.env.
+//
+// We respect the bash-style default syntax `${VAR:-default}`: if a default
+// is present, the key is not flagged regardless of whether VAR is set,
+// because the tool will fall back to the default at runtime.
+export function collectEmptyEnvKeys(value) {
+  if (!value || !isPlainObject(value.env)) return [];
+  const empty = [];
+  for (const [key, raw] of Object.entries(value.env)) {
+    if (isEffectivelyEmpty(raw)) empty.push(key);
+  }
+  return empty;
+}
+
+function isEffectivelyEmpty(raw) {
+  if (raw == null) return true;
+  if (typeof raw !== 'string') return false;
+  if (raw.trim() === '') return true;
+  // Resolve every `${VAR}` and `${VAR:-default}` occurrence; if anything
+  // non-empty remains (including a default), treat as non-empty.
+  const resolved = raw.replaceAll(/\$\{([^}:]+)(?::-([^}]*))?\}/g, (_match, name, def) => {
+    const val = process.env[name];
+    if (val == null || val === '') return def == null ? '' : def;
+    return val;
+  });
+  return resolved === '';
 }
 
 // ── Destination side ──────────────────────────────────────────────────
@@ -118,6 +171,7 @@ export function installMcpEntry({
   const source = loadMcpSource(sourceRoot, name);
   const manifestEntry = manifest?.mcp?.[name];
   const value = resolveMcpValue({ source, manifestEntry, toolName });
+  warnEmptyEnv({ name, value, logger });
 
   // Conflict detection mirrors the file-copy semantics: an existing entry
   // is OK if our lockfile already owns it AND it hasn't been edited; it's
@@ -186,6 +240,7 @@ export function updateMcpEntry({
   }
   const manifestEntry = manifest?.mcp?.[name];
   const value = resolveMcpValue({ source, manifestEntry, toolName });
+  warnEmptyEnv({ name, value, logger });
 
   const newSourceSha = hashJsonValue(source.config);
   const newValueSha = hashJsonValue(value);
@@ -265,4 +320,23 @@ export function removeMcpEntryForCommand({
 
 function clone(v) {
   return structuredClone(v);
+}
+
+function isPlainObject(v) {
+  return v !== null && typeof v === 'object' && !Array.isArray(v);
+}
+
+// Emit a single non-fatal warning per asset listing any env keys whose
+// effective value is empty (literal "", whitespace, null, or a `${VAR}`
+// reference with no default and no matching process.env entry). The user
+// almost always wants to know about this BEFORE the MCP server fails at
+// runtime with an opaque "missing credentials" message.
+function warnEmptyEnv({ name, value, logger }) {
+  if (!logger) return;
+  const empty = collectEmptyEnvKeys(value);
+  if (empty.length === 0) return;
+  logger.warn(
+    `mcp/${name}: env var(s) resolve to empty at install time: ${empty.join(', ')}. ` +
+      `Set them in your shell (or as defaults via \`\${VAR:-default}\` in the source) before the MCP server runs.`,
+  );
 }

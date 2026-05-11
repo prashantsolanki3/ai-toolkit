@@ -81,10 +81,11 @@ commonAssetOptions(installCmd).action(async (opts) => {
 
 const updateCmd = program
   .command('update')
-  .description('Update installed assets from the source. Without filters, updates every tracked asset; with --preset / --skills / --agents / --commands / --hooks / --rules, restrict the update to those.')
+  .description('Update installed assets from the source. Without filters, updates every tracked asset; with --preset / --skills / --agents / --commands / --hooks / --rules / --mcp, restrict the update to those.')
   .option('--target <path>', 'project root (defaults to current directory)')
   .option('--tool <name>', 'specific tool to update; if omitted, autodiscover by scanning tool subdirs for lockfiles')
   .option('--preset <name>', 'restrict the update to assets in this preset')
+  .addOption(new Option('--scope <scope>', 'install scope').choices(['global', 'workspace']).default('workspace'))
   .option('--force', 'overwrite local edits', false)
   .option('--dry-run', 'plan only, write nothing', false)
   .option('--verbose', 'verbose output', false);
@@ -101,6 +102,7 @@ commonAssetOptions(updateCmd).action(async (opts) => {
     hooks: opts.hooks,
     rules: opts.rules,
     mcp: opts.mcp,
+    scope: opts.scope,
     sourceRoot: SOURCE_ROOT,
     force: opts.force,
     dryRun: opts.dryRun,

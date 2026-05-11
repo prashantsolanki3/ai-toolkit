@@ -206,7 +206,8 @@ Field roles:
 
 - `config` — **required.** The literal MCP server entry the toolkit merges into each tool's MCP config file as `mcpServers.my-server` (or `servers.my-server` for VS Code Copilot — the wrapper key is per-tool, not per-asset).
 - `description`, `author`, `presets`, `tools` — same meaning as the universal frontmatter fields.
-- `overrides.<toolName>` — shallow-merged on top of `config` for that specific tool. Use this when a tool needs a different transport field (e.g. Gemini CLI's `httpUrl` instead of `url` for HTTP streaming) or a tool-specific flag (Kiro's `autoApprove`, `disabled`, `disabledTools`).
+- `overrides.<toolName>` — **deep-merged** on top of `config` for that specific tool. Use this when a tool needs a different transport field (e.g. Gemini CLI's `httpUrl` instead of `url` for HTTP streaming) or a tool-specific flag (Kiro's `autoApprove`, `disabled`, `disabledTools`). Nested objects merge key-by-key — overriding a single `env` entry doesn't drop the others. Arrays in the override replace the base array wholesale (so a partial `args:` override doesn't silently concat).
+- `config.env.<KEY>` values support `${VAR}` and `${VAR:-default}` references; the toolkit emits a warning at install time when one resolves to empty so missing credentials are surfaced before the server tries to start.
 
 At install time the toolkit writes the resolved value into `.mcp.json` / `.cursor/mcp.json` / `.vscode/mcp.json` / `~/.gemini/settings.json` / `~/.gemini/antigravity/mcp_config.json` / `~/.copilot/mcp-config.json` / `.kiro/settings/mcp.json` depending on the tool and `--scope`. Existing entries the user added under different names are never touched. See [architecture.md#mcp-servers](../architecture.md#mcp-servers) for the path table and merge semantics.
 
