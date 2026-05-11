@@ -60,8 +60,8 @@ verify-manifest:  ## Fail if manifest.json is out of date relative to asset fron
 bootstrap:  ## Symlink toolkit's own assets into .claude/.cursor/.github/ for self-hosting
 	./scripts/bootstrap.sh
 
-unbootstrap:  ## Remove the bootstrapped .claude/.cursor/.github/ trees
-	rm -rf .claude .cursor .github
+unbootstrap:  ## Tear down every tool's bootstrap (`remove --all` + bulldoze any orphans declared in config/tools.json)
+	./scripts/unbootstrap.sh
 
 # ---------- End-to-end ----------
 
