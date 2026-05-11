@@ -3,9 +3,10 @@ import { supportsAsset } from './tools.js';
 
 const ASSET_TYPES = ['skills', 'agents', 'commands', 'hooks', 'rules'];
 
-export function resolveInstallTargets(opts, manifest, tool) {
+export function resolveInstallTargets(opts, manifest, tool, ctx = {}) {
   const warnings = [];
   const merged = Object.fromEntries(ASSET_TYPES.map((t) => [t, []]));
+  const toolName = ctx.toolName;
 
   if (opts.preset) {
     const preset = resolvePreset(manifest, opts.preset);
@@ -27,12 +28,31 @@ export function resolveInstallTargets(opts, manifest, tool) {
     }
   }
 
+  // Filter by tool capability and per-asset `tools:` allowlist.
   for (const type of ASSET_TYPES) {
-    if (merged[type].length > 0 && !supportsAsset(tool, type)) {
+    if (merged[type].length === 0) continue;
+    if (!supportsAsset(tool, type)) {
       warnings.push(
         `Tool "${tool.displayName}" does not support ${type}; skipping ${merged[type].length} item(s).`,
       );
       merged[type] = [];
+      continue;
+    }
+    if (toolName) {
+      const dropped = [];
+      merged[type] = merged[type].filter((name) => {
+        const entry = manifest[type] && manifest[type][name];
+        if (entry && Array.isArray(entry.tools) && !entry.tools.includes(toolName)) {
+          dropped.push(name);
+          return false;
+        }
+        return true;
+      });
+      for (const name of dropped) {
+        warnings.push(
+          `${type}/${name}: not installed because asset is restricted to other tools (this run: ${toolName}).`,
+        );
+      }
     }
   }
 

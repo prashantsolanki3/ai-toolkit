@@ -1,5 +1,5 @@
 .DEFAULT_GOAL := help
-.PHONY: help install test test-unit test-integration test-watch coverage lint scan clean smoke verify-tools tag release-check ci dev
+.PHONY: help install test test-unit test-integration test-watch coverage lint scan clean smoke verify-tools verify-manifest register tag release-check ci dev
 
 # ---------- Help ----------
 
@@ -51,6 +51,12 @@ scan:  ## Run gitleaks secret scan
 verify-tools:  ## Validate config/tools.json against schema
 	./scripts/verify-tools.sh
 
+register:  ## Regenerate manifest.json from asset frontmatter
+	node scripts/register.js
+
+verify-manifest:  ## Fail if manifest.json is out of date relative to asset frontmatter
+	node scripts/register.js --check
+
 # ---------- End-to-end ----------
 
 smoke:  ## Run smoke test in a temp directory
@@ -58,7 +64,7 @@ smoke:  ## Run smoke test in a temp directory
 
 # ---------- Release flow ----------
 
-release-check: lint test scan verify-tools  ## All gates that must pass before tagging
+release-check: lint test scan verify-tools verify-manifest  ## All gates that must pass before tagging
 	@echo "✓ All release checks passed"
 
 tag:  ## Tag a new version (usage: make tag VERSION=0.1.0)
@@ -71,7 +77,7 @@ tag:  ## Tag a new version (usage: make tag VERSION=0.1.0)
 
 # ---------- Composite ----------
 
-ci: install lint test coverage scan verify-tools  ## Everything CI would run
+ci: install lint test coverage scan verify-tools verify-manifest  ## Everything CI would run
 	@echo "✓ CI checks passed"
 
 dev: install  ## Set up local dev environment

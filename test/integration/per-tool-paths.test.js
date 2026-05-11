@@ -71,6 +71,38 @@ test('cursor: skills land as .cursor/rules/<name>.mdc, no skills/ subdir', async
   }
 });
 
+test('cursor: explicit rules land as .cursor/rules/<name>.mdc', async () => {
+  const target = createTmpProject();
+  try {
+    await install({
+      tool: 'cursor',
+      rules: ['no-bare-todos'],
+      target,
+      sourceRoot: REPO_ROOT,
+      logger: silentLogger(),
+    });
+    assert.ok(fs.existsSync(path.join(target, 'rules', 'no-bare-todos.mdc')));
+  } finally {
+    cleanupTmpProject(target);
+  }
+});
+
+test('claude-code: rules land as .claude/rules/<name>.md', async () => {
+  const target = createTmpProject();
+  try {
+    await install({
+      tool: 'claude-code',
+      rules: ['no-bare-todos'],
+      target,
+      sourceRoot: REPO_ROOT,
+      logger: silentLogger(),
+    });
+    assert.ok(fs.existsSync(path.join(target, 'rules', 'no-bare-todos.md')));
+  } finally {
+    cleanupTmpProject(target);
+  }
+});
+
 test('antigravity: skills directory lands at target root (no skills/ subdir)', async () => {
   const target = createTmpProject();
   try {

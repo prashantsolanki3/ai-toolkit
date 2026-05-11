@@ -107,3 +107,53 @@ test('resolveInstallTargets() throws on unknown preset', () => {
     /no-such/,
   );
 });
+
+test('resolveInstallTargets() drops assets whose tools filter excludes the current tool', () => {
+  const m = {
+    ...manifest,
+    skills: {
+      ...manifest.skills,
+      'claude-only': { tools: ['claude-code'] },
+    },
+  };
+  const toolNamed = { ...fullTool, name: 'cursor' };
+  const result = resolveInstallTargets(
+    { skills: ['claude-only', 'api-endpoint-design'] },
+    m,
+    toolNamed,
+    { toolName: 'cursor' },
+  );
+  assert.ok(!result.skills.includes('claude-only'));
+  assert.ok(result.skills.includes('api-endpoint-design'));
+  assert.ok(result.warnings.some((w) => /claude-only/.test(w) && /cursor/.test(w)));
+});
+
+test('resolveInstallTargets() keeps assets whose tools filter includes the current tool', () => {
+  const m = {
+    ...manifest,
+    skills: {
+      'multi-tool': { tools: ['claude-code', 'cursor'] },
+    },
+  };
+  const result = resolveInstallTargets(
+    { skills: ['multi-tool'] },
+    m,
+    fullTool,
+    { toolName: 'cursor' },
+  );
+  assert.deepEqual(result.skills, ['multi-tool']);
+});
+
+test('resolveInstallTargets() keeps assets that omit tools (treated as universal)', () => {
+  const m = {
+    ...manifest,
+    skills: { 'universal': {} },
+  };
+  const result = resolveInstallTargets(
+    { skills: ['universal'] },
+    m,
+    fullTool,
+    { toolName: 'cursor' },
+  );
+  assert.deepEqual(result.skills, ['universal']);
+});

@@ -24,6 +24,7 @@ export async function install(opts) {
     pickAssetSelectors(opts),
     manifest,
     tool,
+    { toolName: opts.tool },
   );
 
   for (const warning of plan.warnings) logger.warn(warning);

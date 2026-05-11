@@ -12,16 +12,18 @@
         "skills": "skills",
         "agents": "agents",
         "commands": "commands",
-        "hooks": "hooks"
+        "hooks": "hooks",
+        "rules": "rules"
       },
       "assetFormats": {
         "skills": { "filename": "SKILL.md", "type": "directory" },
         "agents": { "filename": "{name}.md", "type": "file", "sourceFile": "agent.md" },
         "commands": { "filename": "{name}.md", "type": "file" },
-        "hooks": { "filename": "{name}.sh", "type": "file" }
+        "hooks": { "filename": "{name}.sh", "type": "file" },
+        "rules": { "filename": "{name}.md", "type": "file" }
       },
-      "supportedAssets": ["skills", "agents", "commands", "hooks"],
-      "notes": "Skills live as directories (Claude Code reads frontmatter from SKILL.md). Agents are flat files at .claude/agents/<name>.md with frontmatter — we extract the inner agent.md. Hook scripts are stored under .claude/hooks/<name>.sh but must also be referenced from .claude/settings.json to actually run."
+      "supportedAssets": ["skills", "agents", "commands", "hooks", "rules"],
+      "notes": "Skills live as directories (Claude Code reads frontmatter from SKILL.md). Agents are flat files at .claude/agents/<name>.md with frontmatter — we extract the inner agent.md. Hook scripts are stored under .claude/hooks/<name>.sh but must also be referenced from .claude/settings.json to actually run. Rules land at .claude/rules/<name>.md — Claude Code does not auto-load this directory; reference the rules from CLAUDE.md or another loaded context file."
     },
     "cursor": {
       "displayName": "Cursor",
