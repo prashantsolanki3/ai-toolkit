@@ -1,0 +1,99 @@
+import path from 'node:path';
+import { loadTools, getTool, getAssetDestination, supportsAsset } from '../lib/tools.js';
+import { copyAsset, hashDir, hashFile, pathExists } from '../lib/fs-ops.js';
+import { read as readLockfile, write as writeLockfile, LOCKFILE_NAME } from '../lib/lockfile.js';
+import { createLogger } from '../lib/logger.js';
+
+const ASSET_TYPES = ['skills', 'agents', 'commands', 'hooks', 'rules'];
+
+export async function update(opts) {
+  const logger = opts.logger || createLogger();
+  const sourceRoot =
+    opts.sourceRoot || path.resolve(path.dirname(new URL(import.meta.url).pathname), '..', '..');
+  const target = opts.target;
+  if (!target) throw new Error('update: missing target');
+
+  const lockfile = readLockfile(target);
+  if (!lockfile) {
+    throw new Error(`No lockfile at ${path.join(target, LOCKFILE_NAME)}; nothing to update (not installed).`);
+  }
+
+  const tools = loadTools(path.join(sourceRoot, 'config'));
+  const tool = getTool(tools, lockfile.tool);
+
+  const result = { updated: [], skipped: [], missing: [], unchanged: [] };
+
+  for (const type of ASSET_TYPES) {
+    if (!supportsAsset(tool, type)) continue;
+    const tracked = (lockfile.assets && lockfile.assets[type]) || {};
+    for (const name of Object.keys(tracked)) {
+      const format = tool.assetFormats[type];
+      const sourcePath = sourceAssetPath(sourceRoot, type, name, format);
+      const dest = getAssetDestination(tool, target, type, name);
+
+      if (!pathExists(sourcePath)) {
+        logger.warn(`${type}/${name}: removed upstream — leaving in place, untrack via 'remove'`);
+        result.missing.push({ type, name });
+        continue;
+      }
+
+      const sourceSha = format.type === 'directory' ? hashDir(sourcePath) : hashFile(sourcePath);
+      const lockSha = tracked[name].sha;
+      const installedSha = pathExists(dest)
+        ? format.type === 'directory'
+          ? hashDir(dest)
+          : hashFile(dest)
+        : null;
+
+      if (sourceSha === lockSha && installedSha === lockSha) {
+        result.unchanged.push({ type, name });
+        continue;
+      }
+
+      if (sourceSha === lockSha && installedSha !== lockSha) {
+        result.skipped.push({ type, name, reason: 'local edits and no upstream change' });
+        logger.warn(`${type}/${name}: locally edited; nothing new upstream — leaving as-is`);
+        continue;
+      }
+
+      const hasLocalEdits = installedSha !== null && installedSha !== lockSha;
+      if (hasLocalEdits && !opts.force) {
+        logger.warn(`${type}/${name}: local edits detected — skipping. Re-run with --force to overwrite.`);
+        result.skipped.push({ type, name, reason: 'local edits; use --force to overwrite' });
+        continue;
+      }
+
+      if (opts.dryRun) {
+        logger.dryRun(`update ${type}/${name}`);
+        result.updated.push({ type, name });
+        continue;
+      }
+
+      copyAsset(sourcePath, dest, format);
+      const newSha = format.type === 'directory' ? hashDir(dest) : hashFile(dest);
+      lockfile.assets[type][name] = {
+        ...tracked[name],
+        sha: newSha,
+        installedAt: new Date().toISOString(),
+      };
+      result.updated.push({ type, name });
+      logger.success(`updated ${type}/${name}`);
+    }
+  }
+
+  if (!opts.dryRun) {
+    lockfile.lastUpdatedAt = new Date().toISOString();
+    writeLockfile(target, lockfile);
+  }
+
+  return result;
+}
+
+function sourceAssetPath(sourceRoot, type, name, format) {
+  const dir = path.join(sourceRoot, type);
+  if (format.type === 'directory') {
+    return path.join(dir, name);
+  }
+  const filename = (format.filename || '{name}').replace('{name}', name);
+  return path.join(dir, filename);
+}
