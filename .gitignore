@@ -8,6 +8,8 @@ coverage/
 /.cursor/
 /.github/
 /.kiro/
+/.gemini/
+/.agent/
 
 test/fixtures/tmp/
 *.log
