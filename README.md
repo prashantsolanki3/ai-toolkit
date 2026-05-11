@@ -1,8 +1,12 @@
 # ai-toolkit
 
-Tool-agnostic CLI that installs and updates skills, agents, commands, and hooks across AI coding tools — Claude Code, Cursor, Antigravity, Gemini CLI, and any future tool added to a single config file.
+Tool-agnostic CLI that installs and updates skills, agents, commands, and hooks across AI coding tools. Currently ships configs for **Claude Code**, **Cursor**, **Antigravity**, **Gemini CLI**, **VS Code Copilot**, **GitHub Copilot CLI**, **Kiro**, and **Kiro CLI** — adding a new tool is one block in [`config/tools.json`](config/tools.json).
 
 Distributed as a **private GitHub repo**. Installed via `npx git+ssh://...` directly from the repo. Not published to npm.
+
+> **What's actually tested**
+>
+> The automated suite verifies file placement, lockfile correctness, update conflict detection, and that each configured tool's destination paths/format match what's declared in `config/tools.json`. It does **not** verify that the receiving IDE/CLI actually ingests those files — that requires running each tool. See [`docs/verification-matrix.md`](docs/verification-matrix.md) for the per-tool manual check.
 
 ## Quick start
 
