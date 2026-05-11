@@ -93,6 +93,47 @@ test('cli: list --type mcp prints MCP assets', () => {
   assert.match(r.stdout, /everything/);
 });
 
+test('cli: skill-evaluator is NOT installed on tools that lack slash-command support', () => {
+  // skill-evaluator's body references /eval-skill and /improve-skill. Tools
+  // without slash commands (Cursor, Antigravity, Gemini CLI, Kiro, Kiro CLI)
+  // would receive a skill that points at commands they can't run. Its
+  // frontmatter `tools:` allowlist must keep it off those tools.
+  const target = createTmpProject();
+  try {
+    const r = run(['install', '--tool', 'cursor', '--preset', 'skill-development', '--target', target]);
+    assert.equal(r.status, 0, `install failed: ${r.stderr}`);
+    const dir = toolDir(target, 'cursor');
+    assert.equal(
+      fs.existsSync(path.join(dir, 'rules', 'skill-evaluator.mdc')),
+      false,
+      'skill-evaluator must NOT land on cursor — it references slash commands cursor cannot run',
+    );
+    // The warning surfaced is the same per-asset tools-allowlist message the
+    // toolkit uses elsewhere — we just check it mentions the skill.
+    assert.match(r.stdout + r.stderr, /skill-evaluator/);
+  } finally {
+    cleanupTmpProject(target);
+  }
+});
+
+test('cli: skill-evaluator IS installed on tools that have slash-command support', () => {
+  // The flip side of the test above: command-capable tools still get it.
+  const target = createTmpProject();
+  try {
+    const r = run(['install', '--tool', 'claude-code', '--preset', 'skill-development', '--target', target]);
+    assert.equal(r.status, 0, `install failed: ${r.stderr}`);
+    const dir = toolDir(target, 'claude-code');
+    assert.ok(
+      fs.existsSync(path.join(dir, 'skills', 'skill-evaluator', 'SKILL.md')),
+      'skill-evaluator must land on claude-code',
+    );
+    assert.ok(fs.existsSync(path.join(dir, 'commands', 'eval-skill.md')));
+    assert.ok(fs.existsSync(path.join(dir, 'commands', 'improve-skill.md')));
+  } finally {
+    cleanupTmpProject(target);
+  }
+});
+
 test('cli: install --all without --preset installs every shipped asset', () => {
   const target = createTmpProject();
   try {

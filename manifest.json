@@ -6,7 +6,12 @@
       "presets": [
         "skill-development"
       ],
-      "author": "ai-toolkit"
+      "author": "ai-toolkit",
+      "tools": [
+        "claude-code",
+        "vscode-copilot",
+        "copilot-cli"
+      ]
     }
   },
   "agents": {

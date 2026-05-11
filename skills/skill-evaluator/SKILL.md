@@ -4,6 +4,13 @@ description: Teaches your IDE's agent to run an eval suite against any toolkit s
 author: ai-toolkit
 presets:
   - skill-development
+# The skill body refers to the /eval-skill and /improve-skill slash commands.
+# Restrict installation to tools that actually support slash commands so we
+# never land a skill that references commands its host tool can't run.
+tools:
+  - claude-code
+  - vscode-copilot
+  - copilot-cli
 ---
 
 # Skill Evaluator
