@@ -1,0 +1,10 @@
+node_modules/
+coverage/
+.ai-toolkit-lock.json
+.claude/.ai-toolkit-lock.json
+.cursor/.ai-toolkit-lock.json
+test/fixtures/tmp/
+*.log
+.DS_Store
+.env*
+/tmp-*

@@ -1,0 +1,35 @@
+{
+  "name": "ai-toolkit",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Tool-agnostic CLI that installs and updates skills, agents, commands, and hooks across AI coding tools",
+  "type": "module",
+  "bin": {
+    "ai-toolkit": "./bin/cli.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "test": "node --test test/**/*.test.js"
+  },
+  "files": [
+    "bin",
+    "src",
+    "config",
+    "manifest.json",
+    "skills",
+    "agents",
+    "commands",
+    "hooks",
+    "LICENSE",
+    "README.md"
+  ],
+  "dependencies": {
+    "ajv": "^8.17.1",
+    "chalk": "^5.4.1",
+    "commander": "^12.1.0",
+    "fs-extra": "^11.2.0",
+    "inquirer": "^12.3.0"
+  }
+}
