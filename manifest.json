@@ -1,0 +1,75 @@
+{
+  "version": "1.0",
+  "skills": {
+    "api-endpoint-design": {
+      "description": "Checklist for designing REST endpoints — naming, status codes, pagination, versioning."
+    },
+    "database-migration-safety": {
+      "description": "Patterns for zero-downtime schema migrations."
+    },
+    "dependency-upgrade": {
+      "description": "A systematic approach to upgrading a dependency safely."
+    },
+    "error-handling-patterns": {
+      "description": "Structured error handling across a codebase."
+    },
+    "code-review-checklist": {
+      "description": "A short, generic code-review checklist."
+    }
+  },
+  "agents": {
+    "senior-architect": {
+      "description": "System design reviewer focused on scale, failure modes, tradeoffs."
+    },
+    "refactoring-specialist": {
+      "description": "Identifies and applies refactoring patterns."
+    },
+    "test-writer": {
+      "description": "Generates test cases from acceptance criteria or function signatures."
+    }
+  },
+  "commands": {
+    "summarize-diff": {
+      "description": "Generate a PR description from a git diff."
+    },
+    "explain-error": {
+      "description": "Analyze a stack trace and explain root cause."
+    },
+    "bump-version": {
+      "description": "Update version across package metadata, changelog, and tags."
+    }
+  },
+  "hooks": {
+    "pre-commit-lint": {
+      "description": "Sample lint-staged pre-commit hook."
+    },
+    "post-merge-install": {
+      "description": "Runs install when lockfile changed after merge."
+    }
+  },
+  "presets": {
+    "backend-essentials": {
+      "skills": [
+        "api-endpoint-design",
+        "database-migration-safety",
+        "error-handling-patterns",
+        "code-review-checklist"
+      ],
+      "agents": ["senior-architect"],
+      "commands": ["summarize-diff"],
+      "hooks": []
+    },
+    "maintenance-mode": {
+      "skills": ["dependency-upgrade", "code-review-checklist"],
+      "agents": ["refactoring-specialist"],
+      "commands": ["explain-error", "bump-version"],
+      "hooks": []
+    },
+    "quality-gates": {
+      "skills": ["code-review-checklist", "error-handling-patterns"],
+      "agents": ["test-writer"],
+      "commands": [],
+      "hooks": ["pre-commit-lint"]
+    }
+  }
+}
