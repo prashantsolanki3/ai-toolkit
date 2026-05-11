@@ -5,6 +5,7 @@ import { resolveInstallTargets } from '../lib/resolver.js';
 import { hashDir, hashFile, pathExists } from '../lib/fs-ops.js';
 import { resolveSourcePath, copyAssetAdaptive } from '../lib/source-adapter.js';
 import { read as readLockfile, write as writeLockfile, addAsset, emptyLockfile } from '../lib/lockfile.js';
+import { writeSidecar, frontmatterKindForFile } from '../lib/sidecar.js';
 import { createLogger } from '../lib/logger.js';
 
 const ASSET_TYPES = ['skills', 'agents', 'commands', 'hooks', 'rules'];
@@ -100,6 +101,15 @@ export async function install(opts) {
         destFormat,
         toolName: opts.tool,
       });
+      if (destFormat.sidecar) {
+        writeSidecar({
+          sourcePath: source.path,
+          destPath: dest,
+          sidecarSpec: destFormat.sidecar,
+          assetName: name,
+          frontmatterKind: frontmatterKindForFile(source.path),
+        });
+      }
       const sourceSha = source.kind === 'directory' ? hashDir(source.path) : hashFile(source.path);
       const destSha = destFormat.type === 'directory' ? hashDir(dest) : hashFile(dest);
       lockfile = addAsset(lockfile, type, name, {

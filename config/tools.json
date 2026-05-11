@@ -178,10 +178,23 @@
           "type": "file",
           "sourceFile": "SKILL.md"
         },
-        "hooks": { "filename": "{name}.sh", "type": "file" }
+        "hooks": {
+          "filename": "{name}.sh",
+          "type": "file",
+          "sidecar": {
+            "filename": "{name}.kiro.hook",
+            "format": "json",
+            "content": {
+              "name": "{name}",
+              "description": "{description}",
+              "command": "./{filename}",
+              "enabled": true
+            }
+          }
+        }
       },
       "supportedAssets": ["skills", "hooks"],
-      "notes": "AWS Kiro reads markdown files from .kiro/steering/ to inject project-wide guidance into the agent. Hooks at .kiro/hooks/ also need a corresponding .kiro.hook JSON metadata file; this config installs the script only, you must register it via the Kiro UI or by hand-crafting the .kiro.hook file."
+      "notes": "Steering files at .kiro/steering/<name>.md inject project guidance into the agent. Hooks land at .kiro/hooks/<name>.sh PLUS a sibling <name>.kiro.hook JSON describing the hook (name, description, command, enabled). Kiro discovers hooks via the JSON sidecar; the .sh alone is not enough."
     },
     "kiro-cli": {
       "displayName": "Kiro CLI",

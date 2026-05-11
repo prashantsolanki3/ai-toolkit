@@ -7,6 +7,7 @@ import {
   removeAsset,
   LOCKFILE_NAME,
 } from '../lib/lockfile.js';
+import { removeSidecar } from '../lib/sidecar.js';
 import { createLogger } from '../lib/logger.js';
 
 const ASSET_TYPES = ['skills', 'agents', 'commands', 'hooks', 'rules'];
@@ -54,10 +55,15 @@ export async function remove(opts) {
         continue;
       }
       const dest = getAssetDestination(tool, target, type, name);
+      const sidecarSpec = tool.assetFormats[type]?.sidecar;
       if (opts.dryRun) {
         logger.dryRun(`remove ${type}/${name} at ${dest}`);
+        if (sidecarSpec) logger.dryRun(`remove sidecar for ${type}/${name}`);
       } else {
         if (pathExists(dest)) removePath(dest);
+        if (sidecarSpec) {
+          removeSidecar({ destPath: dest, sidecarSpec, assetName: name });
+        }
         lockfile = removeAsset(lockfile, type, name);
         logger.success(`removed ${type}/${name}`);
       }
