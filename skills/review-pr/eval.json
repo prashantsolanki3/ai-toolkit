@@ -1,0 +1,48 @@
+{
+  "version": "1.0",
+  "skill": "review-pr",
+  "description": "Pins the 6-axis test-relevance rubric, the would-fail-before recipe, the verdict gate, and the reviewer-spawns-issues pattern.",
+  "target_pass_rate": 0.9,
+  "tests": [
+    {
+      "id": "rejects-mock-only-test",
+      "input": "Reviewing PR #42. The only new test asserts mock_send_email.assert_called_once() and nothing else.",
+      "assertions": [
+        {"type": "contains", "value": "REQUEST_CHANGES"},
+        {"type": "contains", "value": "MOCK-ONLY"}
+      ]
+    },
+    {
+      "id": "would-fail-before-recipe",
+      "input": "Review PR #51. Walk me through how you confirm the new test would have failed before this PR.",
+      "assertions": [
+        {"type": "contains", "value": "merge-base"},
+        {"type": "regex", "value": "git\\s+merge-base\\s+origin/main\\s+HEAD"}
+      ]
+    },
+    {
+      "id": "rejects-missing-closes",
+      "input": "PR #77 has no Closes or Refs line in its body. Tests are fine. What's the verdict?",
+      "assertions": [
+        {"type": "contains", "value": "REQUEST_CHANGES"},
+        {"type": "contains_any_of", "value": ["Closes #", "Refs #"]}
+      ]
+    },
+    {
+      "id": "spawns-issues-for-followups",
+      "input": "I noticed three unrelated bugs while reviewing PR #88. None block merge.",
+      "assertions": [
+        {"type": "contains_any_of", "value": ["gh-project-sync", "create-task"]},
+        {"type": "contains", "value": "Spawned #"}
+      ]
+    },
+    {
+      "id": "approves-clean-pr",
+      "input": "PR #100: one new endpoint, one new test asserting response JSON, would-fail-before YES, Closes #99, no secrets.",
+      "assertions": [
+        {"type": "contains", "value": "APPROVED"},
+        {"type": "regex", "value": "(?i)gh\\s+pr\\s+review\\s+\\S+\\s+--approve"}
+      ]
+    }
+  ]
+}

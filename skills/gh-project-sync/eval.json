@@ -1,0 +1,46 @@
+{
+  "version": "1.0",
+  "skill": "gh-project-sync",
+  "description": "Pins env-var defaults, native GH sub-issue/dependency semantics, and the no-PR-description-as-truth rule.",
+  "target_pass_rate": 0.8,
+  "tests": [
+    {
+      "id": "create-task-shape",
+      "input": "Create a Todo task in smart-agents-backend titled 'Add /healthz endpoint', size M, current iteration.",
+      "assertions": [
+        {"type": "contains", "value": "gh-project-sync create-task"},
+        {"type": "contains_all_of", "value": ["--repo", "--title", "--status", "Todo", "--size"]}
+      ]
+    },
+    {
+      "id": "native-sub-issue",
+      "input": "How do I record that issue #145 is a sub-task of epic #140?",
+      "assertions": [
+        {"type": "contains", "value": "link-sub-issue"},
+        {"type": "not_regex", "value": "(?i)edit\\s+(the\\s+)?(parent|epic)\\s+(issue\\s+)?body"}
+      ]
+    },
+    {
+      "id": "cross-repo-dependency",
+      "input": "Website issue #112 depends on backend issue #203. How do I wire it?",
+      "assertions": [
+        {"type": "contains", "value": "add-dependency"},
+        {"type": "contains_all_of", "value": ["--blocked", "--blocking"]}
+      ]
+    },
+    {
+      "id": "env-driven-defaults",
+      "input": "How does the skill know which project to target?",
+      "assertions": [
+        {"type": "contains_all_of", "value": ["SMART_AGENTS_PROJECT_OWNER", "SMART_AGENTS_PROJECT_NUMBER"]}
+      ]
+    },
+    {
+      "id": "idempotent-set-fields",
+      "input": "If I run set-fields twice with the same values, what happens?",
+      "assertions": [
+        {"type": "contains_any_of", "value": ["idempotent", "no-op", "safe to re-run"]}
+      ]
+    }
+  ]
+}

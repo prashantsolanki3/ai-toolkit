@@ -1,6 +1,54 @@
 {
   "version": "1.0",
   "skills": {
+    "craft-skill": {
+      "description": "Decision-tree skill for self-improvement — when a session reveals a behaviour worth keeping, decide whether to tighten an existing skill's trigger, add a one-line rule, create a new skill, or promote the lesson to an identity file (CLAUDE.md / AGENTS.md / AI_INSTRUCTIONS.md). Triggered by phrases like \"you should have caught this\", \"from now on always X\", \"never X again\", \"we keep hitting this\". Complementary to the toolkit's eval-driven /improve-skill command.",
+      "presets": [
+        "dev-skills"
+      ],
+      "author": "ai-toolkit-dev-skills",
+      "tools": [
+        "claude-code",
+        "vscode-copilot",
+        "copilot-cli"
+      ]
+    },
+    "gh-project-sync": {
+      "description": "Wrapper for creating issues that auto-add to a GitHub Project, setting project fields, linking native sub-issues, listing items, and wiring native cross-issue dependencies. Triggered by phrases like \"create a task\", \"add to the project board\", \"set the iteration\", \"link sub-issue\", \"list project items\", \"block this on\", \"depends on\". Reads SMART_AGENTS_PROJECT_OWNER and SMART_AGENTS_PROJECT_NUMBER from env. Use this for any project-board work — never assume PR-description prose is canonical for cross-repo links.",
+      "presets": [
+        "dev-skills"
+      ],
+      "author": "ai-toolkit-dev-skills",
+      "tools": [
+        "claude-code",
+        "vscode-copilot",
+        "copilot-cli"
+      ]
+    },
+    "review-pr": {
+      "description": "Critical evidence-based PR review against requirements, tests, completeness, security, and the SDLC contract. Triggered at the end of every safe-change run, by phrases like \"review this PR\", \"look at PR",
+      "presets": [
+        "dev-skills"
+      ],
+      "author": "ai-toolkit-dev-skills",
+      "tools": [
+        "claude-code",
+        "vscode-copilot",
+        "copilot-cli"
+      ]
+    },
+    "safe-change": {
+      "description": "Default SDLC contract for any non-trivial code or config change. Triggered by phrases like \"fix\", \"add\", \"wire up\", \"implement\", \"refactor\", \"rename\", \"update\", \"build\" — anything imperative on the code. Enforces worktree → TDD red → impl → green → PR → review → merge → cleanup with a GitHub Project board task and a cross-repo Depends-On slot. Skip only for pure questions, single-file typos the user calls out, work already happening on a named active branch, or when a more specific domain skill applies.",
+      "presets": [
+        "dev-skills"
+      ],
+      "author": "ai-toolkit-dev-skills",
+      "tools": [
+        "claude-code",
+        "vscode-copilot",
+        "copilot-cli"
+      ]
+    },
     "skill-evaluator": {
       "description": "Teaches your IDE's agent to run an eval suite against any toolkit skill, using your IDE's own model — no separate API key.",
       "presets": [
@@ -21,9 +69,36 @@
         "skill-development"
       ],
       "author": "ai-toolkit"
+    },
+    "wiki-keeper": {
+      "description": "Use this agent to ingest sources, query, or lint an LLM-maintained wiki. Trigger when the user drops material in `docs/sources/`, asks to ingest a file or URL, asks a research/synthesis question that likely already exists in the wiki, asks to file a result back, or asks to run a lint/health-check. Reads the schema from `docs/CLAUDE.md` (or `../smart-agents-hub/docs/CLAUDE.md` when the current repo has no local wiki). Writes only to LLM-maintained zones; never touches governed-zone docs.",
+      "presets": [
+        "dev-skills"
+      ],
+      "author": "ai-toolkit-dev-skills",
+      "tools": [
+        "claude-code",
+        "cursor",
+        "vscode-copilot",
+        "copilot-cli"
+      ],
+      "model": "sonnet"
     }
   },
   "commands": {
+    "clean-gone": {
+      "description": "Prune local branches whose remote is [gone] plus their worktrees — safely, with a dry-run and an optional multi-repo mode. Honours $SMART_AGENTS_REPOS_ROOT for the multi-repo iterator.",
+      "presets": [
+        "dev-skills"
+      ],
+      "author": "ai-toolkit-dev-skills",
+      "tools": [
+        "claude-code",
+        "vscode-copilot",
+        "copilot-cli"
+      ],
+      "argument-hint": "[--dry-run] [--all-repos]"
+    },
     "eval-skill": {
       "description": "Run the eval.json suite for a toolkit skill via your IDE's own agent — no API key.",
       "presets": [
@@ -37,9 +112,35 @@
         "skill-development"
       ],
       "author": "ai-toolkit"
+    },
+    "parallel-reviewers": {
+      "description": "Fan out three plugin reviewers (code-reviewer, silent-failure-hunter, pr-test-analyzer) at a PR in parallel and consolidate verdicts into one table. Auto-detects docs-only diffs and skips reviewers without signal. Falls back to repo-local agents when the pr-review-toolkit plugin is absent.",
+      "presets": [
+        "dev-skills"
+      ],
+      "author": "ai-toolkit-dev-skills",
+      "tools": [
+        "claude-code",
+        "vscode-copilot",
+        "copilot-cli"
+      ],
+      "argument-hint": "[--pr-number N | --from-branch B] [--scope=docs|code|security]"
     }
   },
-  "hooks": {},
+  "hooks": {
+    "branch-from-main": {
+      "description": "SessionStart advisory — warn when local main is behind origin/main before any branching",
+      "presets": [
+        "dev-skills"
+      ],
+      "author": "ai-toolkit-dev-skills",
+      "tools": [
+        "claude-code",
+        "kiro"
+      ],
+      "event": "SessionStart"
+    }
+  },
   "rules": {},
   "mcp": {
     "everything": {
@@ -75,6 +176,27 @@
       "mcp": [
         "everything"
       ]
+    },
+    "dev-skills": {
+      "description": "Generic developer best-practices for any repo — TDD via safe-change, evidence-based review-pr with 6-axis rubric, GitHub Project sync, multi-repo clean-gone, parallel reviewer fan-out, wiki-keeper agent, and a branch-from-main session advisory. Lifted from SmartAgents SA-091 with patterns from nikitaarora3/opulent-toolkit.",
+      "skills": [
+        "craft-skill",
+        "gh-project-sync",
+        "review-pr",
+        "safe-change"
+      ],
+      "agents": [
+        "wiki-keeper"
+      ],
+      "commands": [
+        "clean-gone",
+        "parallel-reviewers"
+      ],
+      "hooks": [
+        "branch-from-main"
+      ],
+      "rules": [],
+      "mcp": []
     }
   }
 }

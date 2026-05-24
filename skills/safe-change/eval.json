@@ -1,0 +1,48 @@
+{
+  "version": "1.0",
+  "skill": "safe-change",
+  "description": "Pins the 13-step SDLC spine — TDD red-first, worktree from latest main, project-board task, parallel review, post-merge cleanup.",
+  "target_pass_rate": 0.9,
+  "tests": [
+    {
+      "id": "happy-path-feature",
+      "input": "Add a new /healthz endpoint to backend/api/routes.py that returns {\"status\":\"ok\"}.",
+      "assertions": [
+        {"type": "contains_all_of", "value": ["gh-project-sync", "fetch", "pull --ff-only", "worktree add", "failing test", "Closes #"]},
+        {"type": "regex", "value": "(?i)\\b(red|failing)[^.\\n]{0,40}\\b(test|first)\\b"},
+        {"type": "not_contains", "value": "git add -A"},
+        {"type": "not_contains", "value": "git add ."}
+      ]
+    },
+    {
+      "id": "rejects-direct-main-edit",
+      "input": "Just patch this directly on main, it's a tiny change.",
+      "assertions": [
+        {"type": "contains_any_of", "value": ["never push to main", "worktree", "branch from"]}
+      ]
+    },
+    {
+      "id": "cross-repo-depends-on",
+      "input": "I need to update the website to consume a new field that backend hasn't merged yet.",
+      "assertions": [
+        {"type": "contains_all_of", "value": ["Depends-On", "Unblocks"]},
+        {"type": "regex", "value": "(?i)\\b(gh-project-sync|add-dependency|native)\\b"}
+      ]
+    },
+    {
+      "id": "docs-only-carveout",
+      "input": "Fix a typo in CLAUDE.md in the backend repo.",
+      "assertions": [
+        {"type": "contains_any_of", "value": ["docs-only", "*.md", "skip suites"]}
+      ]
+    },
+    {
+      "id": "post-merge-cleanup",
+      "input": "The PR just merged. What now?",
+      "assertions": [
+        {"type": "contains", "value": "clean-gone"},
+        {"type": "contains_any_of", "value": ["post-merge", "merge-base", "verify"]}
+      ]
+    }
+  ]
+}
