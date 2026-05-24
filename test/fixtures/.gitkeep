@@ -1,0 +1,3 @@
+# Keeps `test/fixtures/` tracked in git so `bootstrap.test.js` and other tests
+# that mkdtemp inside this directory don't ENOENT on a fresh checkout.
+# `test/fixtures/tmp/` is gitignored; this file ensures the parent exists.
