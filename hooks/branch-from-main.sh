@@ -38,15 +38,17 @@ fi
 # Skip silently if there is no `origin` remote.
 git remote get-url origin >/dev/null 2>&1 || exit 0
 
-# Determine upstream main ref name. Default to main; fall back to master.
-MAIN_BRANCH="main"
-if ! git ls-remote --exit-code --heads origin main >/dev/null 2>&1; then
-  if git ls-remote --exit-code --heads origin master >/dev/null 2>&1; then
-    MAIN_BRANCH="master"
-  else
-    exit 0
-  fi
-fi
+# Determine upstream main ref name from the local refs/remotes/origin/HEAD
+# symbolic-ref (no network call — `git ls-remote` would risk hanging on
+# slow networks or credential prompts and break the "never blocks" promise).
+#
+# The `|| true` is load-bearing: under `set -euo pipefail`, a failing
+# `git symbolic-ref` (no refs/remotes/origin/HEAD set — common before
+# first fetch or right after `git remote add`) causes the pipeline
+# itself to exit non-zero, which `set -e` would then propagate as a
+# hook abort. We want a graceful fallback to `main` instead.
+MAIN_BRANCH=$(git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null | sed 's@^origin/@@' || true)
+MAIN_BRANCH=${MAIN_BRANCH:-main}
 
 # Skip if local mainline ref doesn't exist.
 if ! git rev-parse --verify --quiet "refs/heads/${MAIN_BRANCH}" >/dev/null; then
