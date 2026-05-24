@@ -40,7 +40,7 @@ test -f .claude/skills/skill-evaluator/SKILL.md
 test -f .claude/agents/docs-maintainer.md
 test -f .claude/commands/eval-skill.md
 test -f .claude/commands/improve-skill.md
-test -f .claude/.ai-toolkit-lock.json
+test -f .ai-toolkit-lock.json
 echo "    ok — expected files present"
 
 # ---------- 3. installed reports them (autodiscovers .claude/)

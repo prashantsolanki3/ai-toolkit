@@ -16,7 +16,7 @@ test -f .claude/skills/skill-evaluator/SKILL.md
 test -f .claude/agents/docs-maintainer.md
 test -f .claude/commands/eval-skill.md
 test -f .claude/commands/improve-skill.md
-test -f .claude/.ai-toolkit-lock.json
+test -f .ai-toolkit-lock.json
 
 node "$REPO_ROOT/bin/cli.js" installed
 node "$REPO_ROOT/bin/cli.js" update --tool claude-code --dry-run
