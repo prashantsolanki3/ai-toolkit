@@ -6,13 +6,13 @@ presets:
   - dev-skills
 tools:
   - claude-code
-  - vscode-copilot
-  - copilot-cli
 ---
 
 # gh-project-sync
 
-Thin wrapper over an installed `github_project_tool.py` (or equivalent) that talks to a GitHub Project via GraphQL. Replaces hardcoded `projects/<N>/views/<M>` URL strings with one env-driven entry point. Uses GitHub's native sub-issue and issue-dependency relationships — never PR-description-as-truth.
+Thin wrapper over `github_project_tool.py` (vendored alongside this skill at `.claude/skills/gh-project-sync/scripts/github_project_tool.py`) that talks to a GitHub Project via GraphQL. Replaces hardcoded `projects/<N>/views/<M>` URL strings with one env-driven entry point. Uses GitHub's native sub-issue and issue-dependency relationships — never PR-description-as-truth.
+
+**Tool restriction.** This skill is **claude-code-only**. Two constraints intersect: (a) the skill ships an executable Python script as an adjacent file, which only directory-format tool installs preserve (vscode-copilot and copilot-cli install skills as flat `.md` and would drop the script); (b) the skill body references slash commands, which antigravity, gemini-cli, and kiro don't host. claude-code is the only tool that satisfies both. In other environments, fall back to direct `gh api graphql` calls or run `github_project_tool.py` manually from a clone of this repo.
 
 ## When to use
 - Creating a task that must land on the project board.

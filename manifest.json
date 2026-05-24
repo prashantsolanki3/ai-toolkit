@@ -20,9 +20,7 @@
       ],
       "author": "ai-toolkit-dev-skills",
       "tools": [
-        "claude-code",
-        "vscode-copilot",
-        "copilot-cli"
+        "claude-code"
       ]
     },
     "review-pr": {

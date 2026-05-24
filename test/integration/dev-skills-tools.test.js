@@ -17,18 +17,21 @@ const SLASH_HOSTS = ['claude-code', 'copilot-cli', 'vscode-copilot'].sort();
 const AGENT_HOSTS = ['claude-code', 'copilot-cli', 'cursor', 'vscode-copilot'].sort();
 const HOOK_HOSTS = ['claude-code', 'kiro'].sort();
 
-test('tool allowlist per dev-skills asset matches ADR-0005 decision 2', () => {
+test('tool allowlist per dev-skills asset matches ADR-0005 decision 2 (with claude-code-only exception for gh-project-sync)', () => {
   const manifest = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'manifest.json'), 'utf8'));
 
-  // 4 skills + 2 commands → slash hosts
-  for (const name of ['safe-change', 'review-pr', 'craft-skill', 'gh-project-sync']) {
+  // 3 of 4 slash-bearing skills → full slash-host triple.
+  for (const name of ['safe-change', 'review-pr', 'craft-skill']) {
     assert.deepEqual(sortedTools(name, 'skills', manifest), SLASH_HOSTS, `skills/${name} tools allowlist must equal ${JSON.stringify(SLASH_HOSTS)}`);
   }
+  // gh-project-sync ships an adjacent Python script. Only claude-code preserves
+  // adjacent files; vscode-copilot and copilot-cli install skills as flat .md
+  // and would drop the script. ADR-0005 decision 2 documents this exception.
+  assert.deepEqual(sortedTools('gh-project-sync', 'skills', manifest), ['claude-code'], 'skills/gh-project-sync must be claude-code-only (adjacent script dependency)');
+
   for (const name of ['clean-gone', 'parallel-reviewers']) {
     assert.deepEqual(sortedTools(name, 'commands', manifest), SLASH_HOSTS, `commands/${name} tools allowlist must equal ${JSON.stringify(SLASH_HOSTS)}`);
   }
-  // 1 agent → agent hosts
   assert.deepEqual(sortedTools('wiki-keeper', 'agents', manifest), AGENT_HOSTS, `agents/wiki-keeper tools allowlist must equal ${JSON.stringify(AGENT_HOSTS)}`);
-  // 1 hook → hook hosts
   assert.deepEqual(sortedTools('branch-from-main', 'hooks', manifest), HOOK_HOSTS, `hooks/branch-from-main tools allowlist must equal ${JSON.stringify(HOOK_HOSTS)}`);
 });
