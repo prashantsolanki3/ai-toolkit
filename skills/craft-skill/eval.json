@@ -1,0 +1,46 @@
+{
+  "version": "1.0",
+  "skill": "craft-skill",
+  "description": "Pins the 5-branch decision tree and the relationship to ai-toolkit's /improve-skill command.",
+  "target_pass_rate": 0.8,
+  "tests": [
+    {
+      "id": "existing-skill-tightening",
+      "input": "review-pr missed a MOCK-ONLY test last PR. It should have flagged it. What do I do?",
+      "assertions": [
+        {"type": "contains_any_of", "value": ["tighten", "Update it"]},
+        {"type": "contains", "value": "/improve-skill"}
+      ]
+    },
+    {
+      "id": "recurring-pattern-new-skill",
+      "input": "Three sessions in a row I had to remind the agent to run linters before committing. Suggest a fix.",
+      "assertions": [
+        {"type": "contains_any_of", "value": ["new skill", "Create a new skill"]},
+        {"type": "contains", "value": "eval.json"}
+      ]
+    },
+    {
+      "id": "repo-wide-rule-routes-to-AGENTS-md",
+      "input": "From now on, every backend PR must update the OpenAPI spec. Where does this rule live?",
+      "assertions": [
+        {"type": "contains", "value": "AGENTS.md"}
+      ]
+    },
+    {
+      "id": "cross-repo-rule-routes-to-wiki",
+      "input": "All five repos should never ship secrets in fixtures. Where do I codify this?",
+      "assertions": [
+        {"type": "contains_any_of", "value": ["wiki-keeper", "wiki", "docs/governance", "docs/decisions"]}
+      ]
+    },
+    {
+      "id": "complementarity-with-improve-skill",
+      "input": "What's the difference between craft-skill and /improve-skill?",
+      "assertions": [
+        {"type": "contains_all_of", "value": ["craft-skill", "/improve-skill"]},
+        {"type": "contains_any_of", "value": ["complementary", "complement", "decision tree", "picks"]}
+      ]
+    }
+  ]
+}
