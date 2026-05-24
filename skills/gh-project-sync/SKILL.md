@@ -33,7 +33,7 @@ Thin wrapper over `github_project_tool.py` (vendored alongside this skill at `.c
 gh-project-sync create-task --repo <owner/repo> \
   --title "<sentence>" --body "<markdown>" \
   --label enhancement --label sa-NNN \
-  --status Todo --iteration "Current" --size M --priority P2
+  --status Todo --size M --priority P2
 ```
 Creates the issue, auto-adds to the project, sets fields atomically. Returns issue URL + item-id. `--label` is singular and repeatable — pass it once per label. Omit `--iteration` to use the project's current iteration. Add `--ensure-labels` to auto-create labels that don't yet exist on the repo.
 
