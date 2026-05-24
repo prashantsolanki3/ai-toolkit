@@ -43,18 +43,31 @@ For each new/changed test, verify all six axes:
 3. **Would-fail-before (YES/NO/UNKNOWN).** Run the **new** test against the **old (merge-base)** production code via a disposable worktree. The previous shorter recipe was inverted — it checked out the old test file into the current tree, which runs the *old* test against the *new* code (the opposite of what the axis is checking). Use this instead:
    ```bash
    BASE=$(git merge-base origin/$DEFAULT HEAD)
-   TMPWT=$(mktemp -d -t wfb-check.XXXXXX)
-   git worktree add --detach "$TMPWT" "$BASE"
-   # Paint the new test on top of the old production code
-   cp <test-file> "$TMPWT/<test-file>"
-   # Expected behaviour: the test FAILS — proves it exercises the new code path
-   (cd "$TMPWT" && <test-runner> -k <test-name>)
-   wfb_status=$?
-   git worktree remove "$TMPWT"
-   # wfb_status != 0 → YES (correct, the new test catches the missing behaviour)
-   # wfb_status == 0 → NO (the test passes against unfixed code; not exercising new behaviour)
+   if [ -z "$BASE" ]; then
+     echo "would-fail-before: UNKNOWN — no merge-base with origin/$DEFAULT (force-push? shallow clone? new repo?)"
+     # Skip the recipe; record UNKNOWN in the verdict.
+   else
+     TMPWT=$(mktemp -d -t wfb-check.XXXXXX)
+     # `--force` on remove keeps the recipe robust: the test runner may
+     # leave untracked artefacts in the temp worktree, and the worktree
+     # is disposable. The `trap` guarantees cleanup even if the runner
+     # crashes mid-way.
+     trap 'git worktree remove --force "$TMPWT" 2>/dev/null; rm -rf "$TMPWT"' EXIT
+     git worktree add --detach "$TMPWT" "$BASE"
+     # The new test file's directory may not exist at the merge-base
+     # (newly added test package). Create the destination path first.
+     mkdir -p "$TMPWT/$(dirname '<test-file>')"
+     cp '<test-file>' "$TMPWT/<test-file>"
+     # Expected behaviour: the test FAILS — proves it exercises the new code path
+     (cd "$TMPWT" && <test-runner> -k <test-name>)
+     wfb_status=$?
+     git worktree remove --force "$TMPWT"
+     trap - EXIT
+     # wfb_status != 0 → YES (correct; the new test catches the missing behaviour)
+     # wfb_status == 0 → NO (the test passes against unfixed code; not exercising new behaviour)
+   fi
    ```
-   If the test passes against the unfixed code, it isn't exercising the new behaviour — mark NO. UNKNOWN only if the merge-base is unreachable or the test runner cannot start in the temp worktree.
+   If the test passes against the unfixed code, it isn't exercising the new behaviour — mark NO. UNKNOWN if the merge-base is empty/unreachable, the test runner cannot start in the temp worktree, or the worktree add itself fails.
 4. **Skip status (NONE/SKIPPED/XFAIL).** `@pytest.mark.skip`, `@skipif` with always-true conditions, `xfail` without a reason, `pytest.skip()` inside the body — all suspicious. NONE is the only safe verdict.
 5. **Brittleness (TIGHT/OK/OVER-SPECIFIED).** Tests that pin exact HTML whitespace, full-dict equality when one key matters, or snapshot blobs with no semantic meaning break on any harmless refactor. Prefer the smallest substring / field / shape that proves the behaviour.
 6. **Tests-one-thing (YES/NO).** Long tests with multiple assert blocks against different concerns should be split.
