@@ -26,7 +26,7 @@ When a session reveals a behaviour worth keeping, craft-skill decides *where* it
    → Add a one-line rule to that skill's `## Rules` section.
 3. **Recurring pattern with no skill yet?**
    → Two contexts:
-   - **Editing a toolkit source** (ai-toolkit itself, or another repo with a `Makefile` + `manifest.json` registry): create the new skill at `skills/<short-slug>/SKILL.md` with adjacent `eval.json`, add `presets: [<preset>]` to its frontmatter if it should ship with a preset, then `make register` to regenerate the manifest.
+   - **Editing a toolkit source** (ai-toolkit itself, or another repo with a `Makefile` + `manifest.json` registry): create the new skill at `skills/<short-slug>/SKILL.md` with adjacent `eval.json`, add the preset to its frontmatter in YAML block-list form (`presets:\n  - <preset>` — matches the style of every other skill in this repo, not inline `[…]`), then `make register` to regenerate the manifest.
    - **Editing a downstream repo with an installed preset** (e.g. a SmartAgents repo where `.claude/skills/` came from `ai-toolkit install`): don't author skills under `.claude/skills/<name>/` directly — those get overwritten on the next `ai-toolkit update`. File an issue/PR upstream in the toolkit repo instead.
 4. **Repo-wide default, not skill-specific?**
    → Promote to the canonical identity file:
