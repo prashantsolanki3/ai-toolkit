@@ -20,7 +20,7 @@ Run the three `pr-review-toolkit` reviewer agents at the same change in parallel
 - `--from-branch B` — target a local branch (default: current). Diff is `git diff origin/main...B`.
 - `--scope=docs|code|security` — override auto-detect. `docs` drops `silent-failure-hunter` + `pr-test-analyzer`; `security` forces `security-auditor` in addition; `code` is the default.
 
-At most one of `--pr-number` / `--from-branch` may be provided. If neither is given, defaults to `--from-branch $(git branch --show-current)`. If both are provided, `--pr-number` wins and `--from-branch` is ignored.
+Both flags are accepted; `--pr-number` takes precedence when present, otherwise `--from-branch` is used. If neither is provided, defaults to `--from-branch $(git branch --show-current)`.
 
 ## What it does
 1. **Pre-flight: plugin detection.** Probe `ls -d ~/.claude/plugins/marketplaces/*/plugins/pr-review-toolkit 2>/dev/null | head -1`. If empty, switch to repo-local fallback (`self-reviewer` + `security-auditor` from `.claude/agents/`) and print a `[fallback]` banner. Otherwise use plugin agents.

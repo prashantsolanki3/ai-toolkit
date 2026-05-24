@@ -54,16 +54,18 @@ if ! git rev-parse --verify --quiet "refs/heads/${MAIN_BRANCH}" >/dev/null; then
 fi
 
 # Fetch quietly, time-bound so a hung network doesn't stall session start.
-if command -v timeout >/dev/null 2>&1; then
-  timeout 5 git fetch --quiet origin "$MAIN_BRANCH" 2>/dev/null || {
-    echo "branch-from-main: (offline — skipped main freshness check)" >&2
-    exit 0
-  }
-else
-  git fetch --quiet origin "$MAIN_BRANCH" 2>/dev/null || {
-    echo "branch-from-main: (offline — skipped main freshness check)" >&2
-    exit 0
-  }
+# If GNU `timeout` is not available (uncommon on macOS without coreutils, or in
+# minimal containers), skip the fetch entirely — never block SessionStart on a
+# slow network or credential prompt. The "never blocks" promise overrides
+# freshness accuracy.
+if ! command -v timeout >/dev/null 2>&1; then
+  echo "branch-from-main: (no \`timeout\` available — skipped main freshness check to avoid blocking SessionStart)" >&2
+  exit 0
+fi
+
+if ! timeout 5 git fetch --quiet origin "$MAIN_BRANCH" 2>/dev/null; then
+  echo "branch-from-main: (offline or fetch timed out — skipped main freshness check)" >&2
+  exit 0
 fi
 
 # Count commits local main is behind origin/main.

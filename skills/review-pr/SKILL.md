@@ -1,6 +1,6 @@
 ---
 name: review-pr
-description: Critical evidence-based PR review against requirements, tests, completeness, security, and the SDLC contract. Triggered at the end of every safe-change run, by phrases like "review this PR", "look at PR #N", "is this ready to merge". Applies the 6-axis test-relevance rubric. Spawns follow-up issues for out-of-scope findings — never appends them only as PR comments.
+description: 'Critical evidence-based PR review against requirements, tests, completeness, security, and the SDLC contract. Triggered at the end of every safe-change run, by phrases like "review this PR", "look at PR #N", "is this ready to merge". Applies the 6-axis test-relevance rubric. Spawns follow-up issues for out-of-scope findings — never appends them only as PR comments.'
 author: ai-toolkit-dev-skills
 presets:
   - dev-skills
