@@ -19,13 +19,19 @@ test('install dev-skills --tool vscode-copilot transforms skills + commands + ag
     await install({ tool: 'vscode-copilot', preset: 'dev-skills', target, sourceRoot: REPO_ROOT, ...silentLogger() });
     const installDir = toolDir(target, 'vscode-copilot');
 
-    // Skills become instructions
-    for (const name of ['safe-change', 'review-pr', 'craft-skill', 'gh-project-sync']) {
+    // Skills that ship to vscode-copilot become instructions. gh-project-sync
+    // is claude-code-only (ships an adjacent script vscode-copilot would drop)
+    // so it must NOT land here.
+    for (const name of ['safe-change', 'review-pr', 'craft-skill']) {
       assert.ok(
         fs.existsSync(path.join(installDir, 'instructions', `${name}.instructions.md`)),
         `missing instructions/${name}.instructions.md`,
       );
     }
+    assert.ok(
+      !fs.existsSync(path.join(installDir, 'instructions', 'gh-project-sync.instructions.md')),
+      'gh-project-sync must NOT install for vscode-copilot (claude-code-only per ADR-0005 exception)',
+    );
     // Agent
     assert.ok(fs.existsSync(path.join(installDir, 'agents', 'wiki-keeper.md')), 'missing agents/wiki-keeper.md');
     // Commands become prompts
