@@ -36,7 +36,7 @@ For each new/changed test, verify all six axes:
 3. **Would-fail-before (YES/NO/UNKNOWN).** Run on the merge-base:
    ```bash
    git stash --include-untracked
-   BASE=$(git merge-base origin/main HEAD)
+   BASE=$(git merge-base origin/$DEFAULT HEAD)
    git checkout "$BASE" -- <test-file>
    <test-runner> -k <test-name>
    git checkout HEAD -- <test-file>
@@ -56,7 +56,7 @@ Quote one rubric row per new/changed test in the report. Then run the relevant s
 - Docs sync: any new route / command / env var / port / skill needs a doc update in the SAME PR.
 
 ### 4. Security
-- Secrets scan: `git diff origin/main..HEAD | grep -Ei '(api[_-]?key|secret|token|password|ANTHROPIC_API_KEY|GEMINI_API_KEY|SHOPIFY_ACCESS_TOKEN|AZURE_OPENAI)'`. Any match is blocking unless it's a placeholder in `.env.example`.
+- Secrets scan: `git diff origin/$DEFAULT..HEAD | grep -Ei '(api[_-]?key|secret|token|password|ANTHROPIC_API_KEY|GEMINI_API_KEY|SHOPIFY_ACCESS_TOKEN|AZURE_OPENAI)'`. Any match is blocking unless it's a placeholder in `.env.example`.
 - Hardcoded credentials/URLs/paths that should be config.
 - Injection surfaces (shell-outs without arg arrays, SQL string-formatting, untrusted HTML).
 - Dependency additions: every new package needs a "why this package" line in the PR body.

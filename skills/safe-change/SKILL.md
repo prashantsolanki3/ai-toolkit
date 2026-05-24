@@ -14,7 +14,13 @@ tools:
 
 Default mode for any non-trivial code or config change. Enforces the SDLC contract: isolated worktree, single-author TDD, project-board task, selective commits, PR, parallel review, post-merge verify, post-merge cleanup. Lifted from opulent-toolkit's `safe-change` and adapted for multi-repo workspaces.
 
-**Default branch.** This body uses `main` throughout — substitute `master` (or the repo's actual default) where applicable. Detect via `DEFAULT_BRANCH=$(git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@' 2>/dev/null || echo main)`. The `branch-from-main` hook does the same fallback at session start.
+**Default branch.** All commands below are shown with the literal `main`/`origin/main` for readability. **Substitute the repo's actual default branch in every place you see `main`** — repos with a `master` default need `master`/`origin/master` instead. Detect once at the start of the session:
+
+```bash
+DEFAULT_BRANCH=$(git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@' 2>/dev/null || echo main)
+```
+
+Then read every `main` / `origin/main` in the steps below as `$DEFAULT_BRANCH` / `origin/$DEFAULT_BRANCH`. The `branch-from-main` hook does the same detection at session start.
 
 ## When to use
 - The user asks for any code, config, infra, test, doc, or skill change AND no domain skill matches.
