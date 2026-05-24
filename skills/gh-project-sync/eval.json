@@ -17,7 +17,8 @@
       "input": "How do I record that issue #145 is a sub-task of epic #140?",
       "assertions": [
         {"type": "contains", "value": "link-sub-issue"},
-        {"type": "not_regex", "value": "(?i)edit\\s+(the\\s+)?(parent|epic)\\s+(issue\\s+)?body"}
+        {"type": "contains_any_of", "value": ["native", "GitHub's"]},
+        {"type": "not_regex", "value": "(?i)\\b(just|simply)\\s+edit\\s+(the\\s+)?(parent|epic)"}
       ]
     },
     {
@@ -25,7 +26,7 @@
       "input": "Website issue #112 depends on backend issue #203. How do I wire it?",
       "assertions": [
         {"type": "contains", "value": "add-dependency"},
-        {"type": "contains_all_of", "value": ["--blocked", "--blocking"]}
+        {"type": "contains_all_of", "value": ["--blocked-by-repo", "--blocked-by-number"]}
       ]
     },
     {

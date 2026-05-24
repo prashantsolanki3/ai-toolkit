@@ -9,12 +9,28 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
-from pathlib import Path
 from typing import Any
 
 
+def _parse_project_number(raw: str) -> int:
+    """Parse SMART_AGENTS_PROJECT_NUMBER env var safely.
+
+    Default is "2" (the SmartAgents project). If the env var is set but
+    non-numeric, we exit with a clear error instead of raising an
+    unhandled ValueError at import time (which would prevent the CLI
+    from even printing --help).
+    """
+    try:
+        return int(raw)
+    except ValueError:
+        sys.exit(
+            f"github_project_tool: SMART_AGENTS_PROJECT_NUMBER must be an integer "
+            f"(got {raw!r}). Unset the variable to fall back to the default (2)."
+        )
+
+
 DEFAULT_OWNER = os.getenv("SMART_AGENTS_PROJECT_OWNER", "prashantsolanki3")
-DEFAULT_PROJECT_NUMBER = int(os.getenv("SMART_AGENTS_PROJECT_NUMBER", "2"))
+DEFAULT_PROJECT_NUMBER = _parse_project_number(os.getenv("SMART_AGENTS_PROJECT_NUMBER", "2"))
 SIZE_TO_ESTIMATE = {
     "XS": 1,
     "S": 2,
@@ -112,7 +128,12 @@ def get_project_context(owner: str, number: int) -> ProjectContext:
 
 
 def get_project_items(owner: str, number: int) -> list[dict[str, Any]]:
-    """Fetch all project items, following pagination via --limit with a large cap."""
+    """Fetch project items via `gh project item-list --limit 500`.
+
+    The 500-item cap is hard-coded — no pagination today. If a project
+    grows past that limit, item-list silently truncates; the caller should
+    not assume completeness without checking the returned count.
+    """
     payload = run_gh(
         ["project", "item-list", str(number), "--owner", owner, "--format", "json", "--limit", "500"],
         parse_json=True,

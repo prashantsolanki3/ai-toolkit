@@ -20,10 +20,12 @@ test('gh-project-sync ships scripts/github_project_tool.py with execute bit (sou
   assert.ok(stat.mode & 0o100, `${p} must have the user-execute bit set`);
 
   // Sanity check: the script must be the SmartAgents-flavoured one (honours the
-  // SMART_AGENTS env vars). Cheap content check.
-  const head = fs.readFileSync(p, 'utf8').slice(0, 800);
-  assert.match(head, /SMART_AGENTS_PROJECT_OWNER/, 'vendored script must honour SMART_AGENTS_PROJECT_OWNER');
-  assert.match(head, /SMART_AGENTS_PROJECT_NUMBER/, 'vendored script must honour SMART_AGENTS_PROJECT_NUMBER');
+  // SMART_AGENTS env vars). Cheap content check — read the whole file rather
+  // than a fixed byte slice so we're robust to imports / helper functions
+  // pushing the assignment further down.
+  const body = fs.readFileSync(p, 'utf8');
+  assert.match(body, /SMART_AGENTS_PROJECT_OWNER/, 'vendored script must honour SMART_AGENTS_PROJECT_OWNER');
+  assert.match(body, /SMART_AGENTS_PROJECT_NUMBER/, 'vendored script must honour SMART_AGENTS_PROJECT_NUMBER');
 });
 
 test('install dev-skills --tool claude-code lands gh-project-sync script alongside SKILL.md', async () => {
