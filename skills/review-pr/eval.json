@@ -17,7 +17,7 @@
       "input": "Review PR #51. Walk me through how you confirm the new test would have failed before this PR.",
       "assertions": [
         {"type": "contains", "value": "merge-base"},
-        {"type": "regex", "value": "git\\s+merge-base\\s+origin/main\\s+HEAD"}
+        {"type": "regex", "value": "git\\s+merge-base\\s+origin/(main|master|\\$DEFAULT|\\$\\{DEFAULT[_A-Z]*\\})\\s+HEAD"}
       ]
     },
     {

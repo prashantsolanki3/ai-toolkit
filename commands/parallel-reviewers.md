@@ -17,14 +17,14 @@ Run the three `pr-review-toolkit` reviewer agents at the same change in parallel
 
 ## Args
 - `--pr-number N` — target an existing PR; fetched via `gh pr view N`.
-- `--from-branch B` — target a local branch (default: current). Diff is `git diff origin/main...B`.
+- `--from-branch B` — target a local branch (default: current). Diff is `git diff origin/$DEFAULT...B` where `DEFAULT` is the repo's default branch — detect once with the two-line pattern: `DEFAULT=$(git symbolic-ref -q refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@')` then `DEFAULT=${DEFAULT:-main}` (the explicit empty-check is needed because a single-line `|| echo main` only fires when the whole pipeline fails — `git symbolic-ref` failing while `sed` succeeds on empty input would leave `DEFAULT` empty).
 - `--scope=docs|code|security` — override auto-detect. `docs` drops `silent-failure-hunter` + `pr-test-analyzer`; `security` forces `security-auditor` in addition; `code` is the default.
 
 Both flags are accepted; `--pr-number` takes precedence when present, otherwise `--from-branch` is used. If neither is provided, defaults to `--from-branch $(git branch --show-current)`.
 
 ## What it does
 1. **Pre-flight: plugin detection.** Probe `ls -d ~/.claude/plugins/marketplaces/*/plugins/pr-review-toolkit 2>/dev/null | head -1`. If empty, switch to repo-local fallback (`self-reviewer` + `security-auditor` from `.claude/agents/`) and print a `[fallback]` banner. Otherwise use plugin agents.
-2. **Resolve the diff.** From `--pr-number`: `gh pr diff N --name-only` + body. From `--from-branch`: `git diff --stat origin/main...B` + body.
+2. **Resolve the diff.** From `--pr-number`: `gh pr diff N --name-only` + body. From `--from-branch`: `git diff --stat origin/$DEFAULT...B` + body (substitute the detected default branch — see Args above).
 3. **Auto-detect docs-only.** If every changed path matches `^(docs/|.*\.md$|.*\.mdx$|README|CHANGELOG)` and `--scope` was not passed, set effective scope to `docs`.
 4. **Compose reviewer set:**
    - default (code-scope) → `pr-review-toolkit:code-reviewer`, `pr-review-toolkit:silent-failure-hunter`, `pr-review-toolkit:pr-test-analyzer`

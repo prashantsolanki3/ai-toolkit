@@ -14,7 +14,14 @@ tools:
 
 Critical, evidence-based PR review. A change is ready to merge when the work matches what was asked for, tests *exercise* the new behaviour, the change is consistent with the SDLC contract, and nothing risky slipped in. Lifted from opulent-toolkit's `review/SKILL.md` (6-axis rubric verbatim).
 
-**Default branch.** This body uses `origin/main` throughout — substitute `origin/master` (or the repo's actual default) where applicable. Detect via `DEFAULT=$(git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@' 2>/dev/null || echo main)` and use `origin/$DEFAULT` in the recipes below. The `branch-from-main` hook does the same fallback at session start.
+**Default branch.** Recipes below reference `origin/$DEFAULT` — substitute `$DEFAULT` with the repo's actual default branch (typically `main`; some repos use `master`). Detect once at the start of the review:
+
+```bash
+DEFAULT=$(git symbolic-ref -q refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@')
+DEFAULT=${DEFAULT:-main}
+```
+
+The two-line form is intentional — a single-line `... || echo main` would only fall back when the whole pipeline fails, leaving `DEFAULT` empty if `git symbolic-ref` fails but `sed` succeeds on empty input. The `branch-from-main` hook does the same detection at session start.
 
 ## When to use
 - At the end of every `safe-change` run (step 10), dispatched in an isolated worktree as part of `/parallel-reviewers`.
@@ -36,7 +43,7 @@ For each new/changed test, verify all six axes:
 3. **Would-fail-before (YES/NO/UNKNOWN).** Run on the merge-base:
    ```bash
    git stash --include-untracked
-   BASE=$(git merge-base origin/main HEAD)
+   BASE=$(git merge-base origin/$DEFAULT HEAD)
    git checkout "$BASE" -- <test-file>
    <test-runner> -k <test-name>
    git checkout HEAD -- <test-file>
@@ -56,7 +63,7 @@ Quote one rubric row per new/changed test in the report. Then run the relevant s
 - Docs sync: any new route / command / env var / port / skill needs a doc update in the SAME PR.
 
 ### 4. Security
-- Secrets scan: `git diff origin/main..HEAD | grep -Ei '(api[_-]?key|secret|token|password|ANTHROPIC_API_KEY|GEMINI_API_KEY|SHOPIFY_ACCESS_TOKEN|AZURE_OPENAI)'`. Any match is blocking unless it's a placeholder in `.env.example`.
+- Secrets scan: `git diff origin/$DEFAULT..HEAD | grep -Ei '(api[_-]?key|secret|token|password|ANTHROPIC_API_KEY|GEMINI_API_KEY|SHOPIFY_ACCESS_TOKEN|AZURE_OPENAI)'`. Any match is blocking unless it's a placeholder in `.env.example`.
 - Hardcoded credentials/URLs/paths that should be config.
 - Injection surfaces (shell-outs without arg arrays, SQL string-formatting, untrusted HTML).
 - Dependency additions: every new package needs a "why this package" line in the PR body.
