@@ -40,16 +40,21 @@ Produce findings under each header. Empty sections are stated as "None.", not om
 For each new/changed test, verify all six axes:
 1. **Assertion-strength (HIGH/MED/LOW).** Reject `assert True`, `assert isinstance(x, X)` where X is the constructor, smoke-only `assert obj is not None`. Each assertion should fail if production code were broken.
 2. **Outcome-vs-mock (OUTCOME/MIXED/MOCK-ONLY).** Asserting `mock.method.called` without asserting resulting state is brittle. Prefer return values, file artefacts, response bodies, rendered DOM, persistent state.
-3. **Would-fail-before (YES/NO/UNKNOWN).** Run on the merge-base:
+3. **Would-fail-before (YES/NO/UNKNOWN).** Run the **new** test against the **old (merge-base)** production code via a disposable worktree. The previous shorter recipe was inverted — it checked out the old test file into the current tree, which runs the *old* test against the *new* code (the opposite of what the axis is checking). Use this instead:
    ```bash
-   git stash --include-untracked
    BASE=$(git merge-base origin/$DEFAULT HEAD)
-   git checkout "$BASE" -- <test-file>
-   <test-runner> -k <test-name>
-   git checkout HEAD -- <test-file>
-   git stash pop
+   TMPWT=$(mktemp -d -t wfb-check.XXXXXX)
+   git worktree add --detach "$TMPWT" "$BASE"
+   # Paint the new test on top of the old production code
+   cp <test-file> "$TMPWT/<test-file>"
+   # Expected behaviour: the test FAILS — proves it exercises the new code path
+   (cd "$TMPWT" && <test-runner> -k <test-name>)
+   wfb_status=$?
+   git worktree remove "$TMPWT"
+   # wfb_status != 0 → YES (correct, the new test catches the missing behaviour)
+   # wfb_status == 0 → NO (the test passes against unfixed code; not exercising new behaviour)
    ```
-   If the test passes against the unfixed code, it isn't exercising the new behaviour — mark NO. UNKNOWN only if merge-base is unreachable.
+   If the test passes against the unfixed code, it isn't exercising the new behaviour — mark NO. UNKNOWN only if the merge-base is unreachable or the test runner cannot start in the temp worktree.
 4. **Skip status (NONE/SKIPPED/XFAIL).** `@pytest.mark.skip`, `@skipif` with always-true conditions, `xfail` without a reason, `pytest.skip()` inside the body — all suspicious. NONE is the only safe verdict.
 5. **Brittleness (TIGHT/OK/OVER-SPECIFIED).** Tests that pin exact HTML whitespace, full-dict equality when one key matters, or snapshot blobs with no semantic meaning break on any harmless refactor. Prefer the smallest substring / field / shape that proves the behaviour.
 6. **Tests-one-thing (YES/NO).** Long tests with multiple assert blocks against different concerns should be split.

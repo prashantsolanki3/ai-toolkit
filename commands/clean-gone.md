@@ -21,11 +21,11 @@ Prune `[gone]` branches and their worktrees from the current repo (or every repo
 
 ## What it does
 1. Resolve the repo list. Single-repo mode uses `$(pwd)`; `--all-repos` globs `$SMART_AGENTS_REPOS_ROOT/*/.git`.
-2. For each repo, snapshot the candidates: `git branch -v | grep '\[gone\]' | sed 's/^[+* ]//' | awk '{print $1}'`.
+2. For each repo, snapshot the candidates: `git branch -vv | grep '\[gone\]' | sed 's/^[+* ]//' | awk '{print $1}'`. The `-vv` (double-v) is load-bearing — plain `-v` doesn't show upstream tracking info, so it never displays the `[gone]` marker.
 3. **Parked-issue guard.** For every candidate branch, extract a trailing issue number (regex `[0-9]+$`). If found, run `gh api repos/{owner}/{repo}/issues/<N> --jq '.state + " " + (.labels | map(.name) | join(","))'`. Drop the branch from the delete set if the issue is `closed` with a `parked` label, or if any label contains `parked`. Also drop any branch name that appears verbatim in `status/blockers.md` when that file exists.
 4. **Dry-run path.** If `--dry-run`, print a table of `repo | branch | worktree-path | action` and exit 0.
 5. **Gentle removal.** For each surviving candidate:
-   - Find the worktree path: `wt=$(git worktree list --porcelain | awk -v b="$branch" '$1=="branch" && $2=="refs/heads/"b {print prev} {prev=$2}')`
+   - Find the worktree path: `wt=$(git worktree list --porcelain | awk -v b="$branch" '/^worktree / { wt = $2 } $1 == "branch" && $2 == "refs/heads/" b { print wt; exit }')`. `git worktree list --porcelain` emits records of `worktree <path>` / `HEAD <sha>` / `branch refs/heads/<name>` (blank-line separated), so we track the worktree path as we scan and emit it when the branch matches. The earlier `{print prev}` shortcut was wrong — the line right before `branch` is `HEAD <sha>`, not the worktree path.
    - If `$wt` exists and is not the main checkout: try `git worktree remove "$wt"` (plain — no `--force`).
    - If that fails with `contains modified or untracked files`, prompt user `y/N` to escalate to `--force`. Skip on N.
    - Then `git branch -D "$branch"`.

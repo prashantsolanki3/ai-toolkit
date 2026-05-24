@@ -38,15 +38,14 @@ fi
 # Skip silently if there is no `origin` remote.
 git remote get-url origin >/dev/null 2>&1 || exit 0
 
-# Determine upstream main ref name. Default to main; fall back to master.
-MAIN_BRANCH="main"
-if ! git ls-remote --exit-code --heads origin main >/dev/null 2>&1; then
-  if git ls-remote --exit-code --heads origin master >/dev/null 2>&1; then
-    MAIN_BRANCH="master"
-  else
-    exit 0
-  fi
-fi
+# Determine upstream main ref name from the local refs/remotes/origin/HEAD
+# symbolic-ref (no network call — `git ls-remote` would risk hanging on
+# slow networks or credential prompts and break the "never blocks" promise).
+MAIN_BRANCH=$(git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null | sed 's@^origin/@@')
+MAIN_BRANCH=${MAIN_BRANCH:-main}
+# The two-line empty-check is intentional — a single-line `... || echo main`
+# wouldn't fall back when `git symbolic-ref` fails but `sed` succeeds on
+# empty input.
 
 # Skip if local mainline ref doesn't exist.
 if ! git rev-parse --verify --quiet "refs/heads/${MAIN_BRANCH}" >/dev/null; then
