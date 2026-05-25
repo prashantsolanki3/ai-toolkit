@@ -50,21 +50,29 @@ The full company-scoped URL prefix is `{API base}/companies({companyId})/`. The 
 
 ## Helper script + credentials
 
-A Python helper (`bc_auth.py`) and matching `.env` live **outside** the BC extension repo:
-
-- Default Windows path used in the QUALIA dev environment: `C:\Smart-Agents 3\Agent-Testing\`
-- Equivalent macOS / Linux path is anywhere outside the repo (e.g. `~/secrets/bc-agent-testing/`).
-
-Why outside the repo: the `.env` carries the client secret. Keep it out of any git checkout. Do not symlink it into `smart-agents-bc-extension/` or any sibling repo.
+A Python helper (`bc_auth.py`) ships **with this skill** under `scripts/`:
 
 ```
-bc-agent-testing/
-├── bc_auth.py        # BCClient — OAuth2 + REST wrapper
-├── .env              # tenant / client_id / client_secret / env / company
-└── _tmp_*.py         # ad-hoc probes; delete freely
+skills/bc-agent-testing/
+├── SKILL.md
+└── scripts/
+    ├── bc_auth.py        # BCClient — OAuth2 + REST wrapper (stdlib only)
+    ├── test_bc_auth.py   # unit tests — 11 cases, no network
+    ├── .env.example      # copy to .env and fill in
+    ├── .gitignore        # keeps .env + __pycache__ out of git
+    └── README.md         # quickstart
 ```
 
-`bc_auth.py` autoloads `.env` from its own directory; `cd` there before running anything.
+Stdlib-only — no `pip install` needed. Bootstrap:
+
+```bash
+cd <toolkit>/skills/bc-agent-testing/scripts
+cp .env.example .env
+$EDITOR .env          # set BC_CLIENT_ID, BC_CLIENT_SECRET, BC_COMPANY_ID
+python -c "from bc_auth import BCClient; print(BCClient().environment)"
+```
+
+The `.env` MUST live next to `bc_auth.py` — the loader is anchored to the script's own directory on purpose so you can run from any cwd. `.env` is gitignored locally; never commit the real secret.
 
 Expected `.env` (example — `Ext_Dev_v26` / `CRONUS DE` shown):
 
@@ -87,7 +95,13 @@ for co in c.get_all("companies"):
 
 Pick the row whose `name` matches the company in the UI URL (`CRONUS DE` for dev, `smart-agents-prod` for prod) and pin that GUID in `.env`.
 
-If `BCClient()` raises `ValueError: Missing credentials`, you're running the script from a different working directory — `cd` into the helper folder. If the token call itself fails: confirm the app registration has BC API permissions (`Financials.ReadWrite.All` + admin consent) and that the secret is current.
+If `BCClient()` raises `ValueError: Missing credentials`, your `.env` is missing fields — the error message names them. The token endpoint will raise `BCAuthError` on 401 with a specific hint about needing `Financials.ReadWrite.All` API permission and admin consent on the Entra app registration.
+
+Run the tests before changing `bc_auth.py`:
+
+```bash
+python -m unittest test_bc_auth -v   # 11 tests, no network
+```
 
 ## Available API entities
 
