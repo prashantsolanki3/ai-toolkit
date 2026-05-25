@@ -57,24 +57,46 @@ SHA=$(git rev-parse HEAD 2>/dev/null || true)
 SUBJECT=$(git log -1 --pretty=%s 2>/dev/null || true)
 [ -n "${SHA:-}" ] || exit 0
 
-# Infer the step from the commit subject. Conventional wip(...) prefixes:
-#   wip(...): RED ...        → step="RED tests committed"
-#   wip(...): impl(ementation) → step="impl committed"
-#   wip(...): docs ...       → step="docs synced"
-#   anything else (feat/fix/chore/etc.) → step="committed"
+# Infer the step from the commit subject. We match only properly-formed
+# conventional wip(...) prefixes — not loose substrings — so commit subjects
+# containing words like "simplify" don't trigger the impl branch.
+# Acceptable shapes:
+#   wip(<scope>): RED ...              → step="RED tests committed"
+#   wip(<scope>): impl ...             → step="impl committed"
+#   wip(<scope>): implementation ...   → step="impl committed"
+#   wip(<scope>): docs ...             → step="docs synced"
+#   anything else (feat/fix/chore/...) → step="committed"
 STEP="committed"
 NEXT="push + PR"
 case "$SUBJECT" in
-  wip*RED*)       STEP="RED tests committed";   NEXT="implement" ;;
-  wip*impl*)      STEP="impl committed";        NEXT="green check + docs" ;;
-  wip*docs*)      STEP="docs synced";           NEXT="push + PR" ;;
+  "wip("*"): RED"*|"wip("*"): RED:"*)               STEP="RED tests committed"; NEXT="implement" ;;
+  "wip("*"): impl"|"wip("*"): impl "*|"wip("*"): impl:"*) STEP="impl committed"; NEXT="green check + docs" ;;
+  "wip("*"): implementation"|"wip("*"): implementation "*) STEP="impl committed"; NEXT="green check + docs" ;;
+  "wip("*"): docs"|"wip("*"): docs "*|"wip("*"): docs:"*)  STEP="docs synced"; NEXT="push + PR" ;;
 esac
 
-# Best-effort test count from a fresh pytest run is out of scope (too slow,
-# too brittle). Leave as null; the agent can update later via SKILL.md step.
-STATE_DIR=".claude/state"
+# State files live in the MAIN repo's .claude/state/, NOT the worktree's
+# — that way the SessionStart advisory (which runs in the main repo) can
+# discover every pending checkpoint across every worktree in one place.
+# `git rev-parse --git-common-dir` resolves to the main repo's .git dir
+# (the symlink target for worktrees); its parent is the main repo root.
+GIT_COMMON_DIR=$(git rev-parse --git-common-dir 2>/dev/null || true)
+[ -n "${GIT_COMMON_DIR:-}" ] || exit 0
+# Resolve to absolute path (git can return relative).
+case "$GIT_COMMON_DIR" in
+  /*) ABS_COMMON_DIR="$GIT_COMMON_DIR" ;;
+  *)  ABS_COMMON_DIR=$(cd "$GIT_COMMON_DIR" 2>/dev/null && pwd) || exit 0 ;;
+esac
+MAIN_REPO_DIR=$(dirname "$ABS_COMMON_DIR")
+STATE_DIR="$MAIN_REPO_DIR/.claude/state"
 mkdir -p "$STATE_DIR" 2>/dev/null || exit 0
-STATE_FILE="$STATE_DIR/${BRANCH//\//-}.json"
+
+# Filename encoding: branches contain '/' which isn't a valid filename char.
+# Convention shared with safe-change-resume-advisory.sh + SKILL.md:
+#     branch  feat/foo  -->  filename  feat___foo.json
+# The `branch` field IN the JSON is always the canonical real branch name.
+ENCODED_BRANCH=$(printf '%s' "$BRANCH" | sed 's@/@___@g')
+STATE_FILE="$STATE_DIR/${ENCODED_BRANCH}.json"
 
 # Write the JSON. Sanitise SUBJECT for the file by stripping quotes.
 SUBJECT_ESC=${SUBJECT//\\/\\\\}

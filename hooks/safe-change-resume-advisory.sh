@@ -39,26 +39,56 @@ fi
 # Collect non-stale resumable work.
 RESUMABLE=()
 
+# Filename encoding: branches contain '/' which isn't a valid filename char.
+# Convention shared with safe-change-checkpoint-state.sh + SKILL.md:
+#     branch  feat/foo  -->  filename  feat___foo.json
+# Display uses the `branch` field from the JSON payload, never the filename.
+encode_branch() { printf '%s' "$1" | sed 's@/@___@g'; }
+
 # State files trump worktree scans — they tell us the exact step.
+# Parse each JSON via Python (one subprocess per file) so the extraction is
+# robust to value ordering, missing keys, and embedded quotes. Errors are
+# best-effort and never abort the hook (set -e contract).
+SEEN_BRANCHES=""
 if [ -d "$STATE_DIR" ]; then
   for state_file in "$STATE_DIR"/*.json; do
     [ -f "$state_file" ] || continue
-    branch=$(basename "$state_file" .json)
-    # Extract step + pr without jq (small JSON, regex is enough).
-    step=$(grep -o '"step"[[:space:]]*:[[:space:]]*"[^"]*"' "$state_file" 2>/dev/null \
-      | sed 's/.*"\([^"]*\)"$/\1/' | head -1)
-    next=$(grep -o '"next"[[:space:]]*:[[:space:]]*"[^"]*"' "$state_file" 2>/dev/null \
-      | sed 's/.*"\([^"]*\)"$/\1/' | head -1)
-    pr=$(grep -o '"pr"[[:space:]]*:[[:space:]]*[0-9]*' "$state_file" 2>/dev/null \
-      | sed 's/.*:[[:space:]]*//' | head -1)
 
-    # Skip terminal states.
-    if [ "$step" = "merged" ]; then
-      continue
-    fi
+    # One Python call extracts everything; failures yield empty lines so the
+    # surrounding shell stays under set -euo pipefail.
+    parsed=$(python3 - "$state_file" 2>/dev/null <<'PYEOF' || true
+import json, sys
+try:
+    with open(sys.argv[1]) as f:
+        d = json.load(f)
+    print(d.get("branch", "") or "")
+    print(d.get("step", "") or "")
+    print(d.get("next", "") or "")
+    pr = d.get("pr", "")
+    print(pr if pr not in (None, "null") else "")
+except Exception:
+    print(""); print(""); print(""); print("")
+PYEOF
+    )
+
+    branch=$(printf '%s\n' "$parsed" | sed -n '1p')
+    step=$(printf '%s\n' "$parsed" | sed -n '2p')
+    next=$(printf '%s\n' "$parsed" | sed -n '3p')
+    pr=$(printf '%s\n' "$parsed" | sed -n '4p')
+
+    # Skip empty states.
+    [ -n "${branch:-}" ] || continue
+
+    # Record that we saw this branch so the worktree-scan loop doesn't
+    # re-list it as "no state file" — even when the state is terminal.
+    SEEN_BRANCHES="${SEEN_BRANCHES}|${branch}|"
+
+    # Skip terminal states from the RESUMABLE list (worktree may still exist
+    # awaiting `/clean-gone` but it's not actually resumable work).
+    [ "$step" = "merged" ] && continue
 
     label="$branch (step: ${step:-unknown}, next: ${next:-unknown}"
-    if [ -n "${pr:-}" ] && [ "$pr" != "null" ]; then
+    if [ -n "${pr:-}" ]; then
       label+=", PR #$pr"
     fi
     label+=")"
@@ -75,12 +105,15 @@ if [ -d "$WORKTREES_DIR" ]; then
     case "$slug" in
       agent-*) continue ;;
     esac
-    # Skip if a state file already covered this branch.
-    branch_state="$STATE_DIR/$slug.json"
-    if [ -f "$branch_state" ]; then
-      continue
-    fi
-    RESUMABLE+=("$slug (no state file — inspect git status / log to infer step)")
+    # Resolve the worktree's actual branch (the slug is just the dir name).
+    branch=$(git -C "$wt" symbolic-ref --quiet --short HEAD 2>/dev/null || true)
+    [ -n "${branch:-}" ] || branch="$slug"
+    # Skip if a state file already covered this branch (de-dupe via the
+    # cached SEEN_BRANCHES list from the loop above).
+    case "$SEEN_BRANCHES" in
+      *"|${branch}|"*) continue ;;
+    esac
+    RESUMABLE+=("$branch (worktree: $wt — no state file, inspect git status/log)")
   done
 fi
 

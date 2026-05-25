@@ -46,14 +46,17 @@ These run automatically — the steps below describe the contract; the hooks enf
 Before step 1 the orchestrator also does this decision tree:
 
 1. Look for an existing worktree at `.claude/worktrees/<expected-slug>/` (slug derived from the issue title or branch name).
-2. Look for a state file at `.claude/state/<branch>.json`. Shape: `{"branch", "step", "next", "test_count", "pr", "ts"}`.
+2. Look for a state file at `<main-repo>/.claude/state/<encoded-branch>.json` where `<encoded-branch>` replaces every `/` in the branch name with `___` (triple underscore). E.g. `feat/foo` → `feat___foo.json`. **State files live in the main repo's `.claude/state/`, NOT the worktree's** — that way the SessionStart advisory in the main repo discovers every pending checkpoint across every worktree in one place. The `safe-change-checkpoint-state` hook resolves the main repo via `git rev-parse --git-common-dir` from inside a worktree and writes there. The `branch` field IN the JSON is always the canonical real branch name; never derive the branch from the filename.
+
+   **State shape**: `{"branch": str, "step": str, "next": str, "sha": str (HEAD commit at write time), "test_count": str | null, "pr": int | null, "last_subject": str (commit subject the hook saw), "ts": str (ISO 8601)}`.
 3. Decide:
    - **State `step == "merged"`** → worktree is stale. `git worktree remove` + start fresh from step 1.
-   - **State exists + worktree exists + state's commit SHA matches the worktree HEAD** → jump in, continue from `next`. Skip the earlier steps.
+   - **State exists + worktree exists + state's `sha` matches the worktree HEAD** → jump in, continue from `next`. Skip the earlier steps.
+   - **State `sha` differs from worktree HEAD** → state is stale relative to git. Trust git: re-derive `step`/`next` from the latest commit subject and continue.
    - **Worktree exists with uncommitted changes or partial commits but no state file** → inspect `git status` + `git log --oneline -5` + the test files. Infer the step. If unsure, STOP and ask the owner before destroying state.
    - **Nothing found** → proceed to step 1 normally.
 
-The state file is the single source of truth for "where was I?". Steps 3/4/6/9/10/13 below each write it. `.claude/state/` is gitignored — orchestrator-visible only.
+The state file is the single source of truth for "where was I?". Steps 3/4/6/9/10/13 below each write it (the `safe-change-checkpoint-state` hook handles 3/4/6 automatically after every `git commit`). `.claude/state/` is gitignored — orchestrator-visible only.
 
 ## Procedure
 1. **Scope + project task.** Restate the change in one sentence; list files/areas touched. If >5 files or crossing module/repo boundaries or new dependency, stop and offer a plan. Every change needs a GitHub Project board item — call `gh-project-sync` with `create-task --repo <owner/repo> --title "..." --body "..." --status Todo`. Capture the issue number `<N>`. If the user referenced an existing issue, `gh issue view <N>` and re-use it.

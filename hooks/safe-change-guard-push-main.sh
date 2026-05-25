@@ -47,35 +47,84 @@ PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$PWD}"
 cd "$PROJECT_DIR" 2>/dev/null || exit 0
 git rev-parse --is-inside-work-tree >/dev/null 2>&1 || exit 0
 
+CURRENT_BRANCH=$(git symbolic-ref --quiet --short HEAD 2>/dev/null || true)
+
+# Decide: does this push target main/master?
+# We use shlex.split + a small Python helper so refspecs are parsed correctly
+# and branch names like `main-fix` / `:main-fix` don't trigger false positives.
+# The helper writes "BLOCK|<reason>" on stdout when the push should be
+# blocked, otherwise nothing.
+#
+# Pass the command as an env var (NOT via stdin) — the heredoc IS stdin so
+# any pipe would collide and Python would parse the script as the command.
+DECISION=$(CURRENT_BRANCH="$CURRENT_BRANCH" GUARD_COMMAND="$COMMAND" python3 - <<'PYEOF' 2>/dev/null || true
+import os, shlex, sys
+
+try:
+    cmd = os.environ.get("GUARD_COMMAND", "")
+    argv = shlex.split(cmd)
+except ValueError:
+    sys.exit(0)
+
+# Locate the `git push ...` segment. Operators like `&&` / `;` / `|` are
+# preserved as separate tokens by shlex; walk left-to-right and reset when
+# we hit one.
+segments = []
+current = []
+for tok in argv:
+    if tok in (";", "&&", "||", "|", "&"):
+        if current:
+            segments.append(current)
+        current = []
+    else:
+        current.append(tok)
+if current:
+    segments.append(current)
+
+PROTECTED = ("main", "master")
+current_branch = os.environ.get("CURRENT_BRANCH", "") or ""
+
+def refspec_target(spec: str) -> str:
+    """For `local:remote` return `remote`; for `local` return `local`."""
+    return spec.split(":", 1)[1] if ":" in spec else spec
+
+for seg in segments:
+    if len(seg) < 2 or seg[0] != "git" or seg[1] != "push":
+        continue
+    # Strip flags (anything starting with `-`) but keep their values' flag
+    # markers — for git push the only flag that consumes a value is `-o` /
+    # `--push-option=...` and its value is opaque, so dropping flags is safe.
+    args = [t for t in seg[2:] if not t.startswith("-")]
+    # Drop the `--` separator if present.
+    args = [t for t in args if t != "--"]
+    if not args:
+        # Bare `git push`. Block iff currently on main/master.
+        if current_branch in PROTECTED:
+            print(f"BLOCK|bare push from {current_branch} checkout")
+            sys.exit(0)
+        continue
+    # First non-flag arg is the remote; the rest are refspecs.
+    remote = args[0]
+    refspecs = args[1:]
+    if not refspecs:
+        # `git push <remote>` — push current branch upstream-mapped.
+        if current_branch in PROTECTED:
+            print(f"BLOCK|push from {current_branch} checkout to {remote}")
+            sys.exit(0)
+        continue
+    for spec in refspecs:
+        target = refspec_target(spec.lstrip("+"))
+        if target in PROTECTED:
+            print(f"BLOCK|explicit push to {target} via `{spec}`")
+            sys.exit(0)
+PYEOF
+)
+
 BLOCKED=0
 REASON=""
-
-# Explicit `git push <remote> main` / master.
-case " $COMMAND " in
-  *" git push "*" main"*|*" git push "*":main"*) BLOCKED=1; REASON="explicit push to main" ;;
-  *" git push "*" master"*|*" git push "*":master"*) BLOCKED=1; REASON="explicit push to master" ;;
-  *" git push "*" main:"*) BLOCKED=1; REASON="explicit push to main (refspec)" ;;
-  *" git push "*" master:"*) BLOCKED=1; REASON="explicit push to master (refspec)" ;;
+case "$DECISION" in
+  BLOCK\|*) BLOCKED=1; REASON="${DECISION#BLOCK|}" ;;
 esac
-
-# `git push` (bare) from a main/master checkout pushes the current branch
-# upstream — if upstream is main/master, that's the same as explicit push.
-if [ "$BLOCKED" -eq 0 ]; then
-  CURRENT_BRANCH=$(git symbolic-ref --quiet --short HEAD 2>/dev/null || true)
-  case "$CURRENT_BRANCH" in
-    main|master)
-      # If the command is bare-ish (no refspec), still block.
-      case "$COMMAND" in
-        *"git push"*"$CURRENT_BRANCH"*) ;;  # already covered above
-        *"git push -u"*|*"git push --set-upstream"*) BLOCKED=1; REASON="push from $CURRENT_BRANCH checkout" ;;
-        *"git push origin"*|*"git push"*$'\n'*|*"git push;"*|*"git push&"*) BLOCKED=1; REASON="push from $CURRENT_BRANCH checkout" ;;
-      esac
-      case "$COMMAND" in
-        *"git push") BLOCKED=1; REASON="push from $CURRENT_BRANCH checkout (bare push)" ;;
-      esac
-    ;;
-  esac
-fi
 
 if [ "$BLOCKED" -eq 1 ]; then
   {
