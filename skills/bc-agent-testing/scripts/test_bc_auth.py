@@ -369,6 +369,31 @@ class TestSilentFailureGuards(unittest.TestCase):
                     bc_auth.BCClient()
                 self.assertIn("malformed", captured_stderr.getvalue().lower())
 
+    def test_malformed_dotenv_warning_does_not_echo_line_content(self):
+        """If a user accidentally writes `BC_CLIENT_SECRET shh-real-secret`
+        (missing =), echoing the line content would leak the secret into
+        stderr / shell history. The warning must give the user enough to
+        find the line (line number) without printing the value."""
+        import bc_auth
+        leak_marker = "totally-secret-shhhh-1234567890abc"
+        with tempfile.TemporaryDirectory() as d:
+            env_path = Path(d) / ".env"
+            env_path.write_text(
+                "\n".join(f"{k}={v}" for k, v in _VALID_ENV.items())
+                + f"\nBC_CLIENT_SECRET {leak_marker}\n",
+                encoding="utf-8",
+            )
+            with patch.object(bc_auth, "_SCRIPT_DIR", Path(d)):
+                for k in _VALID_ENV:
+                    os.environ.pop(k, None)
+                captured_stderr = io.StringIO()
+                with patch.object(sys, "stderr", captured_stderr):
+                    bc_auth.BCClient()
+                out = captured_stderr.getvalue()
+                self.assertNotIn(leak_marker, out, "warning leaked a secret-looking token")
+                # Must still be useful — line number gets the user to the typo
+                self.assertIn("line", out.lower())
+
     def test_token_missing_access_token_raises_clearly(self):
         """If AAD returns a 200 with no access_token field (gateway misroute,
         Conditional Access policy quirk), bare KeyError gives no context."""

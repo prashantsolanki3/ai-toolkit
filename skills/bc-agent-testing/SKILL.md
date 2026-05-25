@@ -231,32 +231,60 @@ run = c.post("testRuns", {"testCaseNo": 7})
 
 The `testCases` / `testCaseSteps` / `testRuns` / `testRunSteps` API set runs a previously captured conversation and diffs the new response against the baseline. The AL-side runner lives in the extension's `Agent-Testing/` test codeunits; this API surface mirrors it.
 
-## Seeding a sandbox programmatically
+## Seeding a sandbox — what the API can and can't do
 
-When the test target is a fresh BC environment (empty agents, no published channels), drive the setup itself through the same API instead of clicking through the wizard. Useful for retargeting Backend Base URL to a dev backend before a Teams bot smoke test, for example:
+Not everything in the Smart Agent Setup page is exposed through the AL API. Two specific operations are deliberately **UI-only** and can't be driven from `bc_auth.py`:
+
+1. **Backend Base URL** is declared `Editable = false` on the API page ([`Page.72778330.SASetupAPI.al`](src/page/Page.72778330.SASetupAPI.al)). PATCHing the field returns `400 BadRequest: "Control 'backendBaseURL' is read-only"`. Change it once via the BC UI.
+2. **Register Tenant** is a UI button that calls the SmartAgents backend directly (not via OData). No `Microsoft.NAV.registerTenant` action is published in the API metadata.
+
+So a typical end-to-end seed of a fresh sandbox looks like:
+
+**Step 0 — once, in the BC UI** (no way around this):
+1. Open Smart Agents Setup page in BC
+2. Set **Backend Base URL** to e.g. `https://api.dev.agent.net.ai`
+3. Click **Register Tenant**
+
+**Step 1 onward — API-driven from `bc_auth.py`:**
 
 ```python
 from bc_auth import BCClient
 c = BCClient()
 
-# 1. Point setup at a dev backend
-c.patch("setup", {"backendBaseUrl": "https://api.dev.agent.net.ai"})
+# Verify setup landed where you expect (read-only fields confirm BC state)
+setup = c.get_all("setup")[0]
+assert setup["tenantRegistered"], "click Register Tenant in the BC UI first"
+assert setup["backendBaseURL"] in ("", "https://api.dev.agent.net.ai"), setup
 
-# 2. Register the tenant against the backend
-c.post_action("registerTenant", {})
-
-# 3. Create a minimal agent
+# Create a minimal agent. Field names mirror Page.72778326.SAAgentsAPI.al —
+# do `print(c.get_all("agents")[:1])` to inspect a real record's shape first.
 new = c.post("agents", {"name": "Bot Smoke", "active": True, "modelTier": "Smart"})
 agent_no = new["no"]
 
-# 4. Publish to a channel (e.g. teams) so the bot router picks it up
+# Publish to a channel (e.g. teams) so the bot router picks it up.
+# The publishers endpoint is bound to the agent — adjust path to whatever
+# the AL page exposes (check $metadata for the navigation property name).
 c.post(f"agents({agent_no})/publishers", {"channel": "teams", "status": "published"})
 
-# 5. Confirm via the chat surface
+# Confirm via the synchronous chat surface
 print(c.chat(agent_no, "ping")["status"])
 ```
 
-The exact field names depend on the BC extension's published API page schema — verify against `src/page/Page.72778326.SAAgentsAPI.al` and the `Smart Agent Setup QUA` table. If a field name doesn't resolve, do `c.get("setup")` first and read the actual property keys returned.
+The exact field names depend on the BC extension's published API page schema — verify against [`Page.72778326.SAAgentsAPI.al`](src/page/Page.72778326.SAAgentsAPI.al) and the `Smart Agent Setup QUA` table. If a field name doesn't resolve, GET the entity first and read the actual property keys returned.
+
+### `post_action()` for OData v4 actions
+
+`BCClient.post_action(path, body=None)` posts to a bound or unbound action endpoint. The `path` is the **full OData fragment** including the action namespace, e.g.:
+
+```python
+# A bound action on the setup entity (if one existed in this API):
+c.post_action("setup/Microsoft.NAV.someAction", {"param": "value"})
+
+# An unbound action at the API root (if exposed — none today on this page):
+c.post_action("Microsoft.NAV.someUnboundAction", {})
+```
+
+`post_action` is a thin alias for `post()` — it goes through the same company-scoped URL builder and same Bearer auth. Both are documented here so the recipe reads naturally; nothing prevents you from using `c.post(...)` everywhere if you prefer.
 
 ## Gotchas
 

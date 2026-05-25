@@ -28,6 +28,7 @@ The script's behavior is locked down by the unit tests in
 from __future__ import annotations
 
 import json
+import os
 import re
 import sys
 import time
@@ -91,9 +92,13 @@ def _load_dotenv(path: Path) -> dict[str, str]:
         if not line or line.startswith("#"):
             continue
         if "=" not in line:
+            # Deliberately do NOT echo the line content. A typo like
+            # `BC_CLIENT_SECRET shh-real-secret` (missing `=`) would otherwise
+            # leak the secret to stderr and shell history. The line number
+            # plus file path is enough to find the typo.
             print(
                 f"bc_auth: warning: skipping malformed line {lineno} in {path} "
-                f"(no '='): {line[:60]!r}",
+                f"(no '=' separator)",
                 file=sys.stderr,
             )
             continue

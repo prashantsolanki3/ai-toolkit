@@ -1,3 +1,9 @@
 .env
 __pycache__/
 *.pyc
+
+# The toolkit's root .gitignore has `.env*` (catches .env.example too).
+# This skill SHIPS .env.example as a bootstrap template, so explicitly
+# un-ignore it. Without this line `git add scripts/.env.example` is a
+# silent no-op and the skill is unusable out of the box.
+!.env.example
