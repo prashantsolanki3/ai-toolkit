@@ -19,3 +19,6 @@ test/fixtures/tmp/
 .DS_Store
 .env*
 /tmp-*
+
+# Per-branch progress state files written by safe-change checkpoints (resume protocol)
+.claude/state/

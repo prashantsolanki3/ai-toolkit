@@ -149,6 +149,54 @@
         "kiro"
       ],
       "event": "SessionStart"
+    },
+    "safe-change-resume-advisory": {
+      "description": "SessionStart advisory — surface resumable safe-change work (worktrees + state files) so the next session continues instead of restarting",
+      "presets": [
+        "dev-skills"
+      ],
+      "author": "ai-toolkit-dev-skills",
+      "tools": [
+        "claude-code",
+        "kiro"
+      ],
+      "event": "SessionStart"
+    },
+    "safe-change-checkpoint-state": {
+      "description": "PostToolUse — auto-write .claude/state/<branch>.json after every git commit on a safe-change worktree branch; infers step from the commit message",
+      "presets": [
+        "dev-skills"
+      ],
+      "author": "ai-toolkit-dev-skills",
+      "tools": [
+        "claude-code"
+      ],
+      "event": "PostToolUse",
+      "matcher": "Bash"
+    },
+    "safe-change-guard-add-all": {
+      "description": "PreToolUse — block `git add -A`, `git add .`, `git add -u`. One of safe-change's hard rules. Override with SAFE_CHANGE_GUARD_ADD_SKIP=1.",
+      "presets": [
+        "dev-skills"
+      ],
+      "author": "ai-toolkit-dev-skills",
+      "tools": [
+        "claude-code"
+      ],
+      "event": "PreToolUse",
+      "matcher": "Bash"
+    },
+    "safe-change-guard-push-main": {
+      "description": "PreToolUse — block direct `git push origin main`/`master` or push-from-main-checkout. PR-only enforcement. Override with SAFE_CHANGE_GUARD_PUSH_SKIP=1.",
+      "presets": [
+        "dev-skills"
+      ],
+      "author": "ai-toolkit-dev-skills",
+      "tools": [
+        "claude-code"
+      ],
+      "event": "PreToolUse",
+      "matcher": "Bash"
     }
   },
   "rules": {},
@@ -203,7 +251,11 @@
         "parallel-reviewers"
       ],
       "hooks": [
-        "branch-from-main"
+        "branch-from-main",
+        "safe-change-resume-advisory",
+        "safe-change-checkpoint-state",
+        "safe-change-guard-add-all",
+        "safe-change-guard-push-main"
       ],
       "rules": [],
       "mcp": []

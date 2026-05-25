@@ -30,13 +30,41 @@ Then read every `main` / `origin/main` in the steps below as `$DEFAULT_BRANCH` /
 - The user says "fix", "add", "wire up", "implement", "refactor", "rename", "extract", "split", "delete", "update", "change", "build", "set up" — anything imperative on the code.
 - If unsure, invoke this skill — cost of routing through it is small; cost of skipping it is broken history.
 
+## Resume protocol (run BEFORE step 1)
+
+Sub-agents can die mid-work (session limit, socket error, watchdog timeout). When the orchestrator re-invokes this skill for the same intent, **resume — don't restart**.
+
+**Automation shipped with this skill** (Claude Code hooks, in the `dev-skills` preset):
+
+- `safe-change-resume-advisory` (SessionStart) — prints a list of resumable worktrees + state files at the start of every session. Set `SAFE_CHANGE_RESUME_SKIP=1` to silence.
+- `safe-change-checkpoint-state` (PostToolUse on Bash `git commit`) — auto-writes `.claude/state/<branch>.json` after every commit on a `.claude/worktrees/<slug>/` branch. Infers `step` from the commit subject (`wip(...): RED` → `RED tests committed`, etc.).
+- `safe-change-guard-add-all` (PreToolUse on Bash `git add`) — blocks `git add -A` / `.` / `-u` / `--all` / `--update`. Override with `SAFE_CHANGE_GUARD_ADD_SKIP=1`.
+- `safe-change-guard-push-main` (PreToolUse on Bash `git push`) — blocks direct push to `main`/`master`. Override with `SAFE_CHANGE_GUARD_PUSH_SKIP=1`.
+
+These run automatically — the steps below describe the contract; the hooks enforce the parts that are easy to forget.
+
+Before step 1 the orchestrator also does this decision tree:
+
+1. Look for an existing worktree at `.claude/worktrees/<expected-slug>/` (slug derived from the issue title or branch name).
+2. Look for a state file at `<main-repo>/.claude/state/<encoded-branch>.json` where `<encoded-branch>` replaces every `/` in the branch name with `___` (triple underscore). E.g. `feat/foo` → `feat___foo.json`. **State files live in the main repo's `.claude/state/`, NOT the worktree's** — that way the SessionStart advisory in the main repo discovers every pending checkpoint across every worktree in one place. The `safe-change-checkpoint-state` hook resolves the main repo via `git rev-parse --git-common-dir` from inside a worktree and writes there. The `branch` field IN the JSON is always the canonical real branch name; never derive the branch from the filename.
+
+   **State shape**: `{"branch": str, "step": str, "next": str, "sha": str (HEAD commit at write time), "test_count": str | null, "pr": int | null, "last_subject": str (commit subject the hook saw), "ts": str (ISO 8601)}`.
+3. Decide:
+   - **State `step == "merged"`** → worktree is stale. `git worktree remove` + start fresh from step 1.
+   - **State exists + worktree exists + state's `sha` matches the worktree HEAD** → jump in, continue from `next`. Skip the earlier steps.
+   - **State `sha` differs from worktree HEAD** → state is stale relative to git. Trust git: re-derive `step`/`next` from the latest commit subject and continue.
+   - **Worktree exists with uncommitted changes or partial commits but no state file** → inspect `git status` + `git log --oneline -5` + the test files. Infer the step. If unsure, STOP and ask the owner before destroying state.
+   - **Nothing found** → proceed to step 1 normally.
+
+The state file is the single source of truth for "where was I?". Steps 3/4/6/9/10/13 below each write it (the `safe-change-checkpoint-state` hook handles 3/4/6 automatically after every `git commit`). `.claude/state/` is gitignored — orchestrator-visible only.
+
 ## Procedure
 1. **Scope + project task.** Restate the change in one sentence; list files/areas touched. If >5 files or crossing module/repo boundaries or new dependency, stop and offer a plan. Every change needs a GitHub Project board item — call `gh-project-sync` with `create-task --repo <owner/repo> --title "..." --body "..." --status Todo`. Capture the issue number `<N>`. If the user referenced an existing issue, `gh issue view <N>` and re-use it.
 2. **Branch from latest main.** First: `git fetch origin main && git checkout main && git pull --ff-only origin main`. Then create an isolated worktree inside the repo: `git worktree add -b <type>/<slug> .claude/worktrees/<slug> main` where `<type>` is `feat|fix|chore|docs|refactor|test`. Never put worktrees as siblings of the repo. Never edit `main` directly. The `branch-from-main` SessionStart advisory surfaces this rule at session start.
-3. **Red test first.** TDD is mandatory under runtime areas. Mirror source-to-test paths per repo convention. Run the test; confirm RED for the right reason. If a test is genuinely impossible, say so explicitly. The author who writes the red test is the same author who writes the implementation.
-4. **Implement** the change to make the test pass. Don't add anything the test doesn't demand; resist scope creep.
+3. **Red test first + CHECKPOINT.** TDD is mandatory under runtime areas. Mirror source-to-test paths per repo convention. Run the test; confirm RED for the right reason. If a test is genuinely impossible, say so explicitly. The author who writes the red test is the same author who writes the implementation. **Then commit the RED tests** (selective `git add` per step 7): `wip(<scope>): RED failing tests for <feature>`. **Write `.claude/state/<branch>.json`** with `{"branch", "step": "RED tests committed", "next": "implement", "test_count": "X/0 red", "pr": null, "ts": "<ISO>"}`. Even an infra-only change should commit any test scaffolding written and record the state.
+4. **Implement + CHECKPOINT.** Make the test pass. Don't add anything the test doesn't demand; resist scope creep. **Then commit** the implementation: `wip(<scope>): implementation`. **Update `.claude/state/<branch>.json`** with `step="impl committed"`, `next="green check"`, updated `test_count`.
 5. **Green check.** Run the relevant test file, then the broader suite for the area. Confirm GREEN. Note pre-existing unrelated failures; don't fix them silently.
-6. **Docs sync.** If you add/remove a route, command, env var, port, or skill, update the relevant doc in the SAME commit set. For LLM-wiki repos, file via `wiki-keeper` — do not write `docs/` directly.
+6. **Docs sync + CHECKPOINT.** If you add/remove a route, command, env var, port, or skill, update the relevant doc in the SAME commit set. For LLM-wiki repos, file via `wiki-keeper` — do not write `docs/` directly. **Commit any doc changes** with `wip(<scope>): docs + final polish`. **Update `.claude/state/<branch>.json`** with `step="docs synced"`, `next="push + PR"`.
 7. **Selective commit.** Always `git add <specific paths>` — NEVER `git add -A` or `git add .`. Use Conventional Commits: `type(scope): short imperative summary`. Never modify git config; never `--no-verify`.
 8. **Push.** `git push -u origin <branch>`. Never push to `main`.
 9. **Open the PR with Depends-On slot.** Body MUST contain `Closes #<N>` or `Refs #<N>`. If this PR depends on or unblocks work in another repo, fill the slots:
@@ -52,11 +80,11 @@ Then read every `main` / `origin/main` in the steps below as `$DEFAULT_BRANCH` /
    ## Test plan
    - [ ] <how you verified>
    ```
-   Reviewer checks reciprocity in `review-pr` § Consistency. Cross-repo dependencies are linked natively via GitHub Issue dependencies (see `gh-project-sync` `add-dependency`), not via PR-description-as-truth.
-10. **Parallel review.** Invoke `/parallel-reviewers` to fan out to three reviewer agents. The command pre-flights the `pr-review-toolkit` plugin and falls back to repo-local reviewers if absent. Auto-detects `--scope` from `git diff --stat`. Outcomes per reviewer: APPROVED, REQUEST_CHANGES (author addresses, re-runs, pushes; orchestrator re-dispatches; hard cap 3 iterations then escalate), or COMMENT. Reviewers never push to the author's branch.
+   Reviewer checks reciprocity in `review-pr` § Consistency. Cross-repo dependencies are linked natively via GitHub Issue dependencies (see `gh-project-sync` `add-dependency`), not via PR-description-as-truth. **Update `.claude/state/<branch>.json`** with `step="PR opened"`, `next="review"`, `pr=<PR number>`.
+10. **Parallel review.** Invoke `/parallel-reviewers` to fan out to three reviewer agents. The command pre-flights the `pr-review-toolkit` plugin and falls back to repo-local reviewers if absent. Auto-detects `--scope` from `git diff --stat`. Outcomes per reviewer: APPROVED, REQUEST_CHANGES (author addresses, re-runs, pushes; orchestrator re-dispatches; hard cap 3 iterations then escalate), or COMMENT. Reviewers never push to the author's branch. After each verdict, **update `.claude/state/<branch>.json`** with `step="review approved" | "review requested changes" | "review comment"`, `next="merge" | "address feedback" | "merge"`.
 11. **Report back.** One concise message: branch, commit SHAs, PR URL, suite result, review verdicts, anything deferred.
 12. **Post-merge verify.** After merge: `git checkout main && git pull --ff-only`, then run the smoke suite + the suites the PR touched. Distinguish real regressions from pre-existing flake by re-running the failing test on `git merge-base origin/main HEAD` — if it fails there too, log as Non-blocking. If new on merged main: stop, report to owner verbatim, do NOT auto-revert. Docs-only PRs skip suites.
-13. **Clean up.** Run `/clean-gone` to prune every `[gone]` branch + worktree. Survives session loss. Guards against branches mentioned in `status/blockers.md`. Use `--dry-run` first if any worktree has uncommitted edits.
+13. **Clean up.** Run `/clean-gone` to prune every `[gone]` branch + worktree. Survives session loss. Guards against branches mentioned in `status/blockers.md`. Use `--dry-run` first if any worktree has uncommitted edits. **Mark the state file as terminal**: update `.claude/state/<branch>.json` with `step="merged"`, `next="(none)"`. The resume protocol treats `merged` as "stale — remove worktree, start fresh" so this is the cleanup signal for the next session.
 
 ## Rules
 - One concern per commit, format `type(scope): description`. Never amend a pushed commit unless the user asks.
