@@ -32,7 +32,18 @@ Then read every `main` / `origin/main` in the steps below as `$DEFAULT_BRANCH` /
 
 ## Resume protocol (run BEFORE step 1)
 
-Sub-agents can die mid-work (session limit, socket error, watchdog timeout). When the orchestrator re-invokes this skill for the same intent, **resume — don't restart**. Before step 1:
+Sub-agents can die mid-work (session limit, socket error, watchdog timeout). When the orchestrator re-invokes this skill for the same intent, **resume — don't restart**.
+
+**Automation shipped with this skill** (Claude Code hooks, in the `dev-skills` preset):
+
+- `safe-change-resume-advisory` (SessionStart) — prints a list of resumable worktrees + state files at the start of every session. Set `SAFE_CHANGE_RESUME_SKIP=1` to silence.
+- `safe-change-checkpoint-state` (PostToolUse on Bash `git commit`) — auto-writes `.claude/state/<branch>.json` after every commit on a `.claude/worktrees/<slug>/` branch. Infers `step` from the commit subject (`wip(...): RED` → `RED tests committed`, etc.).
+- `safe-change-guard-add-all` (PreToolUse on Bash `git add`) — blocks `git add -A` / `.` / `-u` / `--all` / `--update`. Override with `SAFE_CHANGE_GUARD_ADD_SKIP=1`.
+- `safe-change-guard-push-main` (PreToolUse on Bash `git push`) — blocks direct push to `main`/`master`. Override with `SAFE_CHANGE_GUARD_PUSH_SKIP=1`.
+
+These run automatically — the steps below describe the contract; the hooks enforce the parts that are easy to forget.
+
+Before step 1 the orchestrator also does this decision tree:
 
 1. Look for an existing worktree at `.claude/worktrees/<expected-slug>/` (slug derived from the issue title or branch name).
 2. Look for a state file at `.claude/state/<branch>.json`. Shape: `{"branch", "step", "next", "test_count", "pr", "ts"}`.
