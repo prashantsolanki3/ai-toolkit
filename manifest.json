@@ -1,6 +1,18 @@
 {
   "version": "1.0",
   "skills": {
+    "bc-agent-testing": {
+      "description": "Drive the SmartAgents Microsoft Dynamics 365 Business Central AL API as an external caller — sandbox configuration, sync chat-loop testing, Tool Call Log assertions, regression replay. The fastest way to validate that an agent actually works end-to-end without clicking through the BC UI.",
+      "presets": [
+        "bc-development"
+      ],
+      "author": "ai-toolkit",
+      "tools": [
+        "claude-code",
+        "cursor",
+        "vscode-copilot"
+      ]
+    },
     "craft-skill": {
       "description": "Decision-tree skill for self-improvement — when a session reveals a behaviour worth keeping, decide whether to tighten an existing skill's trigger, add a one-line rule, create a new skill, or promote the lesson to an identity file (CLAUDE.md / AGENTS.md / AI_INSTRUCTIONS.md). Triggered by phrases like \"you should have caught this\", \"from now on always X\", \"never X again\", \"we keep hitting this\". Complementary to the toolkit's eval-driven /improve-skill command.",
       "presets": [
@@ -193,6 +205,17 @@
       "hooks": [
         "branch-from-main"
       ],
+      "rules": [],
+      "mcp": []
+    },
+    "bc-development": {
+      "description": "Microsoft Dynamics 365 Business Central development and testing — driving the SmartAgents AL API as an external caller, validating agent behavior end-to-end via the synchronous chat loop + Tool Call Log, and seeding/regression-testing sandbox environments without clicking through the BC UI.",
+      "skills": [
+        "bc-agent-testing"
+      ],
+      "agents": [],
+      "commands": [],
+      "hooks": [],
       "rules": [],
       "mcp": []
     }

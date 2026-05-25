@@ -6,6 +6,9 @@
     },
     "dev-skills": {
       "description": "Generic developer best-practices for any repo — TDD via safe-change, evidence-based review-pr with 6-axis rubric, GitHub Project sync, multi-repo clean-gone, parallel reviewer fan-out, wiki-keeper agent, and a branch-from-main session advisory. Lifted from SmartAgents SA-091 with patterns from nikitaarora3/opulent-toolkit."
+    },
+    "bc-development": {
+      "description": "Microsoft Dynamics 365 Business Central development and testing — driving the SmartAgents AL API as an external caller, validating agent behavior end-to-end via the synchronous chat loop + Tool Call Log, and seeding/regression-testing sandbox environments without clicking through the BC UI."
     }
   }
 }
