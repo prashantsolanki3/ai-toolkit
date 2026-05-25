@@ -34,7 +34,7 @@ import time
 from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError, URLError
-from urllib.parse import quote, urlencode
+from urllib.parse import quote, urlencode, urlparse
 from urllib.request import Request, urlopen
 
 _SCRIPT_DIR = Path(__file__).resolve().parent
@@ -47,8 +47,9 @@ _REQUIRED_KEYS = (
     "BC_COMPANY_ID",
 )
 
-_BC_SCOPE = "https://api.businesscentral.dynamics.com/.default"
-_API_ROOT = "https://api.businesscentral.dynamics.com/v2.0"
+_BC_API_HOST = "api.businesscentral.dynamics.com"
+_BC_SCOPE = f"https://{_BC_API_HOST}/.default"
+_API_ROOT = f"https://{_BC_API_HOST}/v2.0"
 _API_SUFFIX = "api/qualiaTechnik/smartAgents/v1.0"
 _TOKEN_SKEW_SECONDS = 30
 _MAX_PAGES = 10_000  # safety ceiling on get_all pagination
@@ -173,6 +174,13 @@ class BCClient:
             raise BCAuthError(
                 f"Token acquisition failed ({e.code}): {safe[:500]}. {hint}"
             ) from None
+        except URLError as e:
+            # Same contract as data calls — DNS / connection failures must
+            # surface as a typed exception, not a raw urllib stack trace.
+            raise BCAuthError(
+                f"Token endpoint network error ({url}): {e.reason}. "
+                "Check connectivity to login.microsoftonline.com."
+            ) from None
 
         # Validate the response shape explicitly — AAD misroutes / Conditional
         # Access quirks can return 200 with missing fields. Bare KeyError gives
@@ -204,18 +212,42 @@ class BCClient:
     # ── url construction ────────────────────────────────────────────────
 
     def _company_url(self, path: str) -> str:
-        """Build a full company-scoped URL. `path` is everything after
-        `companies({companyId})/`. Pass `path=""` for the company root.
-        Already-resolved nextLinks pass through, but only over HTTPS — a
-        rewritten http:// nextLink would send the Bearer token in cleartext."""
-        if path.startswith("https://"):
-            return path  # already-resolved nextLink
-        if path.startswith("http://"):
-            raise BCError(
-                f"Refusing to follow nextLink over plaintext http: {path[:120]}. "
-                "Check for an upstream proxy rewriting the OData nextLink."
-            )
+        """Build a full API URL. `path` semantics:
+
+        - `""`                          → company root (`companies({id})`)
+        - `"companies"` / `"companies(...)"` → top-level entity set (unscoped)
+        - any other string              → company-scoped (`companies({id})/{path}`)
+        - already-absolute URL          → treated as a resolved `@odata.nextLink`;
+                                          must be https AND on the BC API host,
+                                          otherwise refused to prevent the
+                                          Bearer token from leaking off-host
+
+        Locking the nextLink host stops a misconfigured proxy (or a malicious
+        upstream rewrite) from steering authenticated requests to an attacker-
+        controlled endpoint."""
+        if path.startswith(("http://", "https://")):
+            parsed = urlparse(path)
+            if parsed.scheme != "https":
+                raise BCError(
+                    f"Refusing to follow nextLink over plaintext http: {path[:120]}. "
+                    "Check for an upstream proxy rewriting the OData nextLink."
+                )
+            if parsed.hostname != _BC_API_HOST:
+                raise BCError(
+                    f"Refusing nextLink to unexpected host {parsed.hostname!r}: "
+                    f"{path[:120]}. Only {_BC_API_HOST} is trusted to receive "
+                    "the Bearer token."
+                )
+            return path
+
         base = f"{_API_ROOT}/{self.tenant_id}/{self.environment}/{_API_SUFFIX}"
+
+        # Top-level paths (companies, companies(<id>), ...) are not company-
+        # scoped. The bootstrap step `c.get_all("companies")` documented in
+        # SKILL.md depends on this.
+        if path == "companies" or path.startswith("companies("):
+            return f"{base}/{path}"
+
         company = f"companies({self.company_id})"
         suffix = f"/{path}" if path else ""
         return f"{base}/{company}{suffix}"
@@ -269,6 +301,18 @@ class BCClient:
         """POST a message to the synchronous chat endpoint. Returns the full
         response record — see SKILL.md "synchronous test loop" for the shape."""
         return self.post("agentChat", {"agentNo": agent_no, "message": message})
+
+    def post_action(self, path: str, body: dict | None = None) -> Any:
+        """POST to an OData v4 action endpoint.
+
+        `path` is the bound/unbound action URL fragment, e.g.
+        `"setup/Microsoft.NAV.registerTenant"`. The body defaults to an
+        empty object — most BC actions take no parameters.
+
+        This is a thin convenience over ``post()`` so the seeding recipe
+        in SKILL.md stays readable; everything ``post()`` documents about
+        auth, host validation, and error handling applies here too."""
+        return self.post(path, body or {})
 
     def tool_call_log(self, request_id: str) -> list[dict]:
         """Fetch every tool call row for one chat request, ordered as BC

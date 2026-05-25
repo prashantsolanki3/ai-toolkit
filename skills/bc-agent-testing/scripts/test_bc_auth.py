@@ -447,17 +447,21 @@ class TestSilentFailureGuards(unittest.TestCase):
                     self.fail("BCAuthError not raised")
 
     def test_https_nextlink_accepted_http_rejected(self):
-        """An HTTPS nextLink is normal — accept. An HTTP nextLink (proxy rewrite,
-        misconfiguration) would send a Bearer token over cleartext — reject."""
+        """An HTTPS nextLink pointing at the BC API host is normal — accept.
+        An HTTP nextLink, or a nextLink to ANY other host, would send the
+        Bearer token over cleartext / to an attacker-controlled endpoint —
+        reject in both cases."""
         import bc_auth
+
+        bc_host = "https://api.businesscentral.dynamics.com"
 
         with _EnvDir(_VALID_ENV):
             c = bc_auth.BCClient()
             c._token = "tok"
             c._token_expires_at = time.monotonic() + 3600
 
-            # HTTPS nextLink is fine
-            page1 = {"value": [{"id": 1}], "@odata.nextLink": "https://example.com/page2"}
+            # HTTPS nextLink on the BC API host is fine
+            page1 = {"value": [{"id": 1}], "@odata.nextLink": f"{bc_host}/page2"}
             page2 = {"value": [{"id": 2}]}
             responses = [_resp(page1), _resp(page2)]
             with patch("bc_auth.urlopen", side_effect=lambda *_a, **_k: responses.pop(0)):
@@ -465,8 +469,8 @@ class TestSilentFailureGuards(unittest.TestCase):
             self.assertEqual([r["id"] for r in rows], [1, 2])
 
             # HTTP nextLink must be refused
-            bad = {"value": [{"id": 1}], "@odata.nextLink": "http://example.com/page2"}
-            with patch("bc_auth.urlopen", return_value=_resp(bad)):
+            bad_http = {"value": [{"id": 1}], "@odata.nextLink": f"http://api.businesscentral.dynamics.com/page2"}
+            with patch("bc_auth.urlopen", return_value=_resp(bad_http)):
                 with self.assertRaises(bc_auth.BCError) as cm:
                     c.get_all("a")
             msg = str(cm.exception).lower()
@@ -475,12 +479,95 @@ class TestSilentFailureGuards(unittest.TestCase):
                 f"http:// nextLink rejection should call out the protocol downgrade: {msg}",
             )
 
+    def test_nextlink_rejects_unknown_host(self):
+        """nextLink pointing at a host other than BC's API host = token
+        exfiltration vector. Refuse loudly even if the scheme is https."""
+        import bc_auth
+
+        attacker = "https://evil.example.com/steal"
+        with _EnvDir(_VALID_ENV):
+            c = bc_auth.BCClient()
+            c._token = "tok"
+            c._token_expires_at = time.monotonic() + 3600
+            page = {"value": [{"id": 1}], "@odata.nextLink": attacker}
+            with patch("bc_auth.urlopen", return_value=_resp(page)):
+                with self.assertRaises(bc_auth.BCError) as cm:
+                    c.get_all("a")
+        msg = str(cm.exception).lower()
+        self.assertIn("host", msg)
+
+    def test_get_all_companies_does_not_double_prefix(self):
+        """`get_all('companies')` must hit the top-level companies endpoint,
+        not `companies({id})/companies` — the documented bootstrap flow for
+        resolving BC_COMPANY_ID needs this to work."""
+        import bc_auth
+        captured = {}
+
+        def fake_open(req, timeout=None):
+            captured["url"] = req.full_url
+            return _resp({"value": [{"id": "co-guid", "name": "CRONUS DE"}]})
+
+        with _EnvDir(_VALID_ENV):
+            c = bc_auth.BCClient()
+            c._token = "tok"
+            c._token_expires_at = time.monotonic() + 3600
+            with patch("bc_auth.urlopen", side_effect=fake_open):
+                rows = c.get_all("companies")
+        self.assertEqual(rows[0]["name"], "CRONUS DE")
+        # Must NOT contain a duplicated companies segment
+        self.assertNotIn("companies(" + _VALID_ENV["BC_COMPANY_ID"] + ")/companies", captured["url"])
+        # Must end with /companies (the top-level entity set)
+        self.assertTrue(
+            captured["url"].endswith("/companies"),
+            f"top-level companies path malformed: {captured['url']}",
+        )
+
+    def test_post_action_helper_calls_post(self):
+        """SKILL.md's sandbox seeding snippet calls `c.post_action(...)`.
+        Add the helper so the documented snippet is executable."""
+        import bc_auth
+        captured = {}
+
+        def fake_open(req, timeout=None):
+            captured["method"] = req.get_method()
+            captured["url"] = req.full_url
+            captured["body"] = json.loads(req.data.decode("utf-8"))
+            return _resp({"ok": True})
+
+        with _EnvDir(_VALID_ENV):
+            c = bc_auth.BCClient()
+            c._token = "tok"
+            c._token_expires_at = time.monotonic() + 3600
+            with patch("bc_auth.urlopen", side_effect=fake_open):
+                c.post_action("setup/Microsoft.NAV.registerTenant", {"forceRefresh": True})
+        self.assertEqual(captured["method"], "POST")
+        self.assertIn("setup/Microsoft.NAV.registerTenant", captured["url"])
+        self.assertEqual(captured["body"], {"forceRefresh": True})
+
+    def test_acquire_token_handles_urlerror(self):
+        """DNS failure or connection refused on the token endpoint should
+        raise BCAuthError, not a raw urllib stack trace — that's the same
+        contract we hold for data calls."""
+        import bc_auth
+        from urllib.error import URLError
+
+        def fake_open(req, timeout=None):
+            raise URLError("nodename nor servname provided")
+
+        with _EnvDir(_VALID_ENV):
+            with patch("bc_auth.urlopen", side_effect=fake_open):
+                c = bc_auth.BCClient()
+                with self.assertRaises(bc_auth.BCAuthError) as cm:
+                    c._acquire_token()
+        msg = str(cm.exception).lower()
+        self.assertIn("network", msg)
+
     def test_get_all_breaks_on_repeating_nextlink(self):
         """If BC ever echoes the same nextLink, current code spins forever
         accumulating duplicates. Must break with a clear error."""
         import bc_auth
 
-        loop_url = "https://example.com/same-page"
+        loop_url = "https://api.businesscentral.dynamics.com/v2.0/loop"
         loop_payload = {"value": [{"id": 1}], "@odata.nextLink": loop_url}
 
         with _EnvDir(_VALID_ENV):

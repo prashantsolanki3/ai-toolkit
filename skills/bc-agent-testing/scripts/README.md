@@ -11,7 +11,7 @@ cp .env.example .env
 python -c "from bc_auth import BCClient; c=BCClient(); print(c.environment)"
 ```
 
-If `BCClient()` succeeds and prints the env name you're good. If it raises `ValueError: Missing credentials`, your `.env` is missing fields or you're running from the wrong directory.
+If `BCClient()` succeeds and prints the env name you're good. If it raises `ValueError: Missing credentials`, the `.env` is either not next to `bc_auth.py` or is missing one of the five required keys — the error message names them.
 
 ## Resolve company GUID
 
@@ -30,7 +30,7 @@ Pin the matching GUID in `.env` (`CRONUS DE` for dev, `smart-agents-prod` for pr
 python -m unittest test_bc_auth.py -v
 ```
 
-11 tests, no network — every HTTP call is mocked. They lock in the contract documented in SKILL.md (auth shape, token caching, OData filter encoding, 401 error message, pagination, `chat()` POST body).
+28 tests, no network — every HTTP call is mocked. They lock in the contract documented in SKILL.md (auth shape, token caching, OData filter encoding, 401/403 error messages, pagination + host-locked nextLinks, top-level vs. company-scoped paths, `chat()` POST body, secret redaction, BOM tolerance, monotonic-time token expiry).
 
 If you change `bc_auth.py`, keep them green.
 

@@ -57,7 +57,7 @@ skills/bc-agent-testing/
 ├── SKILL.md
 └── scripts/
     ├── bc_auth.py        # BCClient — OAuth2 + REST wrapper (stdlib only)
-    ├── test_bc_auth.py   # unit tests — 11 cases, no network
+    ├── test_bc_auth.py   # unit tests — 28 cases, no network
     ├── .env.example      # copy to .env and fill in
     ├── .gitignore        # keeps .env + __pycache__ out of git
     └── README.md         # quickstart
@@ -84,7 +84,7 @@ BC_ENVIRONMENT=Ext_Dev_v26
 BC_COMPANY_ID=<companyId GUID — resolve via c.get_all("companies")>
 ```
 
-`BC_COMPANY_ID` is the GUID, not the display name. Resolve once with a quick probe (no `.env` needed for the company list):
+`BC_COMPANY_ID` is the GUID, not the display name. Resolve it once with a quick probe. The `.env` still needs the other four keys (BC_TENANT_ID / BC_CLIENT_ID / BC_CLIENT_SECRET / BC_ENVIRONMENT) — `BCClient()` reads all five at construction time. Use a placeholder GUID for `BC_COMPANY_ID` during bootstrap; the `companies` listing is unscoped so the value doesn't have to be correct for this one call:
 
 ```python
 from bc_auth import BCClient
@@ -100,7 +100,7 @@ If `BCClient()` raises `ValueError: Missing credentials`, your `.env` is missing
 Run the tests before changing `bc_auth.py`:
 
 ```bash
-python -m unittest test_bc_auth -v   # 11 tests, no network
+python -m unittest test_bc_auth -v   # 28 tests, no network
 ```
 
 ## Available API entities
@@ -268,7 +268,7 @@ The exact field names depend on the BC extension's published API page schema —
 | `Field 'memoryUpdate' could not be matched to table fields` | LLM put meta keys in `data{}` | Backend prompt + BC `StripNonDataTopLevelKeys` strip them in newer builds |
 | `bc_update` succeeds but record gets deleted | LLM invented `data: {delete: true}` | Dispatcher rejects with "use bc_delete" in newer builds |
 | `Field 'City': value 'Köln' does not exist in Post Code` | Misleading wording | Newer builds say "'Köln' is not a registered value (lookup table: Post Code)" |
-| `ValueError: Missing credentials` | `bc_auth.py` running from wrong cwd | `cd` into the helper directory |
+| `ValueError: Missing credentials` | `.env` is missing or doesn't sit next to `bc_auth.py`, or one of BC_TENANT_ID / BC_CLIENT_ID / BC_CLIENT_SECRET / BC_ENVIRONMENT / BC_COMPANY_ID is unset | The error message names the missing keys; verify the `.env` is in `scripts/` and complete |
 | `401 Unauthorized` on first call | App reg secret expired or missing API permission | Rotate secret + re-grant `Financials.ReadWrite.All` + admin consent |
 
 ## Cleanup
