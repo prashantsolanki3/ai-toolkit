@@ -115,8 +115,11 @@ export function registerHookInSettings({ filePath, wrapperPath, event, command, 
     group.hooks.push({ type: 'command', command });
   }
 
-  // Rebuild the event map under the wrapper, preserving sibling events.
-  const nextRoot = { ...(root && typeof root === 'object' ? root : {}), [event]: groups };
+  // Rebuild the event map under the wrapper, preserving sibling events. Only
+  // spread when the existing value is a plain object — an array (or other
+  // non-object) at the wrapper would otherwise have its numeric indices folded
+  // into the event map and silently corrupt settings.
+  const nextRoot = { ...(isPlainObject(root) ? root : {}), [event]: groups };
   const next = setAtPathWhole(current, wrapperPath, nextRoot);
   writeJsonFile(filePath, next);
   return next;
@@ -129,7 +132,10 @@ export function removeHookFromSettings({ filePath, wrapperPath, event, command, 
   const current = readJsonFile(filePath);
   if (!current) return null;
   const root = getAtPath(current, wrapperPath);
-  if (!root || !Array.isArray(root[event])) return current;
+  // Bail out unless the wrapper holds a plain object whose `event` is an array
+  // of groups. An array (or other non-object) root would otherwise be spread
+  // into an object below and corrupt the settings structure.
+  if (!isPlainObject(root) || !Array.isArray(root[event])) return current;
 
   const groups = root[event]
     .map(cloneGroup)
@@ -159,6 +165,10 @@ export function hookSettingsSha({ event, command, matcher }) {
 
 function cloneGroup(g) {
   return { ...g, hooks: Array.isArray(g.hooks) ? g.hooks.map((h) => ({ ...h })) : [] };
+}
+
+function isPlainObject(v) {
+  return v !== null && typeof v === 'object' && !Array.isArray(v);
 }
 
 // setAtPath sets a single leaf key; here we need to replace the whole object

@@ -189,3 +189,34 @@ test('removeHookFromSettings: drops only our command, keeps the user group entry
     cleanupTmpProject(dir);
   }
 });
+
+test('register/remove do not corrupt settings when the hooks wrapper is an array (bad input)', () => {
+  const dir = createTmpProject();
+  try {
+    const filePath = path.join(dir, 'settings.json');
+    // Pathological / corrupt input: hooks is an array, not the expected object.
+    fs.writeFileSync(filePath, JSON.stringify({ hooks: ['oops'] }, null, 2));
+
+    const args = {
+      filePath,
+      wrapperPath: WRAPPER,
+      event: 'SessionStart',
+      command: 'bash "/proj/.claude/hooks/branch-from-main.sh"',
+    };
+
+    // register must replace the array root with a clean event map — NOT fold
+    // the array's numeric indices ("0") into the hooks object.
+    registerHookInSettings(args);
+    const data = readJson(filePath);
+    assert.ok(!Array.isArray(data.hooks), 'hooks is an object after register');
+    assert.ok(!Object.hasOwn(data.hooks, '0'), 'array index 0 not leaked as a key');
+    assert.equal(data.hooks.SessionStart[0].hooks[0].command, args.command);
+
+    // remove against an array wrapper is a safe no-op (returns input untouched).
+    fs.writeFileSync(filePath, JSON.stringify({ hooks: ['oops'] }, null, 2));
+    const res = removeHookFromSettings(args);
+    assert.deepEqual(res, { hooks: ['oops'] }, 'remove leaves a corrupt array root untouched');
+  } finally {
+    cleanupTmpProject(dir);
+  }
+});

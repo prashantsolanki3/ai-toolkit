@@ -291,14 +291,34 @@ function registerHookSettings({ tool, toolName, scope, projectRoot, name, hookDe
   registerHookInSettings({ ...dest, event, command, matcher });
   logger.info(`registered hooks/${name} (${event}) in ${relSettings(projectRoot, dest.filePath)}`);
 
+  // Record the settings file path so `remove` can unwire exactly this entry.
+  // Use a project-relative path only when the file lives INSIDE projectRoot
+  // (workspace scope) — that keeps the workspace lockfile portable. For global
+  // scope the file is outside projectRoot (e.g. ~/.claude/settings.json), so
+  // store the absolute path: a project-relative `../../...` would resolve
+  // against whatever cwd a later `remove` runs from and point at the wrong
+  // file (Copilot review on PR #19).
+  const recordedFile = settingsFileForLockfile(projectRoot, dest.filePath);
+
   return {
-    file: relSettings(projectRoot, dest.filePath),
+    file: recordedFile,
     wrapperPath: dest.wrapperPath.slice(),
     event,
     ...(matcher != null ? { matcher } : {}),
     command,
     sha: hookSettingsSha({ event, command, matcher }),
   };
+}
+
+// Path to record in the lockfile for a hook's settings registration. Relative
+// to projectRoot when the file is inside it (portable workspace lockfile);
+// absolute otherwise (global-scope settings under ~).
+function settingsFileForLockfile(projectRoot, filePath) {
+  const rel = path.relative(projectRoot, filePath);
+  if (rel === '' || rel.startsWith('..') || path.isAbsolute(rel)) {
+    return filePath;
+  }
+  return rel;
 }
 
 function detectConflict({ dest, destFormat, tracked }) {
