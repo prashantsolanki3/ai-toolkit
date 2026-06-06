@@ -146,7 +146,7 @@ export async function remove(opts) {
             removeSidecar({ destPath: dest, sidecarSpec, assetName: name });
           }
           if (settingsReg) {
-            unregisterHookSettings({ settingsReg, projectRoot });
+            unregisterHookSettings({ settingsReg, projectRoot, name, logger });
           }
           lockfile = removeAsset(lockfile, toolName, type, name);
           lockfilesByDir.set(lockDir, lockfile);
@@ -203,17 +203,37 @@ export async function remove(opts) {
 // lockfile stores file (relative to projectRoot), wrapperPath, event, command
 // and optional matcher — enough to remove exactly our entry while leaving any
 // unrelated user hook entries in the same file untouched.
-function unregisterHookSettings({ settingsReg, projectRoot }) {
+//
+// Best-effort: unregistration is a secondary cleanup, not the primary removal.
+// The hook script has already been deleted by the time we get here, so a hook
+// that can't be unwired (malformed settings JSON, unreadable/unwritable file)
+// would only point at a now-missing script and won't fire anyway. Rather than
+// throw — which would abort `remove` mid-flight, after deleting the script but
+// before updating the lockfile, leaving a partial state — we surface a clear,
+// actionable warning naming the file and the exact entry to hand-remove, then
+// let removal continue. Returns true on success, false when skipped.
+function unregisterHookSettings({ settingsReg, projectRoot, name, logger }) {
   const filePath = path.isAbsolute(settingsReg.file)
     ? settingsReg.file
     : path.resolve(projectRoot, settingsReg.file);
-  removeHookFromSettings({
-    filePath,
-    wrapperPath: settingsReg.wrapperPath,
-    event: settingsReg.event,
-    command: settingsReg.command,
-    matcher: settingsReg.matcher,
-  });
+  try {
+    removeHookFromSettings({
+      filePath,
+      wrapperPath: settingsReg.wrapperPath,
+      event: settingsReg.event,
+      command: settingsReg.command,
+      matcher: settingsReg.matcher,
+    });
+    return true;
+  } catch (err) {
+    logger.warn(
+      `hooks/${name}: could not unregister from ${filePath} (${err.message}). ` +
+        `The hook script was removed, so it will no longer run, but the settings ` +
+        `entry under ${settingsReg.wrapperPath.join('.')}.${settingsReg.event} ` +
+        `(command: ${settingsReg.command}) may remain — remove it by hand if you want a clean file.`,
+    );
+    return false;
+  }
 }
 
 // Build the per-type removal set from --all / --preset / --skills / etc.
