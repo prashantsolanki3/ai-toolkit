@@ -1,5 +1,5 @@
 {
-  "name": "ai-toolkit",
+  "name": "@prashantsolanki3/ai-toolkit",
   "version": "1.0.0",
   "description": "Tool-agnostic CLI that installs and updates skills, agents, commands, and hooks across AI coding tools",
   "type": "module",

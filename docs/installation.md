@@ -1,16 +1,16 @@
 # Installation
 
-ai-toolkit is published to npm. No local clone needed.
+ai-toolkit is published to npm as the scoped package `@prashantsolanki3/ai-toolkit`. No local clone needed. (The installed CLI command is still `ai-toolkit` — only the npm package name is scoped.)
 
 ## 1. `npx` from npm (canonical — pin a version)
 
 ```bash
 # Install for every supported tool at once (pinned to 1.0.0):
 cd ~/my-project
-npx --yes ai-toolkit@1.0.0 install --preset skill-development
+npx --yes @prashantsolanki3/ai-toolkit@1.0.0 install --preset skill-development
 
 # Or target a single tool:
-npx --yes ai-toolkit@1.0.0 install \
+npx --yes @prashantsolanki3/ai-toolkit@1.0.0 install \
   --tool claude-code \
   --preset skill-development
 ```
@@ -56,10 +56,10 @@ If you'll use the toolkit a lot during development:
 ```bash
 cd /path/to/ai-toolkit
 npm link
-# now from anywhere:
+# now from anywhere (the bin command is unscoped):
 ai-toolkit install --tool claude-code --preset skill-development
-# when you're done:
-npm unlink -g ai-toolkit
+# when you're done (unlink uses the scoped package name):
+npm unlink -g @prashantsolanki3/ai-toolkit
 ```
 
 `npm link` symlinks the toolkit's `bin/cli.js` into your global npm bin. The downside is one more thing to remember to unlink.
@@ -70,13 +70,13 @@ For a downstream repo (e.g. `dots`) that needs a stable, reproducible reference:
 
 ```bash
 # Install and record in package.json:
-npm install --save-dev ai-toolkit@1.0.0
+npm install --save-dev @prashantsolanki3/ai-toolkit@1.0.0
 
 # Or run without persisting:
-npx --yes ai-toolkit@1.0.0 install --tool claude-code --preset dev-skills
+npx --yes @prashantsolanki3/ai-toolkit@1.0.0 install --tool claude-code --preset dev-skills
 ```
 
-The exact version to pin: **`1.0.0`** (tag `v1.0.0`).
+The exact package + version to pin: **`@prashantsolanki3/ai-toolkit@1.0.0`** (git tag `v1.0.0`).
 
 ## Verifying the installation
 
@@ -114,4 +114,4 @@ ai-toolkit remove --tool claude-code --all   # tear down one tool
 ai-toolkit remove --all                       # tear down all installed tools
 ```
 
-If you used `npm link`, also run `npm unlink -g ai-toolkit`.
+If you used `npm link`, also run `npm unlink -g @prashantsolanki3/ai-toolkit`.

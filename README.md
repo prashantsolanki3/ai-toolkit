@@ -2,7 +2,7 @@
 
 Tool-agnostic CLI that installs and updates skills, agents, commands, hooks, rules, and MCP servers across AI coding tools. Currently ships configs for **Claude Code**, **Cursor**, **Antigravity**, **Gemini CLI**, **VS Code Copilot**, **GitHub Copilot CLI**, **Kiro**, and **Kiro CLI** — adding a new tool is one block in [`config/tools.json`](config/tools.json).
 
-Published to npm. Install without a local clone via `npx ai-toolkit@<version> install ...`.
+Published to npm as the scoped package `@prashantsolanki3/ai-toolkit`. Install without a local clone via `npx @prashantsolanki3/ai-toolkit@<version> install ...` (the CLI command is `ai-toolkit`).
 
 > **What's actually tested.** The automated suite verifies file placement, lockfile correctness, update conflict detection, and that each configured tool's destination paths/format match what's declared in `config/tools.json`. It does **not** verify that the receiving IDE/CLI actually ingests those files — that requires running each tool. See [`docs/verification-matrix.md`](docs/verification-matrix.md) for the per-tool manual check.
 
@@ -11,10 +11,10 @@ Published to npm. Install without a local clone via `npx ai-toolkit@<version> in
 ```bash
 # From any project directory — installs for every supported tool at once.
 cd ~/my-project
-npx --yes ai-toolkit@1.0.0 install --preset skill-development
+npx --yes @prashantsolanki3/ai-toolkit@1.0.0 install --preset skill-development
 
 # Or stay surgical with one tool:
-npx --yes ai-toolkit@1.0.0 install \
+npx --yes @prashantsolanki3/ai-toolkit@1.0.0 install \
   --tool claude-code --preset skill-development
 ```
 
@@ -25,7 +25,7 @@ npx --yes ai-toolkit@1.0.0 install \
 Prefer a reproducible reference for your lockfile? Pin the exact version:
 
 ```bash
-npx --yes ai-toolkit@1.0.0 install --tool claude-code --preset dev-skills
+npx --yes @prashantsolanki3/ai-toolkit@1.0.0 install --tool claude-code --preset dev-skills
 ```
 
 For other install methods (local checkout, `npm link`, `npx` from a Git URL) see [`docs/installation.md`](docs/installation.md).
