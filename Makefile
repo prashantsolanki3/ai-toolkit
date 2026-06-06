@@ -1,5 +1,5 @@
 .DEFAULT_GOAL := help
-.PHONY: help install test test-unit test-integration test-watch coverage lint scan clean smoke e2e verify-tools verify-manifest register bootstrap unbootstrap tag release-check ci dev
+.PHONY: help install test test-unit test-integration test-watch coverage lint scan clean smoke e2e verify-tools verify-manifest register bootstrap unbootstrap tag pack-check release-check ci dev
 
 # ---------- Help ----------
 
@@ -73,10 +73,13 @@ e2e:  ## End-to-end shake-out: dry-run / install / installed / update / conflict
 
 # ---------- Release flow ----------
 
-release-check: lint test scan verify-tools verify-manifest e2e  ## All gates that must pass before tagging
+pack-check:  ## Dry-run npm pack and assert packed contents are correct
+	node --test test/unit/publish-readiness.test.js
+
+release-check: lint test scan verify-tools verify-manifest e2e pack-check  ## All gates that must pass before tagging
 	@echo "✓ All release checks passed"
 
-tag:  ## Tag a new version (usage: make tag VERSION=0.1.0)
+tag:  ## Tag a new version (usage: make tag VERSION=1.0.0)
 	@if [ -z "$(VERSION)" ]; then echo "Usage: make tag VERSION=0.1.0"; exit 1; fi
 	npm version $(VERSION) --no-git-tag-version
 	git add package.json
