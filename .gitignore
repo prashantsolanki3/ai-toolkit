@@ -6,11 +6,15 @@ coverage/
 # assets; do not commit. Re-run `make bootstrap` to refresh.
 /.claude/
 /.cursor/
-/.github/
 /.kiro/
 /.gemini/
 /.agent/
 /.vscode/
+# Bootstrap symlinks only — real workflow files under .github/workflows/ ARE committed.
+# Exclude the bootstrap-written files but keep the workflows directory.
+/.github/copilot-instructions.md
+/.github/agents/
+/.github/prompts/
 # MCP files dropped at the project root by `make bootstrap`
 /.mcp.json
 

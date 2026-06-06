@@ -1,0 +1,77 @@
+name: CI
+
+# Validates every PR and every push to main.
+# Green targets: lint, test, scan, verify-tools, verify-manifest
+# e2e is excluded as a hard gate — it currently fails on main due to
+# a pre-existing issue with cursor install resolving nothing (#2).
+# It runs with continue-on-error: true so failures are visible but
+# don't block the suite.
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies (make dev)
+        run: make dev
+
+      - name: Lint
+        run: make lint
+
+      - name: Test
+        run: make test
+
+      - name: Install gitleaks
+        run: |
+          GITLEAKS_VERSION=8.18.4
+          curl -sSfL \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+            | sudo tar -xz -C /usr/local/bin gitleaks
+          gitleaks version
+
+      - name: Secret scan
+        run: make scan
+
+      - name: Verify tools config
+        run: make verify-tools
+
+      - name: Verify manifest
+        run: make verify-manifest
+
+      # pack-check is in #20's scope but the Makefile target only exists on
+      # the publish branch (#17), not on main/this branch. Run it guarded so
+      # CI on refs that have the target (#17/main) execute it, while refs that
+      # don't (#21/#18/#19) skip cleanly instead of failing.
+      - name: Pack check (publish readiness, if present)
+        run: |
+          if make -n pack-check >/dev/null 2>&1; then
+            make pack-check
+          else
+            echo "pack-check target not present on this ref — skipping"
+          fi
+
+      # e2e is excluded as a hard gate: cursor install of skill-evaluator
+      # resolves nothing on the current main (pre-existing issue #2).
+      # Tracked at https://github.com/prashantsolanki3/ai-toolkit/issues/2
+      - name: E2E (non-blocking)
+        run: make e2e
+        continue-on-error: true
