@@ -60,9 +60,10 @@ ai-toolkit update    [--target <project-root>] [--tool <name>]
                      [--force] [--dry-run]
 ai-toolkit remove    [--target <project-root>] [--tool <name>]
                      [--preset <name>] [--skills a,b] [...]
-                     [--all] [--dry-run]
+                     [--scope workspace|global] [--all] [--dry-run]
 ai-toolkit installed [--target <project-root>] [--tool <name>]
                      [--type <type>] [--preset <name>]
+                     [--scope workspace|global] [--check]
 ai-toolkit list      [--type skills|agents|commands|hooks|rules|mcp|presets|tools]
                      [--tool <name>]
 ```
@@ -76,7 +77,7 @@ git clone <repo>
 cd ai-toolkit
 make dev               # npm install
 make bootstrap         # self-host: .claude/, .cursor/, .github/, .kiro/ all symlinked to source
-make test              # 330 tests, expect green
+make test              # 369 tests, expect green
 ```
 
 Before pushing or sharing:

@@ -118,6 +118,7 @@ const removeCmd = program
   .option('--target <path>', 'project root (defaults to current directory)')
   .option('--tool <name>', 'specific tool to remove from; if omitted, autodiscover')
   .option('--preset <name>', 'remove every tracked asset that belongs to this preset')
+  .addOption(new Option('--scope <scope>', 'install scope').choices(['global', 'workspace']).default('workspace'))
   .option('--all', 'remove every tracked asset', false)
   .option('--dry-run', 'plan only, write nothing', false)
   .option('--verbose', 'verbose output', false);
@@ -128,6 +129,7 @@ commonAssetOptions(removeCmd).action(async (opts) => {
     target: opts.target,
     tool: opts.tool,
     preset: opts.preset,
+    scope: opts.scope,
     skills: opts.skills,
     agents: opts.agents,
     commands: opts.commands,
@@ -164,17 +166,24 @@ program
   .option('--tool <name>', 'show only this tool')
   .option('--type <type>', 'filter the report to a single asset type (skills, agents, commands, hooks, rules, mcp)')
   .option('--preset <name>', 'filter the report to assets in this preset')
+  .option('--scope <scope>', 'workspace (default) or global')
+  .option('--check', 'drift-check mode: exit non-zero if any installed asset has drifted from its lockfile sha', false)
   .option('--verbose', 'verbose output', false)
   .action(async (opts) => {
     const logger = makeLogger(opts);
-    await installed({
+    const res = await installed({
       target: opts.target,
       tool: opts.tool,
       type: opts.type,
       preset: opts.preset,
+      scope: opts.scope,
+      check: opts.check,
       sourceRoot: SOURCE_ROOT,
       logger,
     });
+    if (opts.check && res && Array.isArray(res.drift) && res.drift.length > 0) {
+      process.exitCode = 1;
+    }
   });
 
 program.parseAsync(process.argv).catch((err) => {

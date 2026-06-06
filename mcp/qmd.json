@@ -1,0 +1,11 @@
+{
+  "description": "Local BM25/vector/rerank markdown search via qmd — powers wiki-query's mcp__qmd__query tool. One-time setup per project: `qmd collection add docs/ && qmd embed`.",
+  "author": "ai-toolkit-dev-skills",
+  "presets": ["dots-baseline"],
+  "tools": ["claude-code"],
+  "config": {
+    "command": "qmd",
+    "args": ["mcp"],
+    "env": {}
+  }
+}

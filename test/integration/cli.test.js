@@ -150,6 +150,60 @@ test('cli: install --all without --preset installs every shipped asset', () => {
   }
 });
 
+test('cli: global hook install records an absolute settings path and remove unwires it from a different cwd', () => {
+  // Reproduces the Copilot review on PR #19: a global-scope settings file
+  // lives outside the project root, so its lockfile path must be absolute —
+  // otherwise a later `remove` run from a different cwd resolves the wrong
+  // file. We drive the REAL CLI with a fake HOME so ~/.claude points into a
+  // throwaway dir, then run remove from an UNRELATED cwd.
+  const home = createTmpProject('ai-toolkit-fakehome-');
+  const elsewhere = createTmpProject('ai-toolkit-elsewhere-');
+  const env = { ...process.env, NO_COLOR: '1', HOME: home };
+  const runHome = (args, cwd) =>
+    spawnSync('node', [CLI, ...args], { cwd, encoding: 'utf8', env });
+  try {
+    const ins = runHome(
+      ['install', '--tool', 'claude-code', '--hooks', 'branch-from-main', '--scope', 'global'],
+      REPO_ROOT,
+    );
+    assert.equal(ins.status, 0, `global install failed: ${ins.stderr}`);
+
+    const settingsPath = path.join(home, '.claude', 'settings.json');
+    assert.ok(fs.existsSync(settingsPath), 'global settings.json written under fake HOME');
+    let settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+    const before = settings.hooks.SessionStart.flatMap((g) => g.hooks.map((h) => h.command));
+    assert.ok(before.some((c) => /branch-from-main\.sh/.test(c)), 'hook registered globally');
+
+    // Lockfile records the settings file as an ABSOLUTE path.
+    const lock = JSON.parse(
+      fs.readFileSync(path.join(home, '.claude', '.ai-toolkit-lock.json'), 'utf8'),
+    );
+    const reg = lock.tools['claude-code'].assets.hooks['branch-from-main'].settings;
+    assert.ok(reg, 'lockfile records the settings registration');
+    assert.ok(path.isAbsolute(reg.file), `global settings path must be absolute, got ${reg.file}`);
+
+    // Remove from an UNRELATED cwd — the bug was a relative path resolving
+    // against this cwd and missing the real file.
+    const rem = runHome(
+      ['remove', '--tool', 'claude-code', '--hooks', 'branch-from-main', '--scope', 'global'],
+      elsewhere,
+    );
+    assert.equal(rem.status, 0, `global remove failed: ${rem.stderr}`);
+
+    if (fs.existsSync(settingsPath)) {
+      settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+      const after = (settings.hooks?.SessionStart || []).flatMap((g) => g.hooks.map((h) => h.command));
+      assert.ok(
+        !after.some((c) => /branch-from-main\.sh/.test(c)),
+        'hook unwired from the global settings.json',
+      );
+    }
+  } finally {
+    cleanupTmpProject(home);
+    cleanupTmpProject(elsewhere);
+  }
+});
+
 test('cli: install --dry-run does not write files', () => {
   const target = createTmpProject();
   try {

@@ -17,6 +17,7 @@ import {
 } from '../lib/lockfile.js';
 import { removeSidecar } from '../lib/sidecar.js';
 import { removeMcpEntryForCommand } from '../lib/mcp.js';
+import { removeHookFromSettings } from '../lib/hooks-settings.js';
 import { createLogger } from '../lib/logger.js';
 
 const ASSET_TYPES = ['skills', 'agents', 'commands', 'hooks', 'rules', 'mcp'];
@@ -131,13 +132,21 @@ export async function remove(opts) {
 
         const dest = getAssetDestination(tool, target, type, name);
         const sidecarSpec = tool.assetFormats[type]?.sidecar;
+        // Hooks may have been registered in a settings file at install time
+        // (issue #15). Unwire that entry too, using the registration the
+        // lockfile recorded — never touching unrelated user hook entries.
+        const settingsReg = type === 'hooks' ? tracked.settings : null;
         if (opts.dryRun) {
           logger.dryRun(`remove ${type}/${name} at ${dest}`);
           if (sidecarSpec) logger.dryRun(`remove sidecar for ${type}/${name}`);
+          if (settingsReg) logger.dryRun(`unregister ${type}/${name} from ${settingsReg.file}`);
         } else {
           if (pathExists(dest)) removePath(dest);
           if (sidecarSpec) {
             removeSidecar({ destPath: dest, sidecarSpec, assetName: name });
+          }
+          if (settingsReg) {
+            unregisterHookSettings({ settingsReg, projectRoot });
           }
           lockfile = removeAsset(lockfile, toolName, type, name);
           lockfilesByDir.set(lockDir, lockfile);
@@ -188,6 +197,23 @@ export async function remove(opts) {
   }
 
   return aggregate;
+}
+
+// Unwire a hook's settings registration recorded at install time. The
+// lockfile stores file (relative to projectRoot), wrapperPath, event, command
+// and optional matcher — enough to remove exactly our entry while leaving any
+// unrelated user hook entries in the same file untouched.
+function unregisterHookSettings({ settingsReg, projectRoot }) {
+  const filePath = path.isAbsolute(settingsReg.file)
+    ? settingsReg.file
+    : path.resolve(projectRoot, settingsReg.file);
+  removeHookFromSettings({
+    filePath,
+    wrapperPath: settingsReg.wrapperPath,
+    event: settingsReg.event,
+    command: settingsReg.command,
+    matcher: settingsReg.matcher,
+  });
 }
 
 // Build the per-type removal set from --all / --preset / --skills / etc.
