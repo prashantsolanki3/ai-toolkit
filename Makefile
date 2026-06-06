@@ -73,16 +73,20 @@ e2e:  ## End-to-end shake-out: dry-run / install / installed / update / conflict
 
 # ---------- Release flow ----------
 
-pack-check:  ## Dry-run npm pack and assert packed contents are correct
+pack-check:  ## Standalone publish-readiness check (npm pack --dry-run assertions)
 	node --test test/unit/publish-readiness.test.js
 
-release-check: lint test scan verify-tools verify-manifest e2e pack-check  ## All gates that must pass before tagging
+# Note: the publish-readiness suite runs as part of `test` (it lives under
+# test/unit/), so `release-check` does not list `pack-check` separately —
+# that would run the same suite twice. `pack-check` exists for a fast,
+# targeted check outside the full gate.
+release-check: lint test scan verify-tools verify-manifest e2e  ## All gates that must pass before tagging
 	@echo "✓ All release checks passed"
 
 tag:  ## Tag a new version (usage: make tag VERSION=1.0.0)
-	@if [ -z "$(VERSION)" ]; then echo "Usage: make tag VERSION=0.1.0"; exit 1; fi
+	@if [ -z "$(VERSION)" ]; then echo "Usage: make tag VERSION=1.0.0"; exit 1; fi
 	npm version $(VERSION) --no-git-tag-version
-	git add package.json
+	git add package.json package-lock.json
 	git commit -m "chore: v$(VERSION)"
 	git tag v$(VERSION)
 	@echo "Tagged v$(VERSION). Run: git push && git push --tags"
