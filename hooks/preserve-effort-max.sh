@@ -48,7 +48,7 @@ python3 - "$SETTINGS" <<'PY' || true
 import json, os, sys
 
 path = sys.argv[1]
-target = "max"
+target_level = "max"
 
 # Load (or seed) settings. If the file is malformed, leave it alone — the user
 # may be mid-edit, and clobbering their JSON would be worse than skipping the
@@ -64,23 +64,23 @@ if os.path.exists(path):
 else:
     data = {}
 
-if data.get("effortLevel") == target:
+if data.get("effortLevel") == target_level:
     sys.exit(0)  # idempotent — preserve mtime
 
-data["effortLevel"] = target
+data["effortLevel"] = target_level
 
 # Atomic write via tmp + rename. Resolve symlinks first so we update the
-# target file (e.g. the dots repo copy in `link` mode) rather than clobbering
-# the symlink itself with a regular file. Swallow write errors (permission
-# denied, disk full, rename failure) so the hook never blocks session start —
-# the user keeps the same state they already had.
+# real target file (e.g. the dots repo copy in `link` mode) rather than
+# clobbering the symlink itself with a regular file. Swallow write errors
+# (permission denied, disk full, rename failure) so the hook never blocks
+# session start — the user keeps the same state they already had.
 try:
-    target = os.path.realpath(path)
-    tmp = target + ".tmp"
+    real_path = os.path.realpath(path)
+    tmp = real_path + ".tmp"
     with open(tmp, "w") as fp:
         json.dump(data, fp, indent=2)
         fp.write("\n")
-    os.replace(tmp, target)
+    os.replace(tmp, real_path)
 except Exception:
     sys.exit(0)
 PY

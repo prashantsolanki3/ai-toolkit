@@ -41,7 +41,7 @@ Three slash commands cover everything:
 - **`/wiki-query <question>`** — answer from the wiki with citations; optionally file back to `synthesis/`.
 - **`/wiki-lint`** — orphans, stale, contradictions, dangling links, INDEX drift.
 
-Each command delegates to the `wiki-keeper` subagent (see `~/.claude/agents/wiki-keeper.md`) — the only agent that writes to the living zone.
+Each command delegates to the `wiki-keeper` subagent — the only agent that writes to the living zone. The subagent installs to your tool's agents directory (e.g. `~/.claude/agents/wiki-keeper.md` for Claude Code, `.cursor/agents/wiki-keeper.md` for Cursor, `.github/agents/wiki-keeper.md` for Copilot).
 
 ## Zones (read `docs/CLAUDE.md` for details)
 
@@ -81,6 +81,6 @@ Weekly (scheduled via claudeclaw) or immediately after a batch ingest of 3+ sour
 
 - Project schema: `docs/CLAUDE.md`
 - Workflow guide: `docs/workflows/llm-wiki.md` (if the project includes it)
-- Agent spec: `~/.claude/agents/wiki-keeper.md`
+- Agent spec: the installed `wiki-keeper` agent in your tool's agents directory (`~/.claude/agents/wiki-keeper.md` for Claude Code; `.cursor/agents/` or `.github/agents/` for other tools)
 
 <!-- MIT, see LICENSE -->

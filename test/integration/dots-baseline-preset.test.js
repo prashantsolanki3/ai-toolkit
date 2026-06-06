@@ -103,16 +103,14 @@ test('dots-baseline: wiki-maintenance skill has dots-baseline in presets', () =>
 
 test('dots-baseline: preserve-effort-max.sh hook has dots-baseline in presets', () => {
   const raw = fs.readFileSync(path.join(REPO_ROOT, 'hooks', 'preserve-effort-max.sh'), 'utf8');
-  // Shell hook frontmatter uses # key: value lines
-  assert.match(
-    raw,
-    /^# presets:/m,
-    'hooks/preserve-effort-max.sh must have # presets: block',
-  );
-  assert.match(
-    raw,
-    /dots-baseline/,
-    'hooks/preserve-effort-max.sh must include dots-baseline in presets',
+  // Parse the shell-comment metadata block the same way the manifest generator
+  // does, then assert on the actual parsed `presets` list — not on a substring
+  // match against the whole file, which would pass even if `dots-baseline`
+  // appeared only in a comment outside the metadata block.
+  const { data } = parseFrontmatter(raw, { kind: 'shell' });
+  assert.ok(
+    Array.isArray(data.presets) && data.presets.includes('dots-baseline'),
+    'hooks/preserve-effort-max.sh must include dots-baseline in its # presets: metadata list',
   );
 });
 
