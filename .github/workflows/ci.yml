@@ -45,7 +45,7 @@ jobs:
           GITLEAKS_VERSION=8.18.4
           curl -sSfL \
             "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
-            | tar -xz -C /usr/local/bin gitleaks
+            | sudo tar -xz -C /usr/local/bin gitleaks
           gitleaks version
 
       - name: Secret scan
@@ -56,6 +56,18 @@ jobs:
 
       - name: Verify manifest
         run: make verify-manifest
+
+      # pack-check is in #20's scope but the Makefile target only exists on
+      # the publish branch (#17), not on main/this branch. Run it guarded so
+      # CI on refs that have the target (#17/main) execute it, while refs that
+      # don't (#21/#18/#19) skip cleanly instead of failing.
+      - name: Pack check (publish readiness, if present)
+        run: |
+          if make -n pack-check >/dev/null 2>&1; then
+            make pack-check
+          else
+            echo "pack-check target not present on this ref — skipping"
+          fi
 
       # e2e is excluded as a hard gate: cursor install of skill-evaluator
       # resolves nothing on the current main (pre-existing issue #2).
