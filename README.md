@@ -11,19 +11,21 @@ Published to npm. Install without a local clone via `npx ai-toolkit@<version> in
 ```bash
 # From any project directory — installs for every supported tool at once.
 cd ~/my-project
-npx ai-toolkit@1.0.0 install --preset skill-development
+npx --yes ai-toolkit@1.0.0 install --preset skill-development
 
 # Or stay surgical with one tool:
-npx ai-toolkit@1.0.0 install \
+npx --yes ai-toolkit@1.0.0 install \
   --tool claude-code --preset skill-development
 ```
 
+`--yes` skips npx's "install this package?" prompt — important for CI and non-interactive shells.
+
 `--target` defaults to the current directory; the tool decides which subdirectory to populate (`.claude/`, `.cursor/`, `.github/`, `.kiro/`, …). Pass `--target ~/repos/other` to install into a different project.
 
-Prefer a reproducible reference for your lockfile? Pin the exact version tag:
+Prefer a reproducible reference for your lockfile? Pin the exact version:
 
 ```bash
-npx ai-toolkit@1.0.0 install --tool claude-code --preset dev-skills
+npx --yes ai-toolkit@1.0.0 install --tool claude-code --preset dev-skills
 ```
 
 For other install methods (local checkout, `npm link`, `npx` from a Git URL) see [`docs/installation.md`](docs/installation.md).

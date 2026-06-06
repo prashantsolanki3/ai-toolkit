@@ -5,17 +5,19 @@ ai-toolkit is published to npm. No local clone needed.
 ## 1. `npx` from npm (canonical — pin a version)
 
 ```bash
-# Install for every supported tool at once (pinned to v1.0.0):
+# Install for every supported tool at once (pinned to 1.0.0):
 cd ~/my-project
-npx ai-toolkit@1.0.0 install --preset skill-development
+npx --yes ai-toolkit@1.0.0 install --preset skill-development
 
 # Or target a single tool:
-npx ai-toolkit@1.0.0 install \
+npx --yes ai-toolkit@1.0.0 install \
   --tool claude-code \
   --preset skill-development
 ```
 
-Pinning the version (`@1.0.0`) gives you reproducible installs across machines and lockfiles — `npm` records the resolved version in your lockfile on first install. Omitting the tag gives you the latest published release.
+`--yes` skips npx's install-confirmation prompt, so the command works in CI and non-interactive shells.
+
+Pinning the version (`@1.0.0`) gives you reproducible installs across machines and lockfiles — `npm` records the resolved version in your lockfile on first install. Omitting the version gives you the latest published release.
 
 ## 2. `npx` from a local checkout (during dev / before publish)
 
@@ -71,7 +73,7 @@ For a downstream repo (e.g. `dots`) that needs a stable, reproducible reference:
 npm install --save-dev ai-toolkit@1.0.0
 
 # Or run without persisting:
-npx ai-toolkit@1.0.0 install --tool claude-code --preset dev-skills
+npx --yes ai-toolkit@1.0.0 install --tool claude-code --preset dev-skills
 ```
 
 The exact version to pin: **`1.0.0`** (tag `v1.0.0`).
