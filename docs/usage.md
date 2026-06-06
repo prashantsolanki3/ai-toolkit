@@ -24,7 +24,7 @@ ai-toolkit remove    [--target <project-root>] [--tool <name>]
 
 ai-toolkit installed [--target <project-root>] [--tool <name>]
                      [--type skills|agents|commands|hooks|rules|mcp]
-                     [--preset <name>]
+                     [--preset <name>] [--scope workspace|global] [--check]
 
 ai-toolkit list      [--type skills|agents|commands|hooks|rules|mcp|presets|tools]
                      [--tool <name>]
@@ -102,6 +102,29 @@ If neither holds, the asset is skipped with a clear warning:
 
 This protects hand-edited content. A re-install over your own previous install is still idempotent — the SHAs match, the install is a no-op.
 
+### Hooks are registered in settings.json, not just copied
+
+For Claude Code, dropping a hook script at `.claude/hooks/<name>.sh` is **not enough** to make it run — the tool only fires hooks referenced from a `hooks` block in `settings.json`. Installing a hook therefore does two things:
+
+1. Copies the script to `.claude/hooks/<name>.sh` (or `~/.claude/hooks/<name>.sh` for `--scope global`).
+2. Registers it in `.claude/settings.json` (workspace) / `~/.claude/settings.json` (global), keyed off the hook's frontmatter `event:` field.
+
+The settings entry uses the canonical shape — an event maps to an array of matcher groups, each carrying a `hooks` array of command entries:
+
+```jsonc
+{
+  "hooks": {
+    "SessionStart": [
+      { "hooks": [ { "type": "command", "command": "bash \"/abs/path/.claude/hooks/branch-from-main.sh\"" } ] }
+    ]
+  }
+}
+```
+
+Tool-scoped events (`PreToolUse`, `PostToolUse`, `UserPromptSubmit`) additionally carry a `matcher` (taken from the hook's optional frontmatter `matcher:` field; defaults to all tools). The merge is idempotent — re-installing never duplicates the entry — and it preserves every unrelated user hook entry in the file. `remove` unwires exactly the entry it added.
+
+A hook with no `event:` in its frontmatter is copied but **not** registered; install warns that it won't fire. Kiro hooks are unaffected — they're discovered via their `.kiro.hook` JSON sidecar, so no `settings.json` entry is written for them.
+
 ### Dry runs
 
 ```bash
@@ -168,7 +191,7 @@ ai-toolkit remove --all                                            # removes all
 
 Selectors union together. `--preset skill-development --skills my-custom-skill` would tear down the preset's assets plus that one extra skill. `--all` without `--tool` removes all assets from all installed tools in the target directory.
 
-Removes the destination files and clears the matching entries from the lockfile. Tools that declared a sidecar (Kiro hooks) get the sidecar torn down too.
+Removes the destination files and clears the matching entries from the lockfile. Tools that declared a sidecar (Kiro hooks) get the sidecar torn down too. For Claude Code hooks, the matching `settings.json` registration written at install time is unwired as well — only that entry, leaving any unrelated user hook entries in the file intact.
 
 ## Installed
 
@@ -204,6 +227,27 @@ Path:    /Users/me/my-project/.cursor
 Tool:    cursor
 ...
 ```
+
+### Drift-check: `installed --check`
+
+`installed --check` is a non-interactive drift detector for CI and pre-flight gates. It walks the project lockfile and recomputes the on-disk SHA of every tracked file-copy asset (skills, agents, commands, hooks, rules), comparing it to the `destSha` the lockfile recorded at install time. If an installed asset's content has drifted (hand-edited / tampered) — or has gone missing — it prints a `DRIFT …` line per offender and **exits non-zero**.
+
+```bash
+ai-toolkit installed --check                     # whole project, exit 1 on any drift
+ai-toolkit installed --check --tool claude-code  # scope the check to one tool
+ai-toolkit installed --check --scope global --tool claude-code
+```
+
+```text
+⚠ warn: DRIFT claude-code hooks/branch-from-main: installed content differs from lockfile sha
+✖ error: 1 asset(s) drifted from the lockfile.
+$ echo $?
+1
+```
+
+A clean tree exits 0 with `No drift — every tracked asset matches its lockfile sha.`
+
+> **`installed --check` vs `update --dry-run`.** `update --dry-run` *previews upstream changes* and warns about local edits, but it always exits 0 and conflates "the source asset changed upstream" with "you edited the installed copy." `installed --check` is the purpose-built, exit-code-bearing drift gate: it answers exactly one question — "does what's on disk still match what the lockfile says I installed?" — and is the one to wire into CI.
 
 ## List
 
