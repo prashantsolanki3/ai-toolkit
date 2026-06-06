@@ -69,6 +69,33 @@
             "items": { "type": "string" },
             "minItems": 1
           },
+          "hooksConfig": {
+            "type": "object",
+            "description": "How this tool registers an installed hook script so it actually fires. Like mcpConfig, hook registration is a JSON entry merged into a tool-managed settings file — keyed off the hook's frontmatter event:. Optional: tools without it either discover hooks another way (e.g. Kiro's .kiro.hook sidecar) or support no hooks.",
+            "required": ["wrapperPath", "file"],
+            "properties": {
+              "wrapperPath": {
+                "type": "array",
+                "items": { "type": "string" },
+                "minItems": 1,
+                "description": "Dot-path of keys inside the settings file under which hook event groups live. Claude Code uses [\"hooks\"]."
+              },
+              "file": {
+                "type": "object",
+                "required": ["workspace", "global"],
+                "properties": {
+                  "workspace": {
+                    "type": ["string", "null"],
+                    "description": "Path to the settings file for workspace scope, relative to the project root. null when the tool offers no per-workspace settings file."
+                  },
+                  "global": {
+                    "type": ["string", "null"],
+                    "description": "Path to the settings file for global/user scope (typically under ~). null when the tool offers no user-wide settings file."
+                  }
+                }
+              }
+            }
+          },
           "mcpConfig": {
             "type": "object",
             "description": "How this tool reads MCP server definitions. MCP is not a copy-file asset like skills/agents — it's a JSON entry merged into a tool-managed config file at a fixed path. Required iff supportedAssets includes \"mcp\".",

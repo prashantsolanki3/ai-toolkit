@@ -30,7 +30,14 @@
           "global": "~/.claude.json"
         }
       },
-      "notes": "Skills live as directories (Claude Code reads frontmatter from SKILL.md). Agents are flat files at .claude/agents/<name>.md with frontmatter — we extract the inner agent.md. Hook scripts are stored under .claude/hooks/<name>.sh but must also be referenced from .claude/settings.json to actually run. Rules land at .claude/rules/<name>.md — Claude Code does not auto-load this directory; reference the rules from CLAUDE.md or another loaded context file. MCP servers are merged into project-root /.mcp.json (workspace) or ~/.claude.json (user/global) under the mcpServers key."
+      "hooksConfig": {
+        "wrapperPath": ["hooks"],
+        "file": {
+          "workspace": ".claude/settings.json",
+          "global": "~/.claude/settings.json"
+        }
+      },
+      "notes": "Skills live as directories (Claude Code reads frontmatter from SKILL.md). Agents are flat files at .claude/agents/<name>.md with frontmatter — we extract the inner agent.md. Hook scripts are stored under .claude/hooks/<name>.sh AND registered in .claude/settings.json under the hooks.<Event> block (keyed off the hook's frontmatter event:) so the tool actually runs them; without that entry the script never fires. Rules land at .claude/rules/<name>.md — Claude Code does not auto-load this directory; reference the rules from CLAUDE.md or another loaded context file. MCP servers are merged into project-root /.mcp.json (workspace) or ~/.claude.json (user/global) under the mcpServers key."
     },
     "cursor": {
       "displayName": "Cursor",

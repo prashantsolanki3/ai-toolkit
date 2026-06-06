@@ -13,6 +13,13 @@ import {
 } from '../lib/lockfile.js';
 import { writeSidecar, frontmatterKindForFile } from '../lib/sidecar.js';
 import { installMcpEntry } from '../lib/mcp.js';
+import {
+  resolveHooksSettings,
+  buildHookCommand,
+  registerHookInSettings,
+  hookSettingsSha,
+  relSettings,
+} from '../lib/hooks-settings.js';
 import { createLogger } from '../lib/logger.js';
 
 const ASSET_TYPES = ['skills', 'agents', 'commands', 'hooks', 'rules', 'mcp'];
@@ -224,6 +231,24 @@ async function installOne(opts) {
           frontmatterKind: frontmatterKindForFile(source.path),
         });
       }
+      // Hooks only fire when registered in the tool's settings file. Copying
+      // the .sh is necessary but not sufficient (issue #15) — wire it up here,
+      // keyed off the hook's frontmatter event:, and record the registration
+      // so `remove` can later unwire it.
+      let settingsEntry = null;
+      if (type === 'hooks') {
+        settingsEntry = registerHookSettings({
+          tool,
+          toolName: opts.tool,
+          scope,
+          projectRoot,
+          name,
+          hookDestPath: dest,
+          manifest,
+          logger,
+        });
+      }
+
       const sourceSha = source.kind === 'directory' ? hashDir(source.path) : hashFile(source.path);
       const destSha = destFormat.type === 'directory' ? hashDir(dest) : hashFile(dest);
       lockfile = addAsset(lockfile, opts.tool, type, name, {
@@ -233,6 +258,7 @@ async function installOne(opts) {
         // see a `sha` field on file-copy assets.
         sha: destSha,
         sourcePath: path.posix.join(type, name + (destFormat.type === 'file' && source.kind === 'file' && !destFormat.sourceFile ? extFromFilename(destFormat.filename, name) : '')),
+        ...(settingsEntry ? { settings: settingsEntry } : {}),
       });
       installedSummary[type].push(name);
       logger.success(`installed ${type}/${name}`);
@@ -242,6 +268,37 @@ async function installOne(opts) {
   lockfile.lastUpdatedAt = new Date().toISOString();
   writeLockfile(lockDir, lockfile);
   return { target, ...result, lockfile };
+}
+
+// Register an installed hook script in the tool's settings file so it
+// actually fires. Returns the lockfile `settings` sub-entry (so remove can
+// unwire it) or null when the tool doesn't register hooks via settings (e.g.
+// Kiro uses a .kiro.hook sidecar instead) or the hook declares no event:.
+function registerHookSettings({ tool, toolName, scope, projectRoot, name, hookDestPath, manifest, logger }) {
+  const dest = resolveHooksSettings({ tool, scope, projectRoot });
+  if (!dest) return null;
+
+  const event = manifest?.hooks?.[name]?.event;
+  if (!event) {
+    logger.warn(
+      `hooks/${name}: no \`event:\` in frontmatter — copied the script but cannot register it in ${relSettings(projectRoot, dest.filePath)} (it will not fire). Add an event: field (SessionStart, PreToolUse, …).`,
+    );
+    return null;
+  }
+  const matcher = manifest?.hooks?.[name]?.matcher;
+  const command = buildHookCommand({ hookDestPath });
+
+  registerHookInSettings({ ...dest, event, command, matcher });
+  logger.info(`registered hooks/${name} (${event}) in ${relSettings(projectRoot, dest.filePath)}`);
+
+  return {
+    file: relSettings(projectRoot, dest.filePath),
+    wrapperPath: dest.wrapperPath.slice(),
+    event,
+    ...(matcher != null ? { matcher } : {}),
+    command,
+    sha: hookSettingsSha({ event, command, matcher }),
+  };
 }
 
 function detectConflict({ dest, destFormat, tracked }) {
