@@ -197,3 +197,49 @@ test('remove: unwires the hook from settings.json but keeps unrelated entries', 
     cleanupTmpProject(target);
   }
 });
+
+test('remove: malformed settings.json does not abort removal — warns and continues (best-effort unwire)', async () => {
+  const source = buildHookSource();
+  const target = createTmpProject();
+  const { logger, lines } = silentLogger();
+  try {
+    await install({
+      tool: 'claude-code',
+      hooks: ['branch-from-main'],
+      target,
+      sourceRoot: source,
+      logger,
+    });
+
+    const installDir = toolDir(target, 'claude-code');
+    const hookScript = path.join(installDir, 'hooks', 'branch-from-main.sh');
+    assert.ok(fs.existsSync(hookScript), 'hook script installed');
+
+    // Corrupt settings.json so unregistration would throw on parse.
+    fs.writeFileSync(path.join(installDir, 'settings.json'), '{ this is not: valid json,,, }');
+
+    // remove must NOT throw despite the malformed settings file.
+    await assert.doesNotReject(() =>
+      remove({ tool: 'claude-code', hooks: ['branch-from-main'], target, sourceRoot: source, logger }),
+    );
+
+    // Primary removal still happened: script gone, lockfile no longer tracks it.
+    assert.equal(fs.existsSync(hookScript), false, 'hook script removed despite settings failure');
+    const lockPath = path.join(target, '.ai-toolkit-lock.json');
+    if (fs.existsSync(lockPath)) {
+      const lock = JSON.parse(fs.readFileSync(lockPath, 'utf8'));
+      const stillTracked = lock.tools?.['claude-code']?.assets?.hooks?.['branch-from-main'];
+      assert.ok(!stillTracked, 'lockfile no longer tracks the removed hook');
+    }
+
+    // A clear, actionable warning was surfaced naming the file and entry.
+    const warned = lines.some(
+      ([lvl, msg]) =>
+        lvl === 'warn' && /could not unregister/.test(msg) && /branch-from-main/.test(msg),
+    );
+    assert.ok(warned, 'an actionable warning about the failed unregistration was logged');
+  } finally {
+    cleanupTmpProject(source);
+    cleanupTmpProject(target);
+  }
+});
