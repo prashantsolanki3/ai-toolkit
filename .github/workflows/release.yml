@@ -1,6 +1,16 @@
 name: Release
 
-# Trigger: push a tag matching v* (e.g. v1.0.0)
+# Decision: FINAL releases only. Only a strict `vX.Y.Z` tag whose version
+# equals package.json publishes. Pre-release tags (e.g. v1.0.0-rc1) are
+# intentionally NOT published to npm.
+#
+# Defense in depth:
+#   1. The trigger glob below filters to digit-segmented `v*.*.*` tags.
+#      Actions glob can't reliably reject a trailing `-rc1` on its own, so:
+#   2. The "Validate release tag" guard step enforces strict `vX.Y.Z`
+#      (rejecting any pre-release/build suffix) AND that the tag matches
+#      `package.json` version before any publish runs.
+#
 # To release: git tag v1.0.0 && git push origin v1.0.0
 # Mirrors the local `make release-check` gates as discrete steps
 # (lint, scan, test, verify-tools, verify-manifest, e2e — the
@@ -15,6 +25,12 @@ permissions:
   contents: read
   id-token: write  # required for npm provenance
 
+env:
+  # Pinned gitleaks release + its official sha256 (from the v8.18.4
+  # gitleaks_8.18.4_checksums.txt). Bump both together when upgrading.
+  GITLEAKS_VERSION: '8.18.4'
+  GITLEAKS_SHA256: 'ba6dbb656933921c775ee5a2d1c13a91046e7952e9d919f9bac4cec61d628e7d'
+
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -22,17 +38,38 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Validate release tag (strict vX.Y.Z, matches package.json)
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME}"
+          # Strict final-release form only: no -rc, -beta, +build, etc.
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Tag '$TAG' is not a final release tag (expected vX.Y.Z, no pre-release/build suffix). Refusing to publish."
+            exit 1
+          fi
+          TAG_VERSION="${TAG#v}"
+          PKG_VERSION="$(node -p "require('./package.json').version")"
+          if [[ "$TAG_VERSION" != "$PKG_VERSION" ]]; then
+            echo "::error::Tag version '$TAG_VERSION' does not match package.json version '$PKG_VERSION'. Refusing to publish."
+            exit 1
+          fi
+          echo "Tag $TAG matches package.json version $PKG_VERSION."
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
 
-      - name: Install gitleaks
+      - name: Install gitleaks (pinned + sha256-verified)
         run: |
-          GITLEAKS_VERSION=8.18.4
-          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
-            | sudo tar -xz -C /usr/local/bin gitleaks
+          set -euo pipefail
+          TARBALL="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          URL="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/${TARBALL}"
+          curl -sSfL "$URL" -o "$TARBALL"
+          echo "${GITLEAKS_SHA256}  ${TARBALL}" | sha256sum -c -
+          sudo tar -xz -C /usr/local/bin -f "$TARBALL" gitleaks
+          rm -f "$TARBALL"
           gitleaks version
 
       - name: Install dependencies
