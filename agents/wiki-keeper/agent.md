@@ -4,6 +4,7 @@ description: Use this agent to ingest sources, query, or lint an LLM-maintained 
 author: ai-toolkit-dev-skills
 presets:
   - dev-skills
+  - dots-baseline
 tools:
   - claude-code
   - cursor

@@ -69,7 +69,7 @@ git clone <repo>
 cd ai-toolkit
 make dev               # npm install
 make bootstrap         # self-host: .claude/, .cursor/, .github/, .kiro/ all symlinked to source
-make test              # 332 tests, expect green
+make test              # 360 tests, expect green
 ```
 
 Before pushing or sharing:
