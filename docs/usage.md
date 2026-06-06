@@ -20,7 +20,7 @@ ai-toolkit update    [--target <project-root>] [--tool <name>]
 ai-toolkit remove    [--target <project-root>] [--tool <name>]
                      [--preset <name>] [--skills a,b] [--agents c]
                      [--commands d] [--hooks e] [--rules f] [--mcp g]
-                     [--all] [--dry-run]
+                     [--scope workspace|global] [--all] [--dry-run]
 
 ai-toolkit installed [--target <project-root>] [--tool <name>]
                      [--type skills|agents|commands|hooks|rules|mcp]

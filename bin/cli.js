@@ -118,6 +118,7 @@ const removeCmd = program
   .option('--target <path>', 'project root (defaults to current directory)')
   .option('--tool <name>', 'specific tool to remove from; if omitted, autodiscover')
   .option('--preset <name>', 'remove every tracked asset that belongs to this preset')
+  .addOption(new Option('--scope <scope>', 'install scope').choices(['global', 'workspace']).default('workspace'))
   .option('--all', 'remove every tracked asset', false)
   .option('--dry-run', 'plan only, write nothing', false)
   .option('--verbose', 'verbose output', false);
@@ -128,6 +129,7 @@ commonAssetOptions(removeCmd).action(async (opts) => {
     target: opts.target,
     tool: opts.tool,
     preset: opts.preset,
+    scope: opts.scope,
     skills: opts.skills,
     agents: opts.agents,
     commands: opts.commands,
