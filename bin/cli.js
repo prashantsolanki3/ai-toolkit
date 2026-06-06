@@ -164,17 +164,24 @@ program
   .option('--tool <name>', 'show only this tool')
   .option('--type <type>', 'filter the report to a single asset type (skills, agents, commands, hooks, rules, mcp)')
   .option('--preset <name>', 'filter the report to assets in this preset')
+  .option('--scope <scope>', 'workspace (default) or global')
+  .option('--check', 'drift-check mode: exit non-zero if any installed asset has drifted from its lockfile sha', false)
   .option('--verbose', 'verbose output', false)
   .action(async (opts) => {
     const logger = makeLogger(opts);
-    await installed({
+    const res = await installed({
       target: opts.target,
       tool: opts.tool,
       type: opts.type,
       preset: opts.preset,
+      scope: opts.scope,
+      check: opts.check,
       sourceRoot: SOURCE_ROOT,
       logger,
     });
+    if (opts.check && res && Array.isArray(res.drift) && res.drift.length > 0) {
+      process.exitCode = 1;
+    }
   });
 
 program.parseAsync(process.argv).catch((err) => {
