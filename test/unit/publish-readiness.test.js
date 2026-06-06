@@ -4,11 +4,15 @@
  * Verifies that:
  *  1. package.json is NOT private (private !== true).
  *  2. publishConfig.access === 'public' is declared.
- *  3. The `files` allowlist includes every asset directory and the bin entry.
- *  4. The `files` allowlist excludes dev-only paths (test/, scripts/, PLAN.md).
- *  5. `npm pack --dry-run` confirms the packed tarball includes the required
- *     asset dirs and excludes dev cruft.
- *  6. The bin entry exists on disk and starts with a proper shebang.
+ *  3. The `files` allowlist includes every required asset directory.
+ *  4. `npm pack --dry-run` confirms the packed tarball includes the required
+ *     asset dirs/files and excludes dev cruft (test/, scripts/, PLAN.md, etc.).
+ *  5. The bin entry exists on disk and starts with a proper shebang.
+ *  6. The package version is a valid >= 1.x SemVer.
+ *
+ * Note: the dev-only-path exclusion is asserted against the packed tarball
+ * (the source of truth for what ships), not against the raw `files` array,
+ * because `files` is an include-list and never names the excluded paths.
  */
 
 import { test } from 'node:test';
@@ -28,12 +32,17 @@ const REQUIRED_FILES = ['manifest.json', 'LICENSE', 'README.md'];
 // Paths that must NOT appear in the tarball.
 const EXCLUDED_PREFIXES = ['test/', 'scripts/', 'PLAN.md', '.claude/', '.cursor/', 'node_modules/'];
 
+// Memoized: `npm pack --dry-run` is invoked once per process, not per call.
+let _packedPaths = null;
 function packedPaths() {
-  const out = execFileSync('npm', ['pack', '--dry-run', '--json'], {
-    cwd: REPO_ROOT,
-    encoding: 'utf8',
-  });
-  return JSON.parse(out)[0].files.map((f) => f.path);
+  if (_packedPaths === null) {
+    const out = execFileSync('npm', ['pack', '--dry-run', '--json'], {
+      cwd: REPO_ROOT,
+      encoding: 'utf8',
+    });
+    _packedPaths = JSON.parse(out)[0].files.map((f) => f.path);
+  }
+  return _packedPaths;
 }
 
 test('package.json is not private', () => {
