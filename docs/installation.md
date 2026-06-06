@@ -1,26 +1,23 @@
 # Installation
 
-ai-toolkit is distributed as a **private GitHub repo**, not published to npm. Three ways to use it:
+ai-toolkit is published to npm. No local clone needed.
 
-## 1. `npx` from GitHub (the eventual production path)
-
-Once the repo is on GitHub:
+## 1. `npx` from npm (canonical — pin a version)
 
 ```bash
-npx git+ssh://git@github.com:<you>/ai-toolkit.git install \
+# Install for every supported tool at once (pinned to v1.0.0):
+cd ~/my-project
+npx ai-toolkit@1.0.0 install --preset skill-development
+
+# Or target a single tool:
+npx ai-toolkit@1.0.0 install \
   --tool claude-code \
   --preset skill-development
 ```
 
-Pin to a specific commit with a `#sha` suffix if you want reproducible installs across machines:
+Pinning the version (`@1.0.0`) gives you reproducible installs across machines and lockfiles — `npm` records the resolved version in your lockfile on first install. Omitting the tag gives you the latest published release.
 
-```bash
-npx git+ssh://git@github.com:<you>/ai-toolkit.git#abc1234 install ...
-```
-
-The machine running `npx` needs SSH access to the private repo (your SSH key on GitHub). No npm registry traffic.
-
-## 2. `npx` from a local checkout (before the repo lands on GitHub)
+## 2. `npx` from a local checkout (during dev / before publish)
 
 ```bash
 # From any other directory
@@ -64,6 +61,20 @@ npm unlink -g ai-toolkit
 ```
 
 `npm link` symlinks the toolkit's `bin/cli.js` into your global npm bin. The downside is one more thing to remember to unlink.
+
+## Pinning in dots / downstream repos
+
+For a downstream repo (e.g. `dots`) that needs a stable, reproducible reference:
+
+```bash
+# Install and record in package.json:
+npm install --save-dev ai-toolkit@1.0.0
+
+# Or run without persisting:
+npx ai-toolkit@1.0.0 install --tool claude-code --preset dev-skills
+```
+
+The exact version to pin: **`1.0.0`** (tag `v1.0.0`).
 
 ## Verifying the installation
 

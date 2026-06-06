@@ -2,7 +2,7 @@
 
 Tool-agnostic CLI that installs and updates skills, agents, commands, hooks, rules, and MCP servers across AI coding tools. Currently ships configs for **Claude Code**, **Cursor**, **Antigravity**, **Gemini CLI**, **VS Code Copilot**, **GitHub Copilot CLI**, **Kiro**, and **Kiro CLI** — adding a new tool is one block in [`config/tools.json`](config/tools.json).
 
-Distributed as a **private GitHub repo**, installed via `npx git+ssh://...` directly from the repo. Not published to npm.
+Published to npm. Install without a local clone via `npx ai-toolkit@<version> install ...`.
 
 > **What's actually tested.** The automated suite verifies file placement, lockfile correctness, update conflict detection, and that each configured tool's destination paths/format match what's declared in `config/tools.json`. It does **not** verify that the receiving IDE/CLI actually ingests those files — that requires running each tool. See [`docs/verification-matrix.md`](docs/verification-matrix.md) for the per-tool manual check.
 
@@ -11,16 +11,22 @@ Distributed as a **private GitHub repo**, installed via `npx git+ssh://...` dire
 ```bash
 # From any project directory — installs for every supported tool at once.
 cd ~/my-project
-npx --yes git+ssh://git@github.com:<you>/ai-toolkit.git install --preset skill-development
+npx ai-toolkit@1.0.0 install --preset skill-development
 
 # Or stay surgical with one tool:
-npx --yes git+ssh://git@github.com:<you>/ai-toolkit.git install \
+npx ai-toolkit@1.0.0 install \
   --tool claude-code --preset skill-development
 ```
 
 `--target` defaults to the current directory; the tool decides which subdirectory to populate (`.claude/`, `.cursor/`, `.github/`, `.kiro/`, …). Pass `--target ~/repos/other` to install into a different project.
 
-Repo not on GitHub yet? Point `npx` at a local path — see [`docs/installation.md`](docs/installation.md#2-npx-from-a-local-checkout-before-the-repo-lands-on-github).
+Prefer a reproducible reference for your lockfile? Pin the exact version tag:
+
+```bash
+npx ai-toolkit@1.0.0 install --tool claude-code --preset dev-skills
+```
+
+For other install methods (local checkout, `npm link`, `npx` from a Git URL) see [`docs/installation.md`](docs/installation.md).
 
 ## Documentation
 
@@ -68,13 +74,13 @@ git clone <repo>
 cd ai-toolkit
 make dev               # npm install
 make bootstrap         # self-host: .claude/, .cursor/, .github/, .kiro/ all symlinked to source
-make test              # 307 tests, expect green
+make test              # 330 tests, expect green
 ```
 
 Before pushing or sharing:
 
 ```bash
-make release-check     # lint + tests + scan + verify-tools + verify-manifest + e2e
+make release-check     # lint + tests + scan + verify-tools + verify-manifest + e2e + pack-check
 ```
 
 See [docs/contributing.md](docs/contributing.md) for the full contributor flow and [docs/architecture.md](docs/architecture.md) for the design.
