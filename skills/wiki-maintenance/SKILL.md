@@ -17,16 +17,16 @@ This project uses the **LLM-maintained wiki pattern**: raw sources → LLM-curat
 
 ## Check first
 
-Before doing anything, verify the project has a wiki by checking for `docs/CLAUDE.md`:
+Before doing anything, resolve the wiki root the same way the `wiki-keeper` agent does — a local `docs/` is **not** mandatory. Use `./docs/` if the current repo hosts its own wiki; otherwise probe sibling hosts in order (`../smart-agents-hub/docs/`, `../../smart-agents-hub/docs/`, or `$SMART_AGENTS_HUB/docs/`) and write there. Verify the resolved root has a schema:
 
 ```bash
-test -f docs/CLAUDE.md && echo "wiki initialised" || echo "wiki not initialised — run scaffold"
+test -f docs/CLAUDE.md && echo "wiki initialised" || echo "no local wiki — probe siblings or scaffold"
 ```
 
-If not initialised:
+If no wiki is reachable from any host, scaffold one with whatever wiki-scaffolding flow your environment provides. In SmartAgents that's the dots playbook (one example, not a hard requirement — any equivalent scaffolder works):
 
 ```bash
-# From the dots repo root
+# Example: from the dots repo root
 ansible-playbook scaffold-wiki.yml \
   -e "wiki_target=$(pwd)"
 ```
@@ -52,7 +52,7 @@ Queries may cite governed pages. Ingests may reference them. Lint flags cross-zo
 
 ## Tooling
 
-- **qmd** (local BM25/vector/rerank markdown search — npm package `@tobilu/qmd`) is installed via dots and MCP-registered. One-time setup in the project: `qmd collection add docs/ && qmd embed`. Claude uses `mcp__qmd__query` transparently.
+- **qmd** (local BM25/vector/rerank markdown search — npm package `@tobilu/qmd`) is MCP-registered by the `dots-baseline` preset (which ships the `qmd` MCP entry); install the `qmd` binary itself separately (`npm i -g @tobilu/qmd`). One-time setup in the project: `qmd collection add docs/ && qmd embed`. Claude uses `mcp__qmd__query` transparently.
 - **Obsidian** (optional) as a GUI reader — open the repo as a vault, `[[wiki-links]]` resolve natively, graph view shows entity clusters.
 - **Obsidian Web Clipper** — clip articles to `docs/sources/clippings/` as markdown, then `/wiki-ingest` them.
 - **Marp CLI** (optional, `@marp-team/marp-cli`) — render wiki pages as slide decks.

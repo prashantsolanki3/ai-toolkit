@@ -22,7 +22,7 @@ Run a lint/health-check over the project's wiki at `docs/`.
 
 ## Flow
 
-1. Read `docs/CLAUDE.md` (schema). If it doesn't exist, stop.
+1. Resolve the wiki root the same way the `wiki-keeper` agent does — use `./docs/` if the current repo hosts its own wiki, otherwise probe sibling hosts (`../smart-agents-hub/docs/`, `../../smart-agents-hub/docs/`, or `$SMART_AGENTS_HUB/docs/`). Read the resolved `docs/CLAUDE.md` (schema). Only if no `docs/CLAUDE.md` is reachable from any host, stop.
 
 2. Delegate to the `wiki-keeper` subagent via the `Agent` tool with `subagent_type: wiki-keeper` and a prompt that:
    - Tells it to run the **lint** flow as defined in the schema.

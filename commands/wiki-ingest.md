@@ -22,7 +22,7 @@ Ingest a new source into the project's wiki at `docs/`.
 
 ## Flow
 
-1. Read `docs/CLAUDE.md` (the wiki schema) first. If it doesn't exist, stop and tell the user to initialise the wiki (from the dots repo root: `ansible-playbook scaffold-wiki.yml -e "wiki_target=$(pwd)"`).
+1. Resolve the wiki root, then read its `docs/CLAUDE.md` (the wiki schema) first. Follow the same resolution rules as the `wiki-keeper` agent: use `./docs/CLAUDE.md` if the current repo hosts its own wiki, otherwise probe sibling hosts (`../smart-agents-hub/docs/CLAUDE.md`, `../../smart-agents-hub/docs/CLAUDE.md`, or `$SMART_AGENTS_HUB/docs/CLAUDE.md`). Only if no `docs/CLAUDE.md` is reachable, stop and tell the user the wiki isn't initialised. To scaffold one, run the canonical wiki-scaffolding flow (in SmartAgents this is the dots playbook: `ansible-playbook scaffold-wiki.yml -e "wiki_target=$(pwd)"`).
 
 2. Delegate to the `wiki-keeper` subagent via the `Agent` tool with `subagent_type: wiki-keeper` and a prompt that:
    - Includes the source path/URL from `$ARGUMENTS`.

@@ -1,10 +1,13 @@
 // test/integration/dots-baseline-preset.test.js
 //
-// TDD tests for ai-toolkit#14: ingest dots-owned generic Claude Code assets
-// into ai-toolkit and register them in a new `dots-baseline` preset.
+// Regression coverage for ai-toolkit#14: the dots-owned generic Claude Code
+// assets ingested into ai-toolkit and registered in the `dots-baseline` preset.
 //
-// Tests are written BEFORE the assets exist — they MUST fail RED until
-// the assets and manifest are in place.
+// These were authored TDD-first (RED before the assets existed); they now serve
+// as the standing guarantee that the wiki commands, wiki-maintenance skill,
+// preserve-effort-max hook, qmd/sonarqube MCP entries, and wiki-keeper agent
+// stay present, correctly registered in the manifest + preset, and install/
+// remove cleanly with a correct lockfile.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

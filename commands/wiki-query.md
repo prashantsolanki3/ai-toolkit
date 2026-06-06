@@ -22,7 +22,7 @@ Query the project's wiki at `docs/` for a question and synthesise an answer.
 
 ## Flow
 
-1. Read `docs/CLAUDE.md` (the schema) and `docs/INDEX.md` (the catalog). If neither exists, stop and tell the user the wiki isn't initialised.
+1. Resolve the wiki root the same way the `wiki-keeper` agent does — use `./docs/` if the current repo hosts its own wiki, otherwise probe sibling hosts (`../smart-agents-hub/docs/`, `../../smart-agents-hub/docs/`, or `$SMART_AGENTS_HUB/docs/`). Read the resolved `docs/CLAUDE.md` (the schema) and `docs/INDEX.md` (the catalog). Only if no `docs/CLAUDE.md` is reachable from any host, stop and tell the user the wiki isn't initialised.
 
 2. Delegate to the `wiki-keeper` subagent via the `Agent` tool with `subagent_type: wiki-keeper` and a prompt that:
    - Includes the question from `$ARGUMENTS`.

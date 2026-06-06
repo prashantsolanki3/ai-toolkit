@@ -347,7 +347,7 @@
       "mcp": []
     },
     "dots-baseline": {
-      "description": "Parity preset for the SmartAgents dots role (roles/claude_code) — installs wiki commands (ingest/query/lint), wiki-maintenance skill, wiki-keeper agent, preserve-effort-max hook, qmd MCP, and sonarqube MCP. Running `ai-toolkit install --preset dots-baseline` reproduces everything the dots role drops into ~/.claude.",
+      "description": "Parity preset for the SmartAgents dots role (roles/claude_code) — installs wiki commands (ingest/query/lint), wiki-maintenance skill, wiki-keeper agent, preserve-effort-max hook, qmd MCP, and sonarqube MCP. Running `ai-toolkit install --tool claude-code --preset dots-baseline` reproduces everything the dots role drops into ~/.claude.",
       "skills": [
         "wiki-maintenance"
       ],

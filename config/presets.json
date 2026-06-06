@@ -11,7 +11,7 @@
       "description": "Microsoft Dynamics 365 Business Central development and testing — driving the SmartAgents AL API as an external caller, validating agent behavior end-to-end via the synchronous chat loop + Tool Call Log, and seeding/regression-testing sandbox environments without clicking through the BC UI."
     },
     "dots-baseline": {
-      "description": "Parity preset for the SmartAgents dots role (roles/claude_code) — installs wiki commands (ingest/query/lint), wiki-maintenance skill, wiki-keeper agent, preserve-effort-max hook, qmd MCP, and sonarqube MCP. Running `ai-toolkit install --preset dots-baseline` reproduces everything the dots role drops into ~/.claude."
+      "description": "Parity preset for the SmartAgents dots role (roles/claude_code) — installs wiki commands (ingest/query/lint), wiki-maintenance skill, wiki-keeper agent, preserve-effort-max hook, qmd MCP, and sonarqube MCP. Running `ai-toolkit install --tool claude-code --preset dots-baseline` reproduces everything the dots role drops into ~/.claude."
     }
   }
 }
