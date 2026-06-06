@@ -132,6 +132,38 @@ export function getMcpConfigPath(tool, scope, projectRoot) {
   return path.resolve(root, expanded);
 }
 
+// Some tools (Claude Code) only fire an installed hook script when it is
+// referenced from a settings file under a `hooks` block. hooksConfig declares
+// where that settings file lives per scope and the wrapper key the hook
+// entries nest under — the exact same model as mcpConfig. Tools without a
+// hooksConfig don't support settings-level hook registration (the script is
+// either discovered by other means, e.g. Kiro's .kiro.hook sidecar, or the
+// tool has no hooks at all).
+export function getSettingsConfigPath(tool, scope, projectRoot) {
+  const cfg = tool.hooksConfig;
+  if (!cfg || !cfg.file) {
+    throw new Error(`Tool "${tool.displayName}" does not register hooks in a settings file (no hooksConfig).`);
+  }
+  const file = cfg.file[scope];
+  if (file == null) {
+    throw new Error(
+      `Tool "${tool.displayName}" does not register hooks at scope "${scope}" (hooksConfig.file.${scope} is null).`,
+    );
+  }
+  const expanded = expandHome(file);
+  if (path.isAbsolute(expanded)) return expanded;
+  const root = projectRoot ? expandHome(projectRoot) : process.cwd();
+  return path.resolve(root, expanded);
+}
+
+export function getSettingsWrapperPath(tool) {
+  const cfg = tool.hooksConfig;
+  if (!cfg || !Array.isArray(cfg.wrapperPath)) {
+    throw new Error(`Tool "${tool.displayName}" does not register hooks in a settings file (no hooksConfig.wrapperPath).`);
+  }
+  return [...cfg.wrapperPath];
+}
+
 export function getMcpWrapperPath(tool) {
   const cfg = tool.mcpConfig;
   if (!cfg || !Array.isArray(cfg.wrapperPath)) {

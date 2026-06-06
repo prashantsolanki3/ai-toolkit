@@ -70,6 +70,19 @@
         "vscode-copilot",
         "copilot-cli"
       ]
+    },
+    "wiki-maintenance": {
+      "description": "Use this skill whenever the user asks to ingest a source, file material into the wiki, search/query the wiki, run a wiki lint/health check, or drops content into a project's `docs/sources/` directory. Triggers include \"ingest this\", \"add to wiki\", \"file this under\", \"search the wiki\", \"check the wiki\", \"wiki lint\", \"process these sources\", \"file this back\", \"what does the wiki say about\", \"has anyone looked into\". Explains the LLM-maintained wiki pattern, the three slash commands (`/wiki-ingest`, `/wiki-query`, `/wiki-lint`), the wiki-keeper subagent, and the qmd search tool.",
+      "presets": [
+        "dots-baseline"
+      ],
+      "author": "ai-toolkit-dev-skills",
+      "tools": [
+        "claude-code",
+        "cursor",
+        "vscode-copilot",
+        "copilot-cli"
+      ]
     }
   },
   "agents": {
@@ -83,7 +96,8 @@
     "wiki-keeper": {
       "description": "Use this agent to ingest sources, query, or lint an LLM-maintained wiki. Trigger when the user drops material in `docs/sources/`, asks to ingest a file or URL, asks a research/synthesis question that likely already exists in the wiki, asks to file a result back, or asks to run a lint/health-check. Reads the schema from `docs/CLAUDE.md` (or `../smart-agents-hub/docs/CLAUDE.md` when the current repo has no local wiki). Writes only to LLM-maintained zones; never touches governed-zone docs.",
       "presets": [
-        "dev-skills"
+        "dev-skills",
+        "dots-baseline"
       ],
       "author": "ai-toolkit-dev-skills",
       "tools": [
@@ -135,6 +149,69 @@
         "copilot-cli"
       ],
       "argument-hint": "[--pr-number N | --from-branch B] [--scope=docs|code|security]"
+    },
+    "wiki-ingest": {
+      "description": "File a new source into the LLM-maintained wiki — reads, summarises, updates entities/concepts, logs.",
+      "presets": [
+        "dots-baseline"
+      ],
+      "author": "ai-toolkit-dev-skills",
+      "tools": [
+        "claude-code",
+        "vscode-copilot",
+        "copilot-cli"
+      ],
+      "argument-hint": "<path-or-url>",
+      "overrides": {
+        "vscode-copilot": {
+          "mode": "agent"
+        },
+        "copilot-cli": {
+          "mode": "agent"
+        }
+      }
+    },
+    "wiki-lint": {
+      "description": "Health-check the LLM-maintained wiki — flags orphans, stale pages, contradictions, dangling wiki-links, missing pages, and INDEX drift.",
+      "presets": [
+        "dots-baseline"
+      ],
+      "author": "ai-toolkit-dev-skills",
+      "tools": [
+        "claude-code",
+        "vscode-copilot",
+        "copilot-cli"
+      ],
+      "argument-hint": "[--apply]",
+      "overrides": {
+        "vscode-copilot": {
+          "mode": "agent"
+        },
+        "copilot-cli": {
+          "mode": "agent"
+        }
+      }
+    },
+    "wiki-query": {
+      "description": "Answer a question from the LLM-maintained wiki with citations; optionally file the answer back so the synthesis compounds.",
+      "presets": [
+        "dots-baseline"
+      ],
+      "author": "ai-toolkit-dev-skills",
+      "tools": [
+        "claude-code",
+        "vscode-copilot",
+        "copilot-cli"
+      ],
+      "argument-hint": "<question>",
+      "overrides": {
+        "vscode-copilot": {
+          "mode": "agent"
+        },
+        "copilot-cli": {
+          "mode": "agent"
+        }
+      }
     }
   },
   "hooks": {
@@ -147,6 +224,17 @@
       "tools": [
         "claude-code",
         "kiro"
+      ],
+      "event": "SessionStart"
+    },
+    "preserve-effort-max": {
+      "description": "SessionStart hook — keep Claude Code pinned to \"max\" effort by restoring effortLevel in ~/.claude/settings.json after any CLI rewrite.",
+      "presets": [
+        "dots-baseline"
+      ],
+      "author": "ai-toolkit-dev-skills",
+      "tools": [
+        "claude-code"
       ],
       "event": "SessionStart"
     }
@@ -165,6 +253,45 @@
           "-y",
           "@modelcontextprotocol/server-everything"
         ]
+      }
+    },
+    "qmd": {
+      "description": "Local BM25/vector/rerank markdown search via qmd — powers wiki-query's mcp__qmd__query tool. One-time setup per project: `qmd collection add docs/ && qmd embed`.",
+      "presets": [
+        "dots-baseline"
+      ],
+      "author": "ai-toolkit-dev-skills",
+      "tools": [
+        "claude-code"
+      ],
+      "config": {
+        "command": "qmd",
+        "args": [
+          "mcp"
+        ],
+        "env": {}
+      }
+    },
+    "sonarqube": {
+      "description": "SonarQube/SonarCloud MCP server — issue tracking, quality gates, code measures, hotspots, and source blame via the sonarqube-mcp-server package.",
+      "presets": [
+        "dots-baseline"
+      ],
+      "author": "ai-toolkit-dev-skills",
+      "tools": [
+        "claude-code"
+      ],
+      "config": {
+        "command": "npx",
+        "args": [
+          "-y",
+          "sonarqube-mcp-server@latest"
+        ],
+        "env": {
+          "SONARQUBE_URL": "https://sonarcloud.io",
+          "SONARQUBE_TOKEN": "${SONARQUBE_TOKEN}",
+          "SONARQUBE_ORGANIZATION": "${SONARQUBE_ORGANIZATION}"
+        }
       }
     }
   },
@@ -218,6 +345,28 @@
       "hooks": [],
       "rules": [],
       "mcp": []
+    },
+    "dots-baseline": {
+      "description": "Parity preset for the SmartAgents dots role (roles/claude_code) — installs wiki commands (ingest/query/lint), wiki-maintenance skill, wiki-keeper agent, preserve-effort-max hook, qmd MCP, and sonarqube MCP. Running `ai-toolkit install --tool claude-code --preset dots-baseline` reproduces everything the dots role drops into ~/.claude.",
+      "skills": [
+        "wiki-maintenance"
+      ],
+      "agents": [
+        "wiki-keeper"
+      ],
+      "commands": [
+        "wiki-ingest",
+        "wiki-lint",
+        "wiki-query"
+      ],
+      "hooks": [
+        "preserve-effort-max"
+      ],
+      "rules": [],
+      "mcp": [
+        "qmd",
+        "sonarqube"
+      ]
     }
   }
 }
