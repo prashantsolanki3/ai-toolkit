@@ -1,11 +1,13 @@
 {
-  "name": "ai-toolkit",
-  "version": "0.1.0",
-  "private": true,
+  "name": "@prashantsolanki3/ai-toolkit",
+  "version": "1.0.0",
   "description": "Tool-agnostic CLI that installs and updates skills, agents, commands, and hooks across AI coding tools",
   "type": "module",
   "bin": {
     "ai-toolkit": "./bin/cli.js"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "engines": {
     "node": ">=18"
@@ -18,10 +20,12 @@
     "src",
     "config",
     "manifest.json",
-    "skills",
     "agents",
     "commands",
     "hooks",
+    "mcp",
+    "rules",
+    "skills",
     "LICENSE",
     "README.md"
   ],
